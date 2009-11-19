@@ -1,0 +1,25 @@
+<?php
+
+// Metabase Settings 
+$conf['metabase']['type'] = 'postgres';
+$conf['metabase']['hostname'] = 'localhost';
+$conf['metabase']['database'] = 'irondata';
+$conf['metabase']['username'] = 'username';
+$conf['metabase']['password'] = 'password';
+
+//location of software relative to /var/www/
+$conf['paths']['sw_path'] = 'irondata/';
+
+//location of tmp folder relative to /var/www/
+$conf['paths']['tmp_path'] = 'graphs/';
+
+$conf['paths']['svg2pdf_path'] = '/opt/svg2pdf/';
+$conf['paths']['phpmailer_path'] = '/opt/phpmailer/';
+
+$conf['email']['host'] = "mail.example.com";
+$conf['email']['username'] = "username";
+$conf['email']['password'] = "password";
+$conf['email']['from_address'] = "user@example.com";
+$conf['email']['from_name'] = "User Name";
+
+?>

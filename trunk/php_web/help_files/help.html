@@ -1,0 +1,332 @@
+<html>
+	<head>
+		<style>
+			body {
+				width: 100%;
+				height: 100%;
+				margin: 0px;
+				padding: 0px;
+				border: 0px;
+				font-family: Georgia;
+				font-size: 10pt;
+			}
+			.container {
+				width: 640px;
+				margin: 0px auto;
+				padding: 20px;
+			}
+			h1 {
+				margin: 0px;
+				text-align: center;
+			}
+			h2 {
+				margin: 40px 0px 20px 0px;
+			}
+			p {
+				margin: 20px 0px;
+			}
+			p.spaceabove {
+				margin-top: 40px;
+			}
+			pre {
+				margin: 20px 20px;
+				padding: 10px;
+				border: 1px solid #d3d7cf;
+				background-color: #eeeeec;
+				color: #2e3436;
+				font-size: 8pt;
+			}
+				pre span {
+					color: #888a85;
+				}
+			p.above_pre {
+				margin-bottom: 10px;
+				color: #555753;
+				font-style: italic;
+			}
+			p.below_pre {
+				margin-top: 10px;
+				color: #555753;
+				font-style: italic;
+			}
+			pre.p_above {
+				margin-top: 10px;
+			}
+			pre.p_below {
+				margin-bottom: 10px;
+			}
+			hr {
+				margin: 20px 50px;
+				border-width: 1px 0px 0px 0px;
+				border-style: solid;
+				border-color: #d3d7cf;
+			}
+			ul {
+				margin: 20px 0px;
+			}
+				ul li {
+				}
+			ul.toc {
+				padding: 0px;
+				list-style-type: decimal;
+			}
+				ul.toc li {
+					margin: 10px 0px;
+				}
+					ul.toc li a:before {
+						content: "\21B4";
+					}
+			a {
+				border-bottom: 1px dotted #204a87;
+				color: #204a87;
+				text-decoration: none;
+			}
+			a.top {
+			}
+				a.top:before {
+					content: "\2191";
+				}
+		</style>
+	</head>
+	<body>
+		<div class='container'>
+			<h1>Installation</h1>
+			<hr />
+			<ul class="toc">
+				<li><a href="#Notes">Notes</a></li>
+				<li><a href="#packages">Install Packages</a></li>
+				<li><a href="#php">Configure PHP</a></li>
+				<li><a href="#apache">Configure Apache Modules</a></li>
+				<li><a href="#user">Create User</a></li>
+				<li><a href="#postgres">Install Postgresql</a></li>
+				<li><a href="#svn">Install Irondata Source Code</a></li>
+				<li><a href="#irondata">Configure Irondata</a></li>
+				<li><a href="#database">Create Database</a></li>
+				<li><a href="#svg2pdf">Install svg2pdf</a></li>
+				<li><a href="#phpmailer">Install PHPMailer</a></li>
+				<li><a href="#crontab">Configure Crontab</a></li>
+			</ul>
+			<hr />
+
+<!--			<a name="example"></a>
+			<h2>Summary</h2>
+			<p>Justification</p>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'>shell action</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />-->
+
+			<a name="notes"></a>
+			<h2>Notes</h2>
+			<p>This document assumes a default database user account and install location. These can be changed, but please take care.</p>
+			<p class='above_pre'>Default database user name:</p>
+			<pre class='p_above'>irondata</pre>
+			<p class='above_pre'>Default install location:</p>
+			<pre class='p_above'>/home/irondata</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="packages"></a>
+			<h2>Install Packages</h2>
+			<p class='above_pre'>Install required packages with apt:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo apt-get install apache2 php5 php5-cli subversion</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="php"></a>
+			<h2>Configure PHP</h2>
+			<p>The default configuration of PHP limits memory use to 32MB. Creating graphs and tables frequently requires more memory.</p>
+			<p class='above_pre'>Open the php.ini configuration file:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo nano /etc/php5/apache2/php.ini</pre>
+			<p class='above_pre'>Find the line:</p>
+			<pre class='p_above'>memory_limit = 32M      ; Maximum amount of memory a script may consume (32MB)</pre>
+			<p class='above_pre'>Change to:</p>
+			<pre class='p_above'>memory_limit = 256M      ; Maximum amount of memory a script may consume (256MB)</pre>
+			<p class='above_pre'>Open the CLI php.ini configuration file:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo nano /etc/php5/cli/php.ini</pre>
+			<p class='above_pre'>Find the line:</p>
+			<pre class='p_above'>memory_limit = 32M      ; Maximum amount of memory a script may consume (32MB)</pre>
+			<p class='above_pre'>Change to:</p>
+			<pre class='p_above'>memory_limit = 256M      ; Maximum amount of memory a script may consume (256MB)</pre>
+
+			<p class='spaceabove'>Restarting Apache is required for these changes to take effect.</p>
+			<p class='above_pre'>Restart Apache for changes to take effect:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo /etc/init.d/apache2 restart</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="apache"></a>
+			<h2>Configure Apache Modules</h2>
+			<p>Irondata's module structure requires the Apache Rewright module.</p>
+			<p class='above_pre'>Enable the Rewrite module</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo a2enmod rewrite</pre>
+			<p class='above_pre'>Open the Apache sites configuration file:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo nano /etc/apache2/sites-enabled/000-default</pre>
+			<p class='above_pre'>Find the lines:</p>
+			<pre class='p_above'>&lt;Directory /var/www/&gt;
+	Options Indexes FollowSymLinks MultiViews
+	AllowOverride None 
+	Order allow,deny 
+	allow from all 
+&lt;/Directory&gt;</pre>
+			<p class='above_pre'>Find the line:</p>
+			<pre class='p_above'>AllowOverride None</pre>
+			<p class='above_pre'>Change to:</p>
+			<pre class='p_above'>AllowOverride All</pre>
+
+			<p class='spaceabove'>Irondata requires the Apache LDAP module for LDAP authentication.</p>
+			<p class='above_pre'>Enable the LDAP module:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo a2enmod ldap</pre>
+
+			<p class='spaceabove'>Restarting Apache is required for these changes to take effect.</p>
+			<p class='above_pre'>Restart Apache for changes to take effect:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo /etc/init.d/apache2 restart</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="user"></a>
+			<h2>Create User</h2>
+			<p>A new user account is required to create the database, and for PHP to access the database.</p>
+			<p class='above_pre'>Create a new user account:</p>
+			<pre class='p_above p_below'><span>user@user-desktop:~$ </span>sudo adduser --no-create-home irondata</pre>
+			<p class='below_pre'>When prompted, enter a desired password.</p>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="postgres"></a>
+			<h2>Install Postgresql</h2>
+			<p>PostgreSQL is required for storage of data.</p>
+			<p class='above_pre'>Install PostgreSQL and PHP-PostgreSQL libraries:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo apt-get install postgresql php5-pgsql</pre>
+
+			<p class='spaceabove'>A new PostgreSQL role is required for the database user to be able to access the database.</p>
+			<p class='above_pre'>Log in as the PostgreSQL administrator</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo su - postgres</pre>
+			<p class='above_pre'>Create a role for the database user:</p>
+			<pre class='p_above p_below'><span>postgres@user-desktop:~$ </span>createuser -P -s irondata</pre>
+			<p class='below_pre'>When prompted, enter the password for the user created above.</p>
+
+			<p class='spaceabove'> Irondata requires plPGSQL for database triggers and functions.</p>
+			<p class='above_pre'>Add the plPGSQL language to the system:</p>
+			<pre class='p_above'><span>postgres@user-desktop:~$ </span>createlang plpgsql</pre>
+
+			<p class='spaceabove'>Restarting Apache and PostgreSQL is required for these changes to take effect.</p>
+			<p class='above_pre'>Log out as the PostgreSQL Administrator:</p>
+			<pre class='p_above'><span>postgres@user-desktop:~$ </span>exit</pre>
+			<p class='above_pre'>Restart PostgreSQL for changes to take effect:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo /etc/init.d/postgresql-8.3 restart</pre>
+			<p class='above_pre'>Restart Apache for changes to take effect:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo /etc/init.d/apache2 restart</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="svn"></a>
+			<h2>Install Irondata Source Code</h2>
+			<p>The source code must be downloaded and placed in the appropriate folder.</p>
+			<p class='above_pre'>Download the source code:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo svn co svn://lgsolutions.com.au:3000/golf2/branches/head /home/irondata</pre>
+			<p class='above_pre'>Make the source code accessable over the internet:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo ln -s /home/irondata /var/www/irondata</pre>
+			<p class='above_pre'>Make the temporary folder accessable over the internet:</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo ln -s /tmp/graphs /var/www/graphs</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="irondata"></a>
+			<h2>Configure Irondata</h2>
+			<p>Justification</p>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo cp /home/irondata/php_web/conf.php.template \
+/home/irondata/php_web/conf.php</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo nano /home/irondata/php_web/conf.php</pre>
+<!-- 			<p class='above_pre'>action</p> -->
+			<pre class='p_above'>&lt;?php
+
+// Metabase Settings 
+$conf['metabase']['type'] = 'postgres';
+$conf['metabase']['hostname'] = 'localhost';
+$conf['metabase']['database'] = 'irondata';
+$conf['metabase']['username'] = 'username';
+$conf['metabase']['password'] = 'password';
+
+//location of software relative to /var/www/
+$conf['paths']['sw_path'] = 'irondata/';
+
+//location of tmp folder relative to /var/www/
+$conf['paths']['tmp_path'] = 'graphs/';
+
+?&gt;</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'>$conf['metabase']['username'] = 'username';</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'>$conf['metabase']['password'] = 'password';</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo chmod -R 755 /home/irondata</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="database"></a>
+			<h2>Create Database</h2>
+			<p>Justification</p>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo su - irondata</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>irondata@user-desktop:~$ </span>createdb irondata</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>irondata@user-desktop:~$ </span>cd /home/irondata/sql/</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>irondata@user-desktop:~/sql$ </span>./renew_db</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>irondata=# </span></pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>irondata=# </span>\q</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>irondata@user-desktop:~/sql$ </span>exit</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="svg2pdf"></a>
+			<h2>Install svg2pdf</h2>
+			<p>Justification</p>
+			<p class='above_pre'>action</p>
+			<pre class='p_above p_below'><span>user@user-desktop:~$ </span>sudo apt-get install librsvg2-dev libcairo2-dev git-core</pre>
+			<p class='below_pre'>Note</p>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo git clone git://people.freedesktop.org/~cworth/svg2pdf \
+/opt/svg2pdf/</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>cd /opt/svg2pdf/</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:/opt/svg2pdf$ </span>sudo make</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="phpmailer"></a>
+			<h2>Install PHPMailer</h2>
+			<p>Justification</p>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo cp /home/irondata/phpMailer_v2.3.tar.gz /opt/</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>cd /opt/</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:/opt$ </span>sudo tar -xvzf phpMailer_v2.3.tar.gz</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:/opt$ </span>sudo mv phpMailer_v2.3 phpmailer</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:/opt$ </span>sudo rm phpMailer_v2.3.tar.gz</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="crontab"></a>
+			<h2>Configure Crontab</h2>
+			<p>Justification</p>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo crontab -e</pre>
+			<p class='above_pre'>action</p>
+			<pre class='p_above'> 0 * * * * su - www-data -c 'php -f /var/www/irondata/php_web/croncall.php'</pre>
+			<a class="top" href="#top">Top</a>
+			<hr />
+		</div>
+	</body>
+</html>

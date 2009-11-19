@@ -1,0 +1,12 @@
+#!/bin/bash
+
+dropdb flights_auto
+createdb flights_auto
+psql flights_auto < create_tables.sql
+
+rm ./insert_data.sql
+touch ./insert_data.sql
+
+php -f ./create_data.php
+
+psql flights_auto < insert_data.sql

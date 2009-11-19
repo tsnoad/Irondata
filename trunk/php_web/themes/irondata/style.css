@@ -1,0 +1,306 @@
+html {
+	width: 100%;
+	height: 100%;
+}
+body {
+	width: 100%;
+	height: 100%;
+	font-family: Georgia;
+	font-size: 12pt;
+	color: #111;
+}
+a {
+	color: #111;
+	text-decoration: none;
+	border-bottom: 1px dotted #111;
+}
+	a.disabled {
+		color: #babdb6;
+		border-color: #888a85;
+	}
+	a.current {
+		font-weight: bold;
+	}
+p {
+	margin: 20px 0px;
+}
+p.error {
+	color: #a40000;
+}
+p.warning {
+	color: #a40000;
+}
+hr {
+	clear: both;
+	margin: 20px 0px;
+	border-width: 0px 0px 1px 0px;
+	border-style: solid;
+	border-color: #d3d7cf;
+}
+	hr + h3 {
+		margin-top: 40px;
+	}
+	hr + div h3:first-child {
+		margin-top: 40px;
+	}
+.container {
+	width: 100%;
+	min-height: 100%;
+	position: relative;
+}
+	.container .container2 {
+		margin: 20px;
+		padding: 0px 0px 100px 0px;
+	}
+	.container .footer {
+		width: 100%;
+		position: absolute;
+		bottom: 0px;
+	}
+		.footer_container {
+			margin: 20px;
+		}
+			.container .footer .footer_container p {
+				margin: 2px;
+				font-size: 8pt;
+				text-align: right;
+				color: #888a85;
+			}
+				.container .footer .footer_container p a {
+					border-color: #888a85;
+					color: #888a85;
+				}
+h1 {
+	margin: 20px 0px;
+	font-size: 24pt;
+	font-weight: bold;
+	text-align: center;
+}
+	h1 + p.h1attach {
+		margin: -20px 0px 20px 0px;
+		font-size:  10pt;
+		font-weight: normal;
+		font-style: italic;
+		text-align: center;
+	}
+h2 {
+	margin: 20px 0px;
+	font-size: 18pt;
+}
+	h2 + p.h2attach {
+		margin: -20px 0px 20px 30px;
+		font-size:  10pt;
+		font-weight: normal;
+		font-style: italic;
+	}
+
+h3 {
+	margin: 20px 0px;
+	font-size: 14pt;
+}
+	h3 + p.h3attach {
+		margin: -20px 0px 20px 30px;
+		font-size:  10pt;
+		font-weight: normal;
+		font-style: italic;
+	}
+ul.menu, div.reports ul {
+	margin: 20px 0px;
+	padding: 0px;
+	text-align: center;
+	list-style-type: none;
+}
+	ul.menu li, div.reports ul li {
+		margin: 0px 10px;
+		padding: 0px;
+		display: inline;
+	}
+ol {
+	margin: 20px 0px;
+	padding: 0px;
+	font-size: 8pt;
+}
+	ol li {
+		margin: 0px 10px 0px 0px;
+		padding: 0px;
+		display: inline;
+	}
+	ol > li:after {
+		content: " \00BB ";
+	}
+	ol > li:last-child:after {
+		content: none;
+	}
+		ol li a {
+			font-size: 12pt;
+			margin-right: 10px;
+		}
+div.tabular_data table {
+	margin: 20px auto;
+	font-family: Times New Roman;
+	font-size: 9pt;
+}
+	div.tabular_data table tr td, div.tabular_data table tr th {
+		margin: 0px;
+		padding: 2px 16px;
+		font-weight: normal;
+	}
+	div.tabular_data table tr td {
+		text-align: right;
+	}
+	div.tabular_data table tr th {
+		margin: 0px;
+		font-family: Georgia;
+		text-align: center;
+	}
+	div.tabular_data table tr.title th {
+		border-bottom: 3px double #babdb6;
+	}
+	div.tabular_data table tr.x-title th {
+	}
+		div.tabular_data table tr.x-title th.x-title {
+			border-bottom: 1px solid #babdb6;
+		}
+	div.tabular_data table tr.x-index th {
+		vertical-align: bottom;
+		border-bottom: 1px solid #babdb6;
+	}
+		table tr.x-index th.y-title {
+		}
+	div.tabular_data table tr th.y-index {
+		text-align: right;
+	}
+div.reports {
+	margin: 20px 0px;
+}
+	div.reports table {
+		width: 100%;
+	}
+		div.reports table tr th, div.reports table tr td {
+			border-bottom: 1px solid #eeeeec;
+		}
+		div.reports table tr th, div.reports table tr td {
+			padding: 5px;
+		}
+			div.reports table tr:last-child th, div.reports table tr:last-child td {
+				border-bottom: 0px;
+			}
+		div.reports table tr th {
+			text-align: left;
+			font-weight: normal;
+			color: #babdb6;
+		}
+			div.reports table tr:first-child th:first-child {
+				color: #888a85;
+			}
+			div.reports table tr:first-child th:first-child:after {
+				content: " \2193"
+			}
+		div.reports table tr td {
+			color: #888a85;
+			font-size: 10pt;
+		}
+			div.reports table tr td:first-child {
+				color: #000000;
+				font-size: 12pt;
+			}
+			div.reports table tr td ul {
+				margin: 0px;
+			}
+				div.reports table tr td ul li {
+					margin: 0px 5px;
+				}
+
+div.input {
+	margin: 10px 0px;
+	clear: both;
+}
+label {
+	position: relative;
+	width: 130px;
+	float: left;
+	margin-bottom: 10px;
+	text-align: left;
+}
+input + label {
+}
+input[type=radio] + label {
+	width: auto;
+	float: none;
+	margin-left: 10px;
+}
+div.input input[type=radio] {
+	vertical-align: middle;
+	margin-left: 30px;
+}
+div.input input[type=radio] + label {
+	vertical-align: middle;
+}
+input[type=checkbox] + label {
+	width: auto;
+	float: none;
+	margin-left: 10px;
+}
+div.input input[type=checkbox] {
+	vertical-align: middle;
+	margin-left: 30px;
+}
+div.input input[type=checkbox] + label {
+	vertical-align: middle;
+}
+div.input .RichTextEditable {
+	margin-left: 130px;
+}
+	div.input .RichTextEditable .dijitToolbar {
+		border-top: 1px solid #ccc;
+		font-size: 8pt;
+	}
+		div.input .RichTextEditable .dijitToolbar label {
+			width: auto;
+			float: none;
+			margin: 0px;
+		}
+div.input + p, div.input + p + p {
+	clear: both;
+	margin: -5px 0px 0px 40px;
+	font-size: 8pt;
+	font-style: italic;
+}
+div.input.checkbox + p, div.input.checkbox + p + p, div.input.radio + p, div.input.radio + p + p {
+	clear: both;
+	margin: -5px 0px 0px 70px;
+	font-size: 8pt;
+	font-style: italic;
+}
+div.input.disabled label {
+	color: #888a85;
+}
+div.input.disabled + p, div.input.disabled + p + p {
+	color: #888a85;
+}
+
+#GraphContainerArea {
+	margin: 0px auto;
+}
+
+table#legend {
+	width: 900px;
+	margin: 0px auto;
+}
+	table#legend tr {
+	}
+	table#legend td {
+		margin: 0px;
+		padding: 5px 0px;
+	}
+		table#legend td.dojoxLegendIcon {
+			width: 14px;
+		}
+			table#legend td.dojoxLegendIcon div {
+				width: 14px !important;
+				height: 14px !important;
+			}
+		table#legend td.dojoxLegendText {
+			padding: 5px 10px;
+			font-size: 10pt;
+		}

@@ -1,0 +1,354 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<title>Generating &amp; Running Reports</title>
+		<link rel="stylesheet" href="help.css" type="text/css" media="screen" />
+	</head>
+	<body>
+		<a name="top"></a>
+		<div class='container'>
+			<h1>Generating &amp; Running Reports</h1>
+			<hr />
+			<ul class="toc">
+				<li><a href="#constraints">Constraints</a></li>
+				<li><a href="#constraintlogic">Constraint Logic</a></li>
+				<li><a href="#execution">Execution</a></li>
+				<li><a href="#dissemination">Dissemination</a></li>
+				<li><a href="#access">Access</a></li>
+				<li><a href="#histories">Histories</a></li>
+			</ul>
+			<hr />
+
+			<a name="constraints"></a>
+			<h2>Constraints</h2>
+			<p>A constraint specifies that only results with a certain value for a given property should be aggreggated into the final data.</p>
+
+			<p class="above_table">Example: Tabular report containing weather measurements.</p>
+			<div class="tabular p_above">
+				<table cellpadding="0" cellspacing="0">
+					<thead>
+						<tr>
+							<th colspan="5">Maximum Weather Measurements</th>
+						</tr>
+						<tr>
+							<td></td>
+							<th colspan="4">Location</th>
+						</tr>
+						<tr>
+							<th>Measurement</th>
+							<th>Canberra</th>
+							<th>Brisbane</th>
+							<th>Melbourne</th>
+							<th>Sydney</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th>Temperature</th>
+							<td>42</td>
+							<td>40</td>
+							<td>46</td>
+							<td>45</td>
+						</tr>
+						<tr>
+							<th>Pressure</th>
+							<td>1030</td>
+							<td>1025</td>
+							<td>1030</td>
+							<td>1030</td>
+						</tr>
+						<tr>
+							<th>Wind Speed</th>
+							<td>128</td>
+							<td>185</td>
+							<td>121</td>
+							<td>150</td>
+						</tr>
+						<tr>
+							<th>Rainfall</th>
+							<td>312</td>
+							<td>804</td>
+							<td>238</td>
+							<td>643</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+			<p class="above_table">Specifing that the Measurement Date is greater than or equal to '2009-10-01' and less than '2009-11-01' ensures that only data from October, 2009 is shown.</p>
+			<div class="tabular p_above">
+				<table cellpadding="0" cellspacing="0">
+					<thead>
+						<tr>
+							<th colspan="5">Maximum Weather Measurements</th>
+						</tr>
+						<tr>
+							<td></td>
+							<th colspan="4">Location</th>
+						</tr>
+						<tr>
+							<th>Measurement</th>
+							<th>Canberra</th>
+							<th>Brisbane</th>
+							<th>Melbourne</th>
+							<th>Sydney</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th>Temperature</th>
+							<td>26</td>
+							<td>35</td>
+							<td>22</td>
+							<td>38</td>
+						</tr>
+						<tr>
+							<th>Pressure</th>
+							<td>1030</td>
+							<td>1025</td>
+							<td>1030</td>
+							<td>1030</td>
+						</tr>
+						<tr>
+							<th>Wind Speed</th>
+							<td>65</td>
+							<td>93</td>
+							<td>80</td>
+							<td></td>
+						</tr>
+						<tr>
+							<th>Rainfall</th>
+							<td>6.8</td>
+							<td>10</td>
+							<td>3</td>
+							<td>38</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="constraintlogic"></a>
+			<h2>Constraint Logic</h2>
+			<p>When multiple constraints are used, boolean logic must be used to specify how constraints interact.</p>
+
+			<p class="above_table">Example: A logical AND is used to ensure that only data from October, 2009 is shown.</p>
+
+			<div class="constraintlogic p_above"><span class="constraint">Measurement Date is greater than or equal to '2009-10-01'</span> <span class="operator">and</span> <span class="constraint">Measurement Date is less than '2009-11-01'</span></div>
+
+			<p>Where AND and OR are combined it is often necessary to use parentheses to avoid unexpected results.</p>
+
+			<p class="above_table">Example: A logical OR, contained by parentheses, is added to limit measurement types to Temperature and Pressure. Parentheses are highlighted.</p>
+
+			<div class="constraintlogic p_above p_below"><span class="constraint">Measurement Date is greater than or equal to '2009-10-01'</span> <span class="operator">and</span> <span class="constraint">Measurement Date is less than '2009-11-01'</span> <span class="operator">and</span> <span class="bracket">(</span><span class="constraint">Measurement equals 'Temperature'</span> <span class="operator">or</span> <span class="constraint">Measurement equals 'Pressure'</span><span class="bracket">)</span></div>
+
+			<p class="below_table above_table">The result of limiting measurement types to Temperature and Pressure.</p>
+
+			<div class="tabular p_above">
+				<table cellpadding="0" cellspacing="0">
+					<thead>
+						<tr>
+							<th colspan="5">Maximum Weather Measurements</th>
+						</tr>
+						<tr>
+							<td></td>
+							<th colspan="4">Location</th>
+						</tr>
+						<tr>
+							<th>Measurement</th>
+							<th>Canberra</th>
+							<th>Brisbane</th>
+							<th>Melbourne</th>
+							<th>Sydney</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th>Temperature</th>
+							<td>26</td>
+							<td>35</td>
+							<td>22</td>
+							<td>38</td>
+						</tr>
+						<tr>
+							<th>Pressure</th>
+							<td>1030</td>
+							<td>1025</td>
+							<td>1030</td>
+							<td>1030</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="execution"></a>
+			<h2>Execution</h2>
+			<p>Once a report is executed, a number of steps take place. First the results of the report are saved in the database, so that changes over time can be tracked. Then, if specified, Irondata creates a table of data, and a graphic representation of the data. This table and graph is stored as <acronym title="Portable Document Format">PDF</acronym> by Irondata, and are made available to the user, and if specified disseminated via email to a list of users.</p>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="dissemination"></a>
+			<h2>Dissemination</h2>
+			<p>After a report is executed Irondata will, if specified, email the results to a list of users.</p>
+			<p>Recipients may be specified manually by a comma separated list of email addresses. Reciepients may also be selected from a list of all <acronym title="Lightweight Directory Access Protocol">LDAP</acronym> users available to the system.</p>
+			<p>If created, the table and graph <acronym title="Portable Document Format">PDFs</acronym> are sent as attachments.</p>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="access"></a>
+			<h2>Access</h2>
+			<p>Irondata provides fine-grained control of access to reports. For each report, users may be granted permission to: View results from previous executions; edit and delete; and execute the given report.</p>
+
+			<p>Permissions may also be granted to groups of users. Where a permission is granted to a group, any users who are members of the group inherit the permission.</p>
+
+			<p class="above_table">Example: Alice is a member of the Administrators group, and has inherited Histories, Edit and Execute permission. Bob and Claire are members of the Users group and have inherited Histories permission.</p>
+			<div class="acltable p_above">
+				<table cellpadding="0" cellspacing="0">
+					<tr>
+						<th>User</th>
+						<th>&nbsp;</th>
+						<th>Memberships</th>
+						<th>Histories</th>
+						<th>Edit</th>
+						<th>Execute</th>
+					</tr>
+					<tr>
+						<td>Administrators</td>
+						<td>Group</td>
+						<td>&nbsp;</td>
+						<td><input type="checkbox" checked="true" onclick="return false;" /></td>
+						<td><input type="checkbox" checked="true" onclick="return false;" /></td>
+						<td><input type="checkbox" checked="true" onclick="return false;" /></td>
+					</tr>
+					<tr>
+						<td>Users</td>
+						<td>Group</td>
+						<td>&nbsp;</td>
+						<td><input type="checkbox" checked="true" onclick="return false;" /></td>
+						<td><input type="checkbox" onclick="return false;" /></td>
+						<td><input type="checkbox"  onclick="return false;" /></td>
+					</tr>
+					<tr>
+						<td>Alice</td>
+						<td>User</td>
+						<td>Administrators</td>
+						<td><input type="checkbox" onclick="return false;" /><span style="padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+					</tr>
+					<tr>
+						<td>Bob</td>
+						<td>User</td>
+						<td>Users</td>
+						<td><input type="checkbox" onclick="return false;" /><span style="padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="visibility: hidden; padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="visibility: hidden; padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+					</tr>
+					<tr>
+						<td>Claire</td>
+						<td>User</td>
+						<td>Users</td>
+						<td><input type="checkbox" onclick="return false;" /><span style="padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="visibility: hidden; padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="visibility: hidden; padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+					</tr>
+				</table>
+			</div>
+
+			<p class="above_table">Example: Granting Execution permission to the Users group gives Bob and Claire, members of the users group, Execution permission.</p>
+			<div class="acltable p_above">
+				<table cellpadding="0" cellspacing="0">
+					<tr>
+						<th>User</th>
+						<th>&nbsp;</th>
+						<th>Memberships</th>
+						<th>Histories</th>
+						<th>Edit</th>
+						<th>Execute</th>
+					</tr>
+					<tr>
+						<td>Users</td>
+						<td>Group</td>
+						<td>&nbsp;</td>
+						<td><input type="checkbox" checked="true" onclick="return false;" /></td>
+						<td><input type="checkbox" onclick="return false;" /></td>
+						<td><input type="checkbox" checked="true"  onclick="return false;" /></td>
+					</tr>
+					<tr>
+						<td>Bob</td>
+						<td>User</td>
+						<td>Users</td>
+						<td><input type="checkbox" onclick="return false;" /><span style="padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="visibility: hidden; padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+					</tr>
+					<tr>
+						<td>Claire</td>
+						<td>User</td>
+						<td>Users</td>
+						<td><input type="checkbox" onclick="return false;" /><span style="padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="visibility: hidden; padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+					</tr>
+				</table>
+			</div>
+
+			<p class="above_table">Example: Granting Execution permission the user Claire does not affect the other members of the Users group.</p>
+			<div class="acltable p_above">
+				<table cellpadding="0" cellspacing="0">
+					<tr>
+						<th>User</th>
+						<th>&nbsp;</th>
+						<th>Memberships</th>
+						<th>Histories</th>
+						<th>Edit</th>
+						<th>Execute</th>
+					</tr>
+					<tr>
+						<td>Users</td>
+						<td>Group</td>
+						<td>&nbsp;</td>
+						<td><input type="checkbox" checked="true" onclick="return false;" /></td>
+						<td><input type="checkbox" onclick="return false;" /></td>
+						<td><input type="checkbox"  onclick="return false;" /></td>
+					</tr>
+					<tr>
+						<td>Bob</td>
+						<td>User</td>
+						<td>Users</td>
+						<td><input type="checkbox" onclick="return false;" /><span style="padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="visibility: hidden; padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="visibility: hidden; padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+					</tr>
+					<tr>
+						<td>Claire</td>
+						<td>User</td>
+						<td>Users</td>
+						<td><input type="checkbox" onclick="return false;" /><span style="padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" onclick="return false;" /><span style="visibility: hidden; padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+						<td><input type="checkbox" checked="true" onclick="return false;" /><span style="visibility: hidden; padding-left: 10px;">&#x21b3;<input type="checkbox" checked="true" disabled="true" onclick="return false;" /></span></td>
+					</tr>
+				</table>
+			</div>
+
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="histories"></a>
+			<h2>Histories</h2>
+			<p>After a report is executed Irondata will save the results of the report in the database. These results, and their tabular and graphic representaions, are made available to the user on the histories page.</p>
+			<p>Using the histories page, a user can view the results of a previously executed report, as they stood at the time of execution.</p>
+			<a class="top" href="#top">Top</a>
+			<hr />
+		</div>
+		<div class="container footer">
+			<p id="version">Irondata documentation</p>
+			<p>IronData is an open source data warehouse system licensed under the <a href="http://www.gnu.org/licenses/gpl-3.0.txt">GNU GPL</a>.</p>
+		</div>
+	</body>
+</html>

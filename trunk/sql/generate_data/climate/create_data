@@ -1,0 +1,12 @@
+#!/bin/bash
+
+dropdb climate
+createdb climate
+psql climate < create_tables.sql
+
+rm ./insert_data.sql
+touch ./insert_data.sql
+
+php -f ./create_data.php
+
+psql climate < insert_data.sql

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<TransformSet>
+<config >
+        <source>
+                <dsn>dbi:Pg:dbname=demo_source</dsn>
+                <user>evan</user>
+                <password>Dark Star</password>
+                <dbname>demo_source</dbname>
+	</source>
+	<target>
+		<dsn>dbi:Pg:dbname=demo_target</dsn>
+		<user>evan</user>
+		<password>Dark Star</password>
+		<dbname>demo_target</dbname>
+	</target>
+	<timestamp>
+		<table>dw_timestamp</table>
+		<field>timestamp_id</field>
+	</timestamp>
+</config>
+
+
+<transforms>
+
+	<input>
+		<transname>People</transname>
+		<select>SELECT code, headofstate from country</select>
+		<defaulttable>person</defaulttable>
+		<transform>
+			<type>split</type>
+			<action> </action>
+			<out>given_names,family_name</out>
+			<in>headofstate</in>
+		</transform>
+		<transform>
+			<type>rename</type>
+			<in>code</in>
+			<out>person_id</out>
+		</transform>
+		<transform>
+			<type>delete</type>
+			<in>headofstate</in>
+		</transform>
+	</input>
+
+	<input>
+		<transname>Locations</transname>
+		<select>SELECT (SELECT language from countrylanguage WHERE countrycode=c.code ORDER by percentage desc limit 1) as common_language, 
+		ci.name as capital_city, c.code, c.name, c.continent, c.region, c.surfacearea, c.population, c.localname, c.governmentform 
+		FROM country c LEFT OUTER JOIN capital ca ON (ca.countrycode=c.code) 
+		LEFT OUTER JOIN city ci ON (ca.cityid=ci.id)</select>
+		<defaulttable>location</defaulttable>
+		<transform>
+			<type>rename</type>
+			<in>code</in>
+			<out>location_id</out>
+		</transform>
+		<transform>
+			<type>add</type>
+			<out>location_type</out>
+			<action>Country</action>
+		</transform>
+		<transform>
+			<type>rename</type>
+			<in>surfacearea</in>
+			<out>surface_area</out>
+		</transform>
+		<transform>
+			<type>rename</type>
+			<in>localname</in>
+			<out>local_name</out>
+		</transform>
+		<transform>
+			<type>rename</type>
+			<in>governmentform</in>
+			<out>government_form</out>
+		</transform>
+	</input>
+	<input>
+		<transname>Role</transname>
+		<select>SELECT code as person_id, code as location_id from country</select>
+		<defaulttable>role</defaulttable>
+		<transform>
+			<type>add</type>
+			<out>location_type</out>
+			<action>Country</action>
+		</transform>
+		<transform>
+			<type>add</type>
+			<out>role</out>
+			<action>Head of State</action>
+		</transform>
+	</input>
+
+</transforms>
+</TransformSet>
+

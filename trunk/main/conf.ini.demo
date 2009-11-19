@@ -1,0 +1,24 @@
+[Company]
+name: Your Company
+url: http://yourcompany.com
+
+[Dir]
+CompanyPath: /settings/install/directory
+AppPath: /application/install/directory
+WebPath: /web/path
+Log: /var/log/golf.log
+Javahome: /usr/
+
+[Database]
+host: localhost
+user: username
+password: password
+database: database_name
+
+[System]
+max_threads: 5
+timeout: 60
+error_level: 5
+
+[User]
+timeout: 120

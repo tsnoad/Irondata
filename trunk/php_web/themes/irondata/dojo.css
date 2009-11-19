@@ -1,0 +1,29 @@
+.dijitTextArea {
+	width: 80%;
+}
+
+center.dijitButtonText, div.dijitButtonText {
+	width: 120px;
+	text-align: left;
+}
+
+div.dijitToggleButton .dijitButtonNode {
+	width: 90px;
+}
+
+div.small_nav .dijitButtonNode {
+	width: 30px;
+}
+
+div.dijitAccordionTitle div.dijitAccordionText{
+	font-family: georgia, "Times New Roman", serif; 
+}
+.tundra .dijitAccordionTitle-selected .dijitAccordionArrow {
+	background:transparent url('../../scripts/dijit/themes/tundra/images/minusButton.gif') no-repeat scroll 0 0;
+	margin-top:2px;
+}
+
+.dijitStackController .dijitToggleButtonChecked button {
+	background-color: white;
+	background-image: none;
+}

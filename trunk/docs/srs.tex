@@ -1,0 +1,90 @@
+\documentclass[11pt]{article}
+\usepackage[left=1.5cm,top=2cm,right=1.5cm,bottom=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{trace}
+\title{Golf2 Software Requirement Specification(SRS)}
+\author{Looking Glass Solutions}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Scope}
+\subsection{System Overview}
+\paragraph{} A data warehouse is a central repository of complete organisational information. Information from multiple disparate sources is stored and managed for reporting, decision making and business intelligence. If done right, a data warehouse can be an powerful business tool for any organisation. This project is going to develop a data warehousing system(Golf2) which contains a set of tools to help users transform data into useful information.
+\subsection{Document Overview}
+\paragraph{} This document will be used as an internal reference during development of Golf2.
+
+\section{Referenced Documents}
+
+\section{Requirements}
+\subsection{Functional Requirements}
+\subsubsection{Analysis Module}
+\begin{description}
+  \item[Managing Source Database] Analysis Module shall contain a set of tools for managing database sources. The toolset shall allow administrators to add/edit/delete source database including \textit{server address, database name, username, password}.
+  \item[Building Consolidation Database] Analysis Module shall contain a set of tools to help the user study the source database and create consolidation database.
+    \begin{enumerate}
+      \item The toolset shall allow administrators to view the table schemas of the source database if the database user has permissions to access these information.
+      \item The toolset shall be able to read database schema from an standard ER diagram \textit{xmi file}.
+      \item The toolset shall be able to analyse column names of database schema and guess the relationships between tables.
+      \item The toolset shall allow the users to save analyse results and make notes.
+      \item The toolset shall allow users to define rules for transforming source database into consolidation database by selecting column fields from source database, which may generate extraction scripts for the transformation.
+      \item The toolset shall allow users to create consolidation database by executing generated consolidation database schema.
+    \end{enumerate}
+  \item[Building Data-mart Database] Analysis Module shall contain a set of tools to help users create Data-mart Database.
+    \begin{enumerate}
+      \item The toolset shall allow users to view the database schema of a selected consolidation database.
+      \item The toolset shall help users to define rules for transforming consolidation database into data-mart database by selecting column fields from consolidation database, which may generate extraction scripts for the transformation.
+      \item The toolset shall allow users to create Data-mart database by executing confirmed transformation rules.
+    \end{enumerate}
+  \item[Managing Data Extraction] Analysis Module shall contain a set of tools for users to define the rules of extracting data from source database into consolidation database. Users shall be able to run data extraction processes manually.
+\end{description}
+
+\subsubsection{Report Design Module}
+\begin{description}
+  \item[Managing Report Templates] Users shall be able to create/edit/delete report templates for a particular consolidation database or data-mart database.
+  \item[Report Template] The templates used to generate different types of reports
+    \begin{enumerate}
+      \item There are there types of reports: \textit{trend, table, list}.
+      \item There will be more type of reports in the future development so that the report template design functions must be extensible to adapt new report type.
+      \item It shall allow users to save/delete generated reports.
+    \end{enumerate}
+\end{description}
+
+\subsubsection{Task Scheduler Module}
+\begin{enumerate}
+  \item Task scheduler shall be able to schedule data extraction processes to be automatically executed regularly.
+  \item It shall allow users to schedule jobs of running report templates automatically and save the generated reports.
+\end{enumerate}
+
+\subsubsection{Manage User Rolls}
+\begin{enumerate}
+  \item There are there types of rolls in the system: \textit{Administrator, Database Designer, Normal User}
+  \item Normal users shall be able to run or schedule jobs for report template to generate reports that they have permission to access.
+  \item Database designers shall have permissions to use the analysis module and report design module for designing consolidation database, data-mart database or design report templates.
+  \item Administrators shall be able to manage users and their access right to the system.
+\end{enumerate}
+
+\subsection{Internal Data Requirements}
+
+\subsection{Security and Privacy Requirements}
+\subsubsection{Authentication}
+
+\subsubsection{Access to Data}
+
+\subsection{Computer Resource Requirements}
+\subsubsection{Hardware}
+
+\subsubsection{Software}
+
+\subsection{Software Quality Factors}
+
+\subsection{Design and Implementation Constraints}
+
+\subsection{Packaging Requirements}
+
+\subsection{Other Requirements}
+
+\end{document}

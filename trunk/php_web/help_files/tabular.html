@@ -1,0 +1,344 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<title>Tabular Reports</title>
+		<link rel="stylesheet" href="help.css" type="text/css" media="screen" />
+	</head>
+	<body>
+		<a name="top"></a>
+		<div class='container'>
+			<h1>Tabular Reports</h1>
+			<hr />
+			<ul class="toc">
+				<li><a href="#whatis">What is a Tabular Report?</a></li>
+				<li><a href="#examples">Examples</a></li>
+				<li><a href="#datasource">Data Source</a></li>
+				<li><a href="#axisdatasource">Axis Data Source</a></li>
+				<li><a href="#axisrelationship">Axis Relationship</a></li>
+			</ul>
+			<hr />
+
+			<a name="whatis"></a>
+			<h2>What is a Tabular Report?</h2>
+<!-- 			<p>A tabular report shows numeric data grouped by two or more properties.</p> -->
+			<p>A tabular report shows numeric data indexed by two or more properties.</p>
+
+			<div class="tabular">
+				<table cellpadding="0" cellspacing="0">
+					<thead>
+						<tr>
+							<th colspan="5">Tabular Report</th>
+						</tr>
+						<tr>
+							<td></td>
+							<th colspan="4">X Index</th>
+						</tr>
+						<tr>
+							<th>Y Index</th>
+							<th>one</th>
+							<th>two</th>
+							<th>three</th>
+							<th>four</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th>one</th>
+							<td>1</td>
+							<td>2</td>
+							<td>3</td>
+							<td>4</td>
+						</tr>
+						<tr>
+							<th>two</th>
+							<td>5</td>
+							<td>6</td>
+							<td>7</td>
+							<td>8</td>
+						</tr>
+						<tr>
+							<th>three</th>
+							<td>9</td>
+							<td>10</td>
+							<td>11</td>
+							<td>12</td>
+						</tr>
+						<tr>
+							<th>four</th>
+							<td>13</td>
+							<td>14</td>
+							<td>15</td>
+							<td>16</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+<!--			<p>Irondata looks at the data source and finds all pieces of data with identical values for the first property. From this set of data, Irondata finds all pieces of data with identical values for the second property.</p>
+
+			<p>Once Irondata has a this set of data, it will have a range of numerical values that are to be reported. From these values Irondata can then caluculate the sum, the average, the minimum, the maximum, the number of values, or the number of unique values. This calculation is called the Aggreggate.</p>
+
+			<p>This process is then repeated for each unique value for each of the properties. Aggreggates can then be organised into a grid, with one set of properties forming the X axis and one forming the Y axis.</p>-->
+
+			<p>Irondata looks at the data source and finds all records with identical values in the first column. From this set of data, Irondata finds all pieces of data with identical values for the second property.</p>
+
+			<p>Once Irondata has a this set of data, it will have a range of numerical values that are to be reported. From these values Irondata can then caluculate the sum, the average, the minimum, the maximum, the number of values, or the number of unique values. This calculation is called the Aggreggate.</p>
+
+			<p>This process is then repeated for each unique value for each of the properties. Aggreggates can then be organised into a grid, with one set of properties forming the X axis and one forming the Y axis.</p>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="examples"></a>
+			<h2>Examples</h2>
+
+			<p class="above_table">Example: For a given company we want to see the number of employees, sorted by position and gender.</p>
+			<div class="tabular p_above">
+				<table cellpadding="0" cellspacing="0">
+					<thead>
+						<tr>
+							<th colspan="5">Number of Employees</th>
+						</tr>
+						<tr>
+							<td></td>
+							<th colspan="4">Position</th>
+						</tr>
+						<tr>
+							<th>Gender</th>
+							<th>Management</th>
+							<th>Marketing</th>
+							<th>Research</th>
+							<th>Other</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th>Female</th>
+							<td>2</td>
+							<td>5</td>
+							<td>7</td>
+							<td>4</td>
+						</tr>
+						<tr>
+							<th>Male</th>
+							<td>3</td>
+							<td>4</td>
+							<td>2</td>
+							<td>4</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+			<div class="tabular p_below highlighted">
+				<table cellpadding="0" cellspacing="0">
+					<thead>
+						<tr>
+							<th colspan="5">Number of Employees</th>
+						</tr>
+						<tr>
+							<td></td>
+							<th colspan="4" class="highlighted">Position</th>
+						</tr>
+						<tr>
+							<th>Gender</th>
+							<th class="highlighted">Management</th>
+							<th class="highlighted">Marketing</th>
+							<th class="highlighted">Research</th>
+							<th class="highlighted">Other</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th>Female</th>
+							<td>2</td>
+							<td>5</td>
+							<td>7</td>
+							<td>4</td>
+						</tr>
+						<tr>
+							<th>Male</th>
+							<td>3</td>
+							<td>4</td>
+							<td>2</td>
+							<td>4</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<p class="below_table">Highlighted: The X axis and unique values that data is indexed by.</p>
+
+			<div class="tabular p_below highlighted">
+				<table cellpadding="0" cellspacing="0">
+					<thead>
+						<tr>
+							<th colspan="5">Number of Employees</th>
+						</tr>
+						<tr>
+							<td></td>
+							<th colspan="4">Position</th>
+						</tr>
+						<tr>
+							<th class="highlighted">Gender</th>
+							<th>Management</th>
+							<th>Marketing</th>
+							<th>Research</th>
+							<th>Other</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th class="highlighted">Female</th>
+							<td>2</td>
+							<td>5</td>
+							<td>7</td>
+							<td>4</td>
+						</tr>
+						<tr>
+							<th class="highlighted">Male</th>
+							<td>3</td>
+							<td>4</td>
+							<td>2</td>
+							<td>4</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<p class="below_table">Highlighted: The Y axis and unique values that data is indexed by.</p>
+
+			<div class="tabular p_below highlighted">
+				<table cellpadding="0" cellspacing="0">
+					<thead>
+						<tr>
+							<th colspan="5">Number of Employees</th>
+						</tr>
+						<tr>
+							<td></td>
+							<th colspan="4">Position</th>
+						</tr>
+						<tr>
+							<th>Gender</th>
+							<th>Management</th>
+							<th>Marketing</th>
+							<th>Research</th>
+							<th>Other</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th>Female</th>
+							<td class="highlighted">2</td>
+							<td class="highlighted">5</td>
+							<td class="highlighted">7</td>
+							<td class="highlighted">4</td>
+						</tr>
+						<tr>
+							<th>Male</th>
+							<td class="highlighted">3</td>
+							<td class="highlighted">4</td>
+							<td class="highlighted">2</td>
+							<td class="highlighted">4</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<p class="below_table">Highlighted: The aggregated data, indexed by the unique values in the X and Y axies.</p>
+
+			<p class="above_table">Example: A familiar type of tabular report is the multiplication table. In this case the data is aggreggated by finding the product of the two axies.</p>
+			<div class="tabular p_above">
+				<table cellpadding="0" cellspacing="0">
+					<thead>
+						<tr>
+							<th colspan="5">Multiplication Table</th>
+						</tr>
+						<tr>
+							<th>&nbsp;</th>
+							<th>one</th>
+							<th>two</th>
+							<th>three</th>
+							<th>four</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th>one</th>
+							<td>1</td>
+							<td>2</td>
+							<td>3</td>
+							<td>4</td>
+						</tr>
+						<tr>
+							<th>two</th>
+							<td>2</td>
+							<td>4</td>
+							<td>6</td>
+							<td>8</td>
+						</tr>
+						<tr>
+							<th>three</th>
+							<td>3</td>
+							<td>6</td>
+							<td>9</td>
+							<td>12</td>
+						</tr>
+						<tr>
+							<th>four</th>
+							<td>4</td>
+							<td>8</td>
+							<td>12</td>
+							<td>16</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="datasource"></a>
+			<h2>Data Source</h2>
+			<p>The data source is the numerical data that will be grouped and aggreggated to form the result of the report. This data <strong>must</strong> be numerical in nature.</p>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="axisdatasource"></a>
+			<h2>Axis Data Source</h2>
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="axisrelationship"></a>
+			<h2>Axis Relationship</h2>
+			<p>Each axis column must be linked to the intersection column, for the data to be indexed. In some cases the intersection column and an axis column are linked simply by being two columns in the same table. This is called a self-referential join. In Many cases the intersection column and an axis column must be linked through an inner join, where one column references a column in another table.</p>
+
+			<p class="above_table">Example: A simple self referential join from the axis column, at left, to the intersection column, at right, both in the same table.</p>
+			<div class="axisrelationships p_above">
+				<div class="relationship"><input type="radio" checked="true" onclick="this.checked=true;" /><strong>Staff.Position</strong> &#x21C4; <strong>Staff.Name</strong></div>
+				<div class="relationshipexplainer">The selected column is linked, via a self referential join, to the intersection column.</div>
+			</div>
+
+			<p>In many cases an inner join may not link the axis and intersection columns directly. The axis column may need to be <em>self-referentially joined</em> to an intermediate column, then <em>inner joined</em> to the intersection column, in another table.</p>
+
+			<p class="above_table">Example: The axis and intersection columns, in different tables, are linked by both self referential join and inner joins.</p>
+			<div class="axisrelationships p_above">
+				<div class="relationship"><input type="radio" checked="true" onclick="this.checked=true;" /><strong>Assignments.Location</strong> &#x21C4; Assignments.Staff Id <em>references</em> Staff.Staff Id &#x21C4; <strong>Staff.Name</strong></div>
+				<div class="relationshipexplainer">The selected column is linked, via a self referential join, then via an inner join, then via another self referential join, to the intersection column.</div>
+			</div>
+
+			<div class="axisrelationships">
+				<div class="relationship"><input type="radio" checked="true" onclick="this.checked=true;" /><strong>Staff.Position</strong> &#x21C4; <strong>Staff.Name</strong></div>
+				<div class="relationshipexplainer">The selected column is linked, via a self referential join, to the intersection column.</div>
+
+				<div class="relationship"><input type="radio" onclick="this.checked=false;" /><strong>Staff.Position</strong> &#x21C4; Staff.Staff Id <em>referenced by</em> Management.Managee &#x21C4; Management.Manager <em>references</em> Staff.Staff Id &#x21C4; <strong>Staff.Name</strong></div>
+				<div class="relationshipexplainer">The selected column is linked, via a self referential join, then via an inner join, then via another self referential join, then via another inner join, then via another self referential join, to the intersection column.</div>
+
+				<div class="relationship"><input type="radio" onclick="this.checked=false;" /><strong>Staff.Position</strong> &#x21C4; Staff.Staff Id <em>referenced by</em> Management.Manager &#x21C4; Management.Managee <em>references</em> Staff.Staff Id &#x21C4; <strong>Staff.Name</strong></div>
+				<div class="relationshipexplainer">The selected column is linked, via a self referential join, then via an inner join, then via another self referential join, then via another inner join, then via another self referential join, to the intersection column.</div>
+			</div>
+
+			<a class="top" href="#top">Top</a>
+			<hr />
+		</div>
+		<div class="container footer">
+			<p id="version">Irondata documentation</p>
+			<p>IronData is an open source data warehouse system licensed under the <a href="http://www.gnu.org/licenses/gpl-3.0.txt">GNU GPL</a>.</p>
+		</div>
+	</body>
+</html>

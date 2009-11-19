@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<fo:root xmlns:fo="http://www.w3.org/1999/XSL/Format">
+
+
+  <!-- defines the layout master -->
+  <fo:layout-master-set>
+    <fo:simple-page-master master-name="first" 
+                           page-height="21cm"
+                           page-width="29.7cm" 
+                           margin-top="0.5cm" 
+                           margin-bottom="2cm" 
+                           margin-left="1cm" 
+                           margin-right="1cm">
+      <fo:region-body margin-top="0cm" margin-bottom="1.5cm"/>
+    </fo:simple-page-master>
+  </fo:layout-master-set>
+
+  <!-- starts actual layout -->
+  <fo:page-sequence master-reference="first">
+
+  <fo:flow flow-name="xsl-region-body">
+
+      <!-- this defines a title level 1-->
+      <fo:block font-size="14pt" font-family="sans-serif" line-height="24pt" space-after.optimum="15pt" text-align="right">
+        %TITLE
+      </fo:block>
+
+<fo:block id="N2550">
+  <fo:block>
+    <fo:external-graphic src='url(%IMAGE_URL)'/>
+  </fo:block>
+</fo:block>
+    </fo:flow>
+  </fo:page-sequence>
+</fo:root>
