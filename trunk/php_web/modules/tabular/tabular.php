@@ -621,9 +621,13 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 							$tabular_template_auto = $tabular_templates_query;
 						}
 						break;
-					case "editsquidname":
+					case "squidname":
+						$tabular_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates_manual_squids ttms WHERE ttms.tabular_templates_manual_squid_id='{$this->aux1}' LIMIT 1;"));
+
+						$tabular_template_auto = $tabular_templates_query;
 						break;
-					case "editsquidconstraints":
+					case "squidconstraints":
+						$blah = Tabular::view_constraints();
 						break;
 					default:
 						break;
@@ -662,6 +666,13 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 						break;
 				}
 				break;
+			case "editsquidconstraint":
+				if ($this->subid) {
+					$blah = array();
+
+					list($blah, $table_join_ajax) = Tabular::view_editconstraint();
+				}
+				break;
 			case "preview":
 				if ((int)$this->id) {
 // 					$preview_table .= '<script>dojo.addOnLoad(function () { setTimeout("update_data_preview_first();", 7500); });</script>';
@@ -675,147 +686,14 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 				break;
 			case "constraints":
 				if ((int)$this->id) {
-					switch ($this->subid) {
-						default:
-							$blah['default'] = true;
-							break;
-						case "addconstraints":
-							$blah['addconstraints'] = true;
-							break;
-						case "addbrackets":
-							$blah['addbrackets'] = true;
-							break;
-						case "addclosingbrackets":
-							$blah['addclosingbrackets'] = true;
-							break;
-					}
-
-					$constraints_query = $this->dobj->db_fetch_all($this->dobj->db_query("
-						SELECT 
-							tc.*, 
-							tcl.*,
-							c.name AS column_name, 
-							t.name AS table_name 
-						FROM 
-							tabular_constraints tc 
-							INNER JOIN tabular_constraint_logic tcl ON (tcl.template_id=tc.template_id) 
-							INNER JOIN columns c ON (c.column_id=tc.column_id) 
-							INNER JOIN tables t ON (t.table_id=c.table_id) 
-						WHERE 
-							tc.template_id='".$this->id."'
-						ORDER BY
-							tc.tabular_constraints_id
-						;"));
-
-					if (!empty($constraints_query)) {
-						$blah['logic'] = $constraints_query[0]['logic'];
-
-						$constraint_index = 0;
-
-						foreach ($constraints_query as $constraint_tmp) {
-							$constraint_id = $constraint_tmp['tabular_constraints_id'];
-							$index_id = $constraint_tmp['index_id'];
-							$table_name = $constraint_tmp['table_name'];
-							$column_name = $constraint_tmp['column_name'];
-							$column = ucwords($table_name).".".ucwords($column_name);
-
-							$type_array = array(
-								"eq"=>"Equals",
-								"neq"=>"Does not Equal",
-								"lt"=>"Is Less Than",
-								"gt"=>"Is Greater Than",
-								"lte"=>"Is Less Than or Equal To",
-								"gte"=>"Is Greater Than or Equal To",
-								"like"=>"Contains"
-								);
-							$type = strtolower($type_array[$constraint_tmp['type']]);
-
-							$value = $constraint_tmp['value'];
-
-							$constraints[$constraint_index]['constraint_id'] = $constraint_id;
-							$constraints[$constraint_index]['index_id'] = $index_id;
-							$constraints[$constraint_index]['foobar'] = "constraint";
-							$constraints[$constraint_index]['constraint'] = "$column $type '$value'";
-
-							$constraint_index ++;
-						}
-
-						if ($blah['default']) {
-							$constraints_query = $constraints;
-							$indentation = 0;
-
-							foreach ($constraints_query as $constraint_index => $constraint_tmp) {
-								$index_id_tmp = $constraint_tmp['index_id'];
-
-								$new_constraints[] = array_merge((array)$constraint_tmp, (array)array("indentation" => $indentation));
-							}
-
-							$constraints = $new_constraints;
-						}
-
-						$blah['constraints'] = $constraints;
-					}
+					$blah = Tabular::view_constraints();
 				}
 				break;
 			case "editconstraint":
 				if ($this->subid) {
 					$blah = array();
 
-					if ($this->subid == "new") {
-					} else {
-						$constraint_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_constraints WHERE tabular_constraints_id='".$this->subid."' LIMIT 1;"));
-
-						$blah['data']['column_id'] = $constraint_query['column_id'];
-						$blah['data']['type'] = $constraint_query['type'];
-						$blah['data']['value'] = $constraint_query['value'];
-
-						$_REQUEST['data']['column_id'] = $constraint_query['column_id'];
-						$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
-						$table_join_ajax = $table_join_ajax->data;
-						unset($_REQUEST['data']['column_id']);
-					}
-
-					$this->current = $this->get_template($this->id);
-					$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
-
-					foreach ($tables['catalogue'] as $i => $column) {
-						foreach ($column as $j => $cell) {
-							$column_id = $cell['column_id'];
-
-							$blah['options']['column_id'][$column_id] = $cell['table_name'].".".$cell['column_name'];
-
-							switch ($cell['data_type']) {
-								default:
-									break;
-								case "timestamp":
-								case "timestamp with time zone":
-								case "timestamp without time zone":
-									$blah['column_types'][$column_id] = "date";
-									break;
-							}
-
-							if ($cell['dropdown'] == "t") {
-								$blah['column_options'][$column_id] = true;
-							}
-						}
-					}
-
-					$blah['options']['type'] = array(
-						"eq"=>"Equals",
-						"neq"=>"Does not Equal",
-						"lt"=>"Less Than",
-						"gt"=>"Greater Than",
-						"lte"=>"Less Than or Equal To",
-						"gte"=>"Greater Than or Equal To",
-						"like"=>"Contains"
-						);
-
-					if ($this->subid == "new") {
-						$_REQUEST['data']['column_id'] = reset(array_keys($blah['options']['column_id']));
-						$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
-						$table_join_ajax = $table_join_ajax->data;
-						unset($_REQUEST['data']['column_id']);
-					}
+					list($blah, $table_join_ajax) = Tabular::view_editconstraint();
 				}
 				break;
 			case "publish":
@@ -1042,6 +920,34 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 // 							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_manual"));
 // 						}
 						break;
+					case "squidnamesubmit":
+						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
+						$tabular_template_id = $tabular_template_query['tabular_template_id'];
+
+						$tabular_templates_manual_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates_manual ttm WHERE ttm.tabular_template_id='".$tabular_template_id."' LIMIT 1;"));
+						$tabular_templates_manual_id = $tabular_templates_manual_query['tabular_templates_manual_id'];
+
+						if (empty($tabular_templates_manual_id)) {
+							$tabular_templates_manual_id = $this->dobj->nextval("tabular_templates_manual");
+
+							$this->dobj->db_query($this->dobj->insert(array("tabular_templates_manual_id"=>$tabular_templates_manual_id, "tabular_template_id"=>$tabular_template_id), "tabular_templates_manual"));
+						}
+
+						if ($this->aux1 == "new") {
+							$tabular_templates_manual_squid_id = $this->dobj->nextval("tabular_templates_manual_squids");
+
+							$_REQUEST['data']['tabular_templates_manual_squid_id'] = $tabular_templates_manual_squid_id;
+							$_REQUEST['data']['tabular_templates_manual_id'] = $tabular_templates_manual_id;
+							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_manual_squids"));
+
+							$this->aux1 = $tabular_templates_manual_squid_id;
+						} else if (!empty($this->aux1)) {
+							$tabular_templates_manual_squid_id = $this->aux1;
+
+							$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_templates_manual_squid_id", $tabular_templates_manual_squid_id, "tabular_templates_manual_squids"));
+						}
+
+						break;
 					default:
 						break;
 				}
@@ -1073,6 +979,11 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 						break;
 				}
 				break;
+			case "editsquidconstraintsubmit":
+				if ($this->aux1) {
+					Tabular::view_editconstraintsubmit();
+				}
+				break;
 			case "constraintlogicsubmit":
 				$logic = $_REQUEST['data']['constraint_logic'];
 				$constraints_id = json_decode(stripslashes($_REQUEST['data']['constraints_id']), true);
@@ -1092,25 +1003,7 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 				break;
 			case "editconstraintsubmit":
 				if ($this->subid) {
-					$_REQUEST['data']['template_id'] = $this->id;
-
-					$selected_input_id = $_REQUEST['data']['value_input_selected'];
-					$selected_input_value = $_REQUEST['data'][$selected_input_id];
-
-					$_REQUEST['data']['value'] = $selected_input_value;
-
-					foreach (explode(",", $_REQUEST['data']['value_inputs']) as $input_id) {
-						unset($_REQUEST['data'][$input_id]);
-					}
-
-					unset($_REQUEST['data']['value_inputs']);
-					unset($_REQUEST['data']['value_input_selected']);
-
-					if ($this->subid == "new") {
-						$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_constraints"));
-					} else {
-						$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_constraints_id", $this->subid, "tabular_constraints"));
-					}
+					Tabular::view_editconstraintsubmit();
 				}
 				break;
 			case "removeconstraintsubmit":
@@ -1290,6 +1183,9 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 		} else if ($this->subvar == "y" && $this->subid == "typesubmit" && $tabular_template['y']['axis_type'] == "manual") {
 			$this->redirect("tabular/add/".$this->id."/y/manualsource");
 
+		} else if ($this->subvar == "y" && $this->subid == "squidnamesubmit" && $tabular_template['y']['axis_type'] == "manual") {
+			$this->redirect("tabular/add/".$this->id."/y/squidconstraints/".$this->aux1);
+
 		} else if (empty($tabular_template['c'])) {
 			$this->redirect("tabular/add/".$this->id."/c/source");
 
@@ -1318,12 +1214,6 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 			$this->redirect("tabular/add/".$this->id."/constraints");
 
 		} else if ($this->subvar == "removeconstraintsubmit") {
-			$this->redirect("tabular/add/".$this->id."/constraints");
-
-		} else if ($this->subvar == "addbracketsubmit") {
-			$this->redirect("tabular/add/".$this->id."/constraints");
-
-		} else if ($this->subvar == "addclosingbracketsubmit") {
 			$this->redirect("tabular/add/".$this->id."/constraints");
 
 		} else {
@@ -2042,6 +1932,241 @@ WHERE
 			";
 	}
 
+	/**
+	 * Called by Tabular::view_add. Gets all data required to view constraints and constraint logic editor
+	 */
+	function view_constraints() {
+		switch ($this->subid) {
+			default:
+				$blah['default'] = true;
+				break;
+		}
+
+		if ($this->subvar == "constraints") {
+			$squid = false;
+		} else if ($this->subid == "squidconstraints") {
+			$squid = true;
+		}
+
+		if (!$squid) {
+			$constraints_query = $this->dobj->db_fetch_all($this->dobj->db_query("
+				SELECT 
+					tc.*, 
+					tcl.*,
+					c.name AS column_name, 
+					t.name AS table_name 
+				FROM 
+					tabular_constraints tc 
+					INNER JOIN tabular_constraint_logic tcl ON (tcl.template_id=tc.template_id) 
+					INNER JOIN columns c ON (c.column_id=tc.column_id) 
+					INNER JOIN tables t ON (t.table_id=c.table_id) 
+				WHERE 
+					tc.template_id='{$this->id}'
+				ORDER BY
+					tc.tabular_constraints_id
+				;"));
+		} else {
+			$constraints_query = $this->dobj->db_fetch_all($this->dobj->db_query("
+				SELECT 
+					sc.*, 
+					scl.*,
+					c.name AS column_name, 
+					t.name AS table_name 
+				FROM 
+					tabular_templates_manual_squid_constraints sc 
+					INNER JOIN tabular_templates_manual_squid_constraint_logic scl ON (scl.tabular_templates_manual_squid_id=sc.tabular_templates_manual_squid_id) 
+					INNER JOIN columns c ON (c.column_id=sc.column_id) 
+					INNER JOIN tables t ON (t.table_id=c.table_id) 
+				WHERE 
+					sc.tabular_templates_manual_squid_id='{$this->aux1}'
+				ORDER BY
+					sc.squid_constraints_id
+				;"));
+		}
+
+		if (!empty($constraints_query)) {
+			$blah['logic'] = $constraints_query[0]['logic'];
+
+			$constraint_index = 0;
+
+			foreach ($constraints_query as $constraint_tmp) {
+				if (!$squid) {
+					$constraint_id = $constraint_tmp['tabular_constraints_id'];
+				} else {
+					$constraint_id = $constraint_tmp['squid_constraints_id'];
+				}
+
+				$index_id = $constraint_tmp['index_id'];
+				$table_name = $constraint_tmp['table_name'];
+				$column_name = $constraint_tmp['column_name'];
+				$column = ucwords($table_name).".".ucwords($column_name);
+
+				$type_array = array(
+					"eq"=>"Equals",
+					"neq"=>"Does not Equal",
+					"lt"=>"Is Less Than",
+					"gt"=>"Is Greater Than",
+					"lte"=>"Is Less Than or Equal To",
+					"gte"=>"Is Greater Than or Equal To",
+					"like"=>"Contains"
+					);
+				$type = strtolower($type_array[$constraint_tmp['type']]);
+
+				$value = $constraint_tmp['value'];
+
+				$constraints[$constraint_index]['constraint_id'] = $constraint_id;
+				$constraints[$constraint_index]['index_id'] = $index_id;
+				$constraints[$constraint_index]['foobar'] = "constraint";
+				$constraints[$constraint_index]['constraint'] = "$column $type '$value'";
+
+				$constraint_index ++;
+			}
+
+			if ($blah['default']) {
+				$constraints_query = $constraints;
+				$indentation = 0;
+
+				foreach ($constraints_query as $constraint_index => $constraint_tmp) {
+					$index_id_tmp = $constraint_tmp['index_id'];
+
+					$new_constraints[] = array_merge((array)$constraint_tmp, (array)array("indentation" => $indentation));
+				}
+
+				$constraints = $new_constraints;
+			}
+
+			$blah['constraints'] = $constraints;
+		}
+
+		return $blah;
+	}
+
+	/**
+	 * Called by Tabular::view_add. Gets all data required to show the add/edit constraint page
+	 */
+	function view_editconstraint() {
+		switch ($this->subvar) {
+			case "editconstraint":
+				$constraint_id = $this->subid;
+				break;
+			case "editsquidconstraint":
+				$squid = true;
+				$squid_id = $this->subid;
+				$constraint_id = $this->aux1;
+				break;
+		}
+
+		if ($constraint_id == "new") {
+		} else {
+			if (!$squid) {
+				$constraint_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_constraints WHERE tabular_constraints_id='".$constraint_id."' LIMIT 1;"));
+			} else {
+				$constraint_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates_manual_squid_constraints WHERE squid_constraints_id='".$constraint_id."' LIMIT 1;"));
+			}
+
+			$blah['data']['column_id'] = $constraint_query['column_id'];
+			$blah['data']['type'] = $constraint_query['type'];
+			$blah['data']['value'] = $constraint_query['value'];
+
+			$_REQUEST['data']['column_id'] = $constraint_query['column_id'];
+			$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
+			$table_join_ajax = $table_join_ajax->data;
+			unset($_REQUEST['data']['column_id']);
+		}
+
+		$this->current = $this->get_template($this->id);
+		$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
+
+		foreach ($tables['catalogue'] as $i => $column) {
+			foreach ($column as $j => $cell) {
+				$column_id = $cell['column_id'];
+
+				$blah['options']['column_id'][$column_id] = $cell['table_name'].".".$cell['column_name'];
+
+				switch ($cell['data_type']) {
+					default:
+						break;
+					case "timestamp":
+					case "timestamp with time zone":
+					case "timestamp without time zone":
+						$blah['column_types'][$column_id] = "date";
+						break;
+				}
+
+				if ($cell['dropdown'] == "t") {
+					$blah['column_options'][$column_id] = true;
+				}
+			}
+		}
+
+		$blah['options']['type'] = array(
+			"eq"=>"Equals",
+			"neq"=>"Does not Equal",
+			"lt"=>"Less Than",
+			"gt"=>"Greater Than",
+			"lte"=>"Less Than or Equal To",
+			"gte"=>"Greater Than or Equal To",
+			"like"=>"Contains"
+			);
+
+		if ($this->subid == "new") {
+			$_REQUEST['data']['column_id'] = reset(array_keys($blah['options']['column_id']));
+			$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
+			$table_join_ajax = $table_join_ajax->data;
+			unset($_REQUEST['data']['column_id']);
+		}
+
+		return array($blah, $table_join_ajax);
+	}
+
+	/**
+	 * Called by Tabular::view_save to create a new constraint, or save changes to an existing one. Also used to edit constaints on manual axies
+	 */
+	function view_editconstraintsubmit() {
+		switch ($this->subvar) {
+			case "editconstraintsubmit":
+				$_REQUEST['data']['template_id'] = $this->id;
+				break;
+			case "editsquidconstraintsubmit":
+				$squid_id = $this->subid;
+				$_REQUEST['data']['tabular_templates_manual_squid_id'] = $squid_id;
+				break;
+		}
+
+		$selected_input_id = $_REQUEST['data']['value_input_selected'];
+		$selected_input_value = $_REQUEST['data'][$selected_input_id];
+
+		$_REQUEST['data']['value'] = $selected_input_value;
+
+		foreach (explode(",", $_REQUEST['data']['value_inputs']) as $input_id) {
+			unset($_REQUEST['data'][$input_id]);
+		}
+
+		unset($_REQUEST['data']['value_inputs']);
+		unset($_REQUEST['data']['value_input_selected']);
+
+		switch ($this->subvar) {
+			case "editconstraintsubmit":
+				$constraint_id = $this->subid;
+
+				if ($constraint_id == "new") {
+					$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_constraints"));
+				} else {
+					$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_constraints_id", $constraint_id, "tabular_constraints"));
+				}
+				break;
+			case "editsquidconstraintsubmit":
+				$constraint_id = $this->aux1;
+
+				if ($constraint_id == "new") {
+					$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_manual_squid_constraints"));
+				} else {
+					$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "squid_constraints_id", $constraint_id, "tabular_templates_manual_squid_constraints"));
+				}
+				break;
+		}
+	}
+
 	function view_data_preview_ajax() {
 		if ((int)$this->id) {
 			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
@@ -2271,25 +2396,53 @@ class Tabular_View extends Template_View {
 						$output->data .= "<h3>Axis Source</h3>";
 						$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/manualsourcesubmit", "dojoType='dijit.form.Form'");
 
+						$output->data .= "<a href='".$this->webroot()."tabular/add/".$this->id."/".$this->subvar."/squidname/new'>Create Value</a>";
+
 						if (empty($tabular_template_auto)) {
-							$output->data .= "<a href='".$this->webroot()."tabular/add/".$this->id."/".$this->subvar."/editsquidname/new'>Create Value</a>";
 							$output->data .= "<p>No values can be found.</p>";
 						} else {
+							$output->data .= "
+								<div class='reports'>
+									<table cellpadding='0' cellspacing='0'>
+										<tr>
+											<th>Value</th>
+											<th>&nbsp;</th>
+										</tr>
+										";
+							foreach ($tabular_template_auto as $squid_tmp) {
+								$squid_id = $squid_tmp['tabular_templates_manual_squid_id'];
+
+								$output->data .= "<tr>";
+								$output->data .= "<td>";
+								$output->data .= ucwords($squid_tmp['human_name']);
+								$output->data .= "</td>";
+								$output->data .= "<td>";
+								$output->data .= "<ul>";
+								$output->data .= "<li><a href='".$this->webroot()."tabular/add/{$this->id}/y/squidname/{$squid_id}'>Edit</a></li>";
+								$output->data .= "</ul>";
+								$output->data .= "</td>";
+								$output->data .= "</tr>";
+							}
+							$output->data .= "
+									</table>
+								</div>
+								";
 						}
 
 						$output->data .= $this->i("submit", array("label"=>"Next", "type"=>"submit", "value"=>"Next", "dojoType"=>"dijit.form.Button"));
 						$output->data .= $this->f_close();
 						break;
-					case "editsquidname":
+					case "squidname":
 						$output->data .= "<h3>Custom Value</h3>";
-						$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/editsquidnamesubmit", "dojoType='dijit.form.Form'");
+						$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/squidnamesubmit/".$this->aux1, "dojoType='dijit.form.Form'");
 
 						$output->data .= $this->i("data[human_name]", array("label"=>"Value Name", "type"=>"text", "default"=>$tabular_template_auto['human_name'], "dojoType"=>"dijit.form.ValidationTextBox"));
 
 						$output->data .= $this->i("submit", array("label"=>"Next", "type"=>"submit", "value"=>"Next", "dojoType"=>"dijit.form.Button"));
 						$output->data .= $this->f_close();
 						break;
-					case "editsquidconstraints":
+					case "squidconstraints":
+						$output->data .= Tabular_view::view_constraints($blah);
 						break;
 				}
 				break;
@@ -2358,6 +2511,12 @@ class Tabular_View extends Template_View {
 						break;
 				}
 				break;
+			case "editsquidconstraint":
+				$output->title = "Edit Constraint";
+				$output->title_desc = "";
+
+				$output->data .= Tabular_view::view_editconstraint($blah);
+				break;
 			case "preview":
 				$output->title = "Preview";
 				$output->title_desc = "";
@@ -2376,118 +2535,8 @@ class Tabular_View extends Template_View {
 				$output->title = "Edit Constraint";
 				$output->title_desc = "";
 
-				if ($blah['error']) {
-					$output->data .= "<p style='color: #a40000; font-family: Arial; font-size: 10pt; font-weight: bold;'>".$blah['error']."</p>";
-				}
+				$output->data .= Tabular_view::view_editconstraint($blah);
 
-				$output->data .= $this->f("tabular/save/".$this->id."/editconstraintsubmit/".$this->subid, "dojoType='dijit.form.Form'");
-				$output->data .= $this->i("data[column_id]", array("id"=>"data[column_id]", "label"=>"Column", "type"=>"select", "default"=>$blah['data']['column_id'], "options"=>$blah['options']['column_id'], "onchange"=>"update_join_display(this);", "dojoType"=>"dijit.form.FilteringSelect"));
-				$output->data .= $this->i("data[type]", array("id"=>"data[type]", "label"=>"&nbsp;", "type"=>"select", "default"=>$blah['data']['type'], "options"=>$blah['options']['type'], "dojoType"=>"dijit.form.FilteringSelect"));
-				$output->data .= $this->i("data[value_text]", array("id"=>"data[value_text]", "div_id"=>"value_text_div", "label"=>"&nbsp;", "type"=>"text", "value"=>$blah['data']['value'], "dojoType"=>"dijit.form.ValidationTextBox"));
-				$output->data .= $this->i("data[value_date]", array("id"=>"data[value_date]", "div_id"=>"value_date_div", "label"=>"&nbsp;", "type"=>"text", "value"=>$blah['data']['value'], "dojoType"=>"dijit.form.DateTextBox"));
-
-				if (!empty($blah['column_options'])) {
-					foreach ($blah['column_options'] as $column_id => $column_options) {
-						$output->data .= $this->i("data[value_select_$column_id]", array("id"=>"data[value_select_$column_id]", "div_id"=>"value_select_div_$column_id", "label"=>"&nbsp;", "type"=>"select", "default"=>$blah['data']['value'], "options"=>array(), "dojoType"=>"dijit.form.FilteringSelect"));
-					}
-				}
-
-				$output->data .= "<p id='dropdown_loading' style='display: none;'>Loading possible options...</p>";
-
-				$output->data .= $this->i("data[value_inputs]", array("id"=>"data[value_inputs]", "type"=>"hidden", "default"=>json_encode(array())));
-				$output->data .= $this->i("data[value_input_selected]", array("id"=>"data[value_input_selected]", "type"=>"hidden", "default"=>""));
-
-				$output->data .= "
-					<script>
-						dojo.addOnLoad(constraint_input_toggle_init);
-
-						var column_options = ".json_encode((array)$blah['column_options']).";
-
-						function constraint_input_toggle_init() {
-							dojo.connect(dijit.byId('data[column_id]'), 'onChange', 'constraint_input_toggle');
-							dojo.connect(dijit.byId('data[type]'), 'onChange', 'constraint_input_toggle');
-
-							constraint_input_toggle();
-						}
-
-						function constraint_input_toggle() {
-							var types = ".json_encode((array)$blah['column_types']).";
-
-							var value_text_div = dojo.byId('value_text_div');
-							var value_date_div = dojo.byId('value_date_div');
-
-							value_date_div.style.display = 'none';
-							value_text_div.style.display = 'none';
-
-							var skoo = [];
-
-							skoo[skoo.length] = 'value_text';
-							skoo[skoo.length] = 'value_date';
-
-							for (var i in column_options) {
-								dojo.byId('value_select_div_'+i).style.display = 'none';
-
-								skoo[skoo.length] = 'value_select_'+i;
-							}
-
-							dojo.byId('data[value_inputs]').value = skoo;
-
-							if (dijit.byId('data[type]').value != 'like') {
-								if (column_options[dijit.byId('data[column_id]').value]) {
-									dojo.byId('value_select_div_'+dijit.byId('data[column_id]').value).style.display = 'block';
-
-dojo.byId('dropdown_loading').style.display = 'block';
-
-dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').setAttribute('disabled', true);
-
-									var pantryStore = new dojo.data.ItemFileReadStore({url: '".$this->webroot()."tabular/constraint_column_options_ajax/".$this->id."/'+dijit.byId('data[column_id]').value});
-
-									pantryStore.fetch({
-										onComplete: function () {
-dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').setAttribute('disabled', false);
-dojo.byId('dropdown_loading').style.display = 'none';
-											return true;
-										}
-									});
-									dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').store = pantryStore;
-
-									dojo.byId('data[value_input_selected]').value = 'value_select_'+dijit.byId('data[column_id]').value;
-
-
-
-									return;
-								}
-
-								if (types[dijit.byId('data[column_id]').value] == 'date') {
-									value_date_div.style.display = 'block';
-
-									dojo.byId('data[value_input_selected]').value = 'value_date';
-
-									return;
-								}
-							}
-
-							value_text_div.style.display = 'block';
-
-							dojo.byId('data[value_input_selected]').value = 'value_text';
-
-							return;
-						}
-					</script>
-					";
-
-				$output->data .= "<hr />";
-				$output->data .= "<div id='join_display'>";
-				$output->data .= $table_join_ajax;
-				$output->data .= "</div>";
-
-				$output->data .= "
-					<div class='input'>
-						<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/".$this->id."/constraints\"; return false;' name='cancel' />Cancel</button><button type='submit' value='Next' dojoType='dijit.form.Button' name='submit' />Save</button>
-					</div>
-					";
-
-				$output->data .= $this->f_close();
 				break;
 			case "publish":
 				//prevent the editor from adding more escapes than neccessary
@@ -3126,7 +3175,11 @@ dojo.byId('dropdown_loading').style.display = 'none';
 		$output .= "<h3>Constraints</h3>";
 
 		if (!empty($blah['constraints'])) {
-			$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
+			if ($this->subvar == "constraints") {
+				$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
+			} else if ($this->subid == "squidconstraints") {
+				$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editsquidconstraint/".$this->aux1."/new'>Create Constraint</a>";
+			}
 
 			$output .= "
 				<div class='reports'>
@@ -3175,9 +3228,149 @@ dojo.byId('dropdown_loading').style.display = 'none';
 				</div>
 				";
 		} else {
-			$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
+			if ($this->subvar == "constraints") {
+				$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
+			} else if ($this->subid == "squidconstraints") {
+				$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editsquidconstraint/".$this->aux1."/new'>Create Constraint</a>";
+			}
+
 			$output .= "<p>No constraints can be found.</p>";
 		}
+
+		return $output;
+	}
+
+	/**
+	 * Called by Tabular_view::view_add to show the add/edit constraint form. Also used for add/edit manual axis contraint
+	 */
+	function view_editconstraint($blah) {
+		if ($blah['error']) {
+			$output .= "<p style='color: #a40000; font-family: Arial; font-size: 10pt; font-weight: bold;'>".$blah['error']."</p>";
+		}
+
+		switch ($this->subvar) {
+			case "editconstraint":
+				$constraint_id = $this->subid;
+
+				$output .= $this->f("tabular/save/{$this->id}/editconstraintsubmit/{$constraint_id}", "dojoType='dijit.form.Form'");
+
+				$cancel = "<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/constraints\"; return false;' name='cancel' />Cancel</button>";
+				break;
+			case "editsquidconstraint":
+				$squid_id = $this->subid;
+				$constraint_id = $this->aux1;
+
+				$output .= $this->f("tabular/save/{$this->id}/editsquidconstraintsubmit/{$squid_id}/{$constraint_id}", "dojoType='dijit.form.Form'");
+
+				$cancel = "<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/y/squidconstraints/{$squid_id}\"; return false;' name='cancel' />Cancel</button>";
+				break;
+		}
+
+		$output .= $this->i("data[column_id]", array("id"=>"data[column_id]", "label"=>"Column", "type"=>"select", "default"=>$blah['data']['column_id'], "options"=>$blah['options']['column_id'], "onchange"=>"update_join_display(this);", "dojoType"=>"dijit.form.FilteringSelect"));
+		$output .= $this->i("data[type]", array("id"=>"data[type]", "label"=>"&nbsp;", "type"=>"select", "default"=>$blah['data']['type'], "options"=>$blah['options']['type'], "dojoType"=>"dijit.form.FilteringSelect"));
+		$output .= $this->i("data[value_text]", array("id"=>"data[value_text]", "div_id"=>"value_text_div", "label"=>"&nbsp;", "type"=>"text", "value"=>$blah['data']['value'], "dojoType"=>"dijit.form.ValidationTextBox"));
+		$output .= $this->i("data[value_date]", array("id"=>"data[value_date]", "div_id"=>"value_date_div", "label"=>"&nbsp;", "type"=>"text", "value"=>$blah['data']['value'], "dojoType"=>"dijit.form.DateTextBox"));
+
+		if (!empty($blah['column_options'])) {
+			foreach ($blah['column_options'] as $column_id => $column_options) {
+				$output .= $this->i("data[value_select_$column_id]", array("id"=>"data[value_select_$column_id]", "div_id"=>"value_select_div_$column_id", "label"=>"&nbsp;", "type"=>"select", "default"=>$blah['data']['value'], "options"=>array(), "dojoType"=>"dijit.form.FilteringSelect"));
+			}
+		}
+
+		$output .= "<p id='dropdown_loading' style='display: none;'>Loading possible options...</p>";
+
+		$output .= $this->i("data[value_inputs]", array("id"=>"data[value_inputs]", "type"=>"hidden", "default"=>json_encode(array())));
+		$output .= $this->i("data[value_input_selected]", array("id"=>"data[value_input_selected]", "type"=>"hidden", "default"=>""));
+
+		$output .= "
+			<script>
+				dojo.addOnLoad(constraint_input_toggle_init);
+
+				var column_options = ".json_encode((array)$blah['column_options']).";
+
+				function constraint_input_toggle_init() {
+					dojo.connect(dijit.byId('data[column_id]'), 'onChange', 'constraint_input_toggle');
+					dojo.connect(dijit.byId('data[type]'), 'onChange', 'constraint_input_toggle');
+
+					constraint_input_toggle();
+				}
+
+				function constraint_input_toggle() {
+					var types = ".json_encode((array)$blah['column_types']).";
+
+					var value_text_div = dojo.byId('value_text_div');
+					var value_date_div = dojo.byId('value_date_div');
+
+					value_date_div.style.display = 'none';
+					value_text_div.style.display = 'none';
+
+					var skoo = [];
+
+					skoo[skoo.length] = 'value_text';
+					skoo[skoo.length] = 'value_date';
+
+					for (var i in column_options) {
+						dojo.byId('value_select_div_'+i).style.display = 'none';
+
+						skoo[skoo.length] = 'value_select_'+i;
+					}
+
+					dojo.byId('data[value_inputs]').value = skoo;
+
+					if (dijit.byId('data[type]').value != 'like') {
+						if (column_options[dijit.byId('data[column_id]').value]) {
+							dojo.byId('value_select_div_'+dijit.byId('data[column_id]').value).style.display = 'block';
+
+							dojo.byId('dropdown_loading').style.display = 'block';
+
+							dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').setAttribute('disabled', true);
+
+							var pantryStore = new dojo.data.ItemFileReadStore({url: '".$this->webroot()."tabular/constraint_column_options_ajax/".$this->id."/'+dijit.byId('data[column_id]').value});
+
+							pantryStore.fetch({
+								onComplete: function () {
+									dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').setAttribute('disabled', false);
+									dojo.byId('dropdown_loading').style.display = 'none';
+									return true;
+								}
+							});
+							dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').store = pantryStore;
+
+							dojo.byId('data[value_input_selected]').value = 'value_select_'+dijit.byId('data[column_id]').value;
+
+							return;
+						}
+
+						if (types[dijit.byId('data[column_id]').value] == 'date') {
+							value_date_div.style.display = 'block';
+
+							dojo.byId('data[value_input_selected]').value = 'value_date';
+
+							return;
+						}
+					}
+
+					value_text_div.style.display = 'block';
+
+					dojo.byId('data[value_input_selected]').value = 'value_text';
+
+					return;
+				}
+			</script>
+			";
+
+		$output .= "<hr />";
+		$output .= "<div id='join_display'>";
+		$output .= $table_join_ajax;
+		$output .= "</div>";
+
+		$output .= "
+			<div class='input'>
+				{$cancel}<button type='submit' value='Next' dojoType='dijit.form.Button' name='submit' />Save</button>
+			</div>
+			";
+
+		$output .= $this->f_close();
 
 		return $output;
 	}

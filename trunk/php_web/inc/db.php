@@ -64,7 +64,9 @@ class DB {
 
 	function nextval($table) {
 		if ($this->conf['metabase']['type'] == "postgres") {
+			//work out the primary key name.
 			switch ($table) {
+				//normally the primary key name is the table name, minus the last character - usually an "s"
 				default:
 					$sing = substr($table, 0, -1);
 					break;
@@ -72,11 +74,21 @@ class DB {
 					$sing = "person";
 					break;
 				case "tabular_constraints":
-					$sing = "tabular_constraints";
+				case "tabular_templates_manual":
+					$sing = $table;
 					break;
 			}
 
-			$query = "SELECT nextval('".$table."_".$sing."_id_seq')";
+			//primary key name always ends with "_id"
+			$sing .= "_id";
+
+			//postgres cuts table and pkey names, in sequence tables, off at 29 characters
+			if (strlen($table) > 29 && strlen($sing) > 29) {
+				$table = substr($table, 0, 29);
+				$sing = substr($sing, 0, 29);
+			}
+
+			$query = "SELECT nextval('".$table."_".$sing."_seq')";
 			$val = $this->db_fetch($this->db_query($query));
 			$val = $val['nextval'];
 		}
