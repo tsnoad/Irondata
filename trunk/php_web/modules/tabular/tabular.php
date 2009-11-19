@@ -358,8 +358,17 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 					//get distinct values that will make up the index for this axis
 					$query[$axis_name_tmp] = "SELECT {$a_select[$axis_name_tmp]} AS {$axis_name_tmp};";
 					break;
-// 				case "manual":
-// 					break;
+				case "manual":
+					//set these variables for easy access
+					$axis_name_tmp = $axis_tmp['type'];
+					$alias_tmp = "a".$axis_name_tmp;
+
+					$select[$axis_name_tmp] = "f.human_name";
+
+					$join_tables[$axis_name_tmp] = "(VALUES (1, 'Canberra'), (2, 'Mt Ginini'), (3, 'Both')) AS f (id, human_name)";
+
+					$where[] = "(((ac.site=1) AND f.id=1) OR ((ac.site=2) AND f.id=2) OR ((ac.site=1 OR ac.site=2) AND f.id=3))";
+					break;
 				default:
 					break;
 			}
@@ -381,7 +390,7 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 				$type_tmp = $constraint['type'];
 				$value_tmp = $constraint['value'];
 
-				//is this contstraint's column in the same table as the intersection column?
+				//is this constraint's column in the same table as the intersection column?
 				if ($table_id_tmp == $intersection['auto_column']['table_id']) {
 					$alias_tmp = "ac";
 				//if not...
@@ -410,7 +419,7 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 		//generate the query
 		$query['c'] = $this->hook_build_query($select, $join_tables, $where, $group, $order, pow($limit, 2));
 
-// 		var_dump($query);
+		var_dump($query);
 
 		return $query;
 	}
@@ -616,15 +625,17 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 						break;
 					case "manualsource":
 						if ((int)$this->id) {
-							$tabular_templates_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_manual ttm ON (ttm.tabular_template_id=tt.tabular_template_id) INNER JOIN tabular_templates_manual_squids ttms ON (ttms.tabular_templates_manual_id=ttm.tabular_templates_manual_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."';"));
+							$tabular_templates_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_manual ttm ON (ttm.tabular_template_id=tt.tabular_template_id) INNER JOIN tabular_templates_manual_squids ttms ON (ttms.tabular_templates_manual_id=ttm.tabular_templates_manual_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' ORDER BY ttms.human_name ASC;"));
 
 							$tabular_template_auto = $tabular_templates_query;
 						}
 						break;
 					case "squidname":
-						$tabular_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates_manual_squids ttms WHERE ttms.tabular_templates_manual_squid_id='{$this->aux1}' LIMIT 1;"));
+						if ($this->aux1 != "new") {
+							$tabular_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates_manual_squids ttms WHERE ttms.tabular_templates_manual_squid_id='{$this->aux1}' LIMIT 1;"));
 
-						$tabular_template_auto = $tabular_templates_query;
+							$tabular_template_auto = $tabular_templates_query;
+						}
 						break;
 					case "squidconstraints":
 						$blah = Tabular::view_constraints();
@@ -1209,6 +1220,9 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 
 		} else if ($tabular_template['y']['axis_type'] == "trend" && empty($tabular_template['y']['tabular_templates_trend_id'])) {
 			$this->redirect("tabular/add/".$this->id."/y/trendsource");
+
+		} else if ($this->subvar == "editsquidconstraintsubmit") {
+			$this->redirect("tabular/add/".$this->id."/y/squidconstraints/".$this->subid);
 
 		} else if ($this->subvar == "editconstraintsubmit") {
 			$this->redirect("tabular/add/".$this->id."/constraints");
@@ -3211,8 +3225,13 @@ class Tabular_View extends Template_View {
 				switch ($constraint_tmp['foobar']) {
 					case "constraint":
 						if ($blah['default']) {
-							$output .= "<li><a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/".$constraint_id."'>Edit</a></li>";
-							$output .= "<li><a href='".$this->webroot()."tabular/save/".$this->id."/removeconstraintsubmit/".$constraint_id."' onclick='if (confirm(\"Remove constraint?\")) {return true;} else {return false;}'>Remove</a></li>";
+							if ($this->subvar == "constraints") {
+								$output .= "<li><a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/".$constraint_id."'>Edit</a></li>";
+								$output .= "<li><a href='".$this->webroot()."tabular/save/".$this->id."/removeconstraintsubmit/".$constraint_id."' onclick='if (confirm(\"Remove constraint?\")) {return true;} else {return false;}'>Remove</a></li>";
+							} else if ($this->subid == "squidconstraints") {
+								$output .= "<li><a href='".$this->webroot()."tabular/add/{$this->id}/editsquidconstraint/{$this->aux1}/{$constraint_id}'>Edit</a></li>";
+// 								$output .= "<li><a href='".$this->webroot()."tabular/save/{$this->id}/removeconstraintsubmit/{$this->aux1}/{$constraint_id}' onclick='if (confirm(\"Remove constraint?\")) {return true;} else {return false;}'>Remove</a></li>";
+							}
 						} else {
 							$output .= "<li>&nbsp;</li>";
 						}
