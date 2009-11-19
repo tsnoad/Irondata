@@ -605,18 +605,25 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 								$tabular_template_auto['end_date'] = substr($tabular_template_auto['end_date'], 0, strpos($tabular_template_auto['end_date'], " "));
 
 								$_REQUEST['data']['column_id'] = $tabular_template_auto['column_id'];
-								$table_join_ajax = $this->view_table_join_ajax($tabular_template_auto['table_join_id']);
-								$table_join_ajax = $table_join_ajax->data;
-								unset($_REQUEST['data']['column_id']);
 							} else {
 								$_REQUEST['data']['column_id'] = reset(array_keys($blah));
-								$table_join_ajax = $this->view_table_join_ajax($tabular_template_auto['table_join_id']);
-								$table_join_ajax = $table_join_ajax->data;
-								unset($_REQUEST['data']['column_id']);
 							}
+
+							$table_join_ajax = $this->view_table_join_ajax($tabular_template_auto['table_join_id']);
+							$table_join_ajax = $table_join_ajax->data;
+							unset($_REQUEST['data']['column_id']);
 						}
 						break;
 					case "manualsource":
+						if ((int)$this->id) {
+							$tabular_templates_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_manual ttm ON (ttm.tabular_template_id=tt.tabular_template_id) INNER JOIN tabular_templates_manual_squids ttms ON (ttms.tabular_templates_manual_id=ttm.tabular_templates_manual_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."';"));
+
+							$tabular_template_auto = $tabular_templates_query;
+						}
+						break;
+					case "editsquidname":
+						break;
+					case "editsquidconstraints":
 						break;
 					default:
 						break;
@@ -1023,17 +1030,17 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 						}
 						break;
 					case "manualsourcesubmit":
-						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
-
-						$tabular_template_id = $tabular_template_query['tabular_template_id'];
-						$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
-
-						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_manual ttm ON (ttm.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
-
-						if ($update_query['tabular_templates_manual_id']) {
-						} else {
-							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_manual"));
-						}
+// 						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
+// 
+// 						$tabular_template_id = $tabular_template_query['tabular_template_id'];
+// 						$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
+// 
+// 						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_manual ttm ON (ttm.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
+// 
+// 						if ($update_query['tabular_templates_manual_id']) {
+// 						} else {
+// 							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_manual"));
+// 						}
 						break;
 					default:
 						break;
@@ -2246,24 +2253,6 @@ class Tabular_View extends Template_View {
 						$output->data .= "<h3>Axis Source</h3>";
 						$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/trendsourcesubmit", "dojoType='dijit.form.Form'");
 
-// 						$output->data .= "<div class='input'>Source Column: </div>";
-// 						$output->data .= "<p>Skoo</p>";
-
-// 						foreach ($blah as $table_name_tmp => $columns_tmp) {
-// 							$output->data .= "<h4 style='margin: 10px 0px 10px 30px; font-weight: normal; font-style: italic;'>".ucwords($table_name_tmp)."</h4>";
-// 							$output->data .= "<div style='margin-left: 30px'>";
-// 							foreach ($columns_tmp as $column_tmp) {
-// 								$output->data .= $this->i("data[column_id]", array("label"=>ucwords($column_tmp['column_name']), "type"=>"radio", "value"=>$column_tmp['column_id'], "default"=>false, "disabled"=>false, "onchange"=>"update_join_display(this);"));
-// 								$output->data .= "<p>Skoo</p>";
-// 							}
-// 							$output->data .= "</div>";
-// 
-// 							if ($columns_tmp != end($blah)) {
-// 								$output->data .= "<hr style='margin: 10px 0px 10px 30px; border-color: #eeeeec;' />";
-// 							}
-// 						}
-// 						$output->data .= "<hr />";
-
 						$output->data .= $this->i("data[column_id]", array("label"=>"Source Column", "type"=>"select", "default"=>$tabular_template_auto['column_id'], "options"=>$blah, "onchange"=>"update_join_display(this);", "dojoType"=>"dijit.form.FilteringSelect"));
 						$output->data .= $this->i("data[sort]", array("label"=>"Order", "type"=>"select", "default"=>$tabular_template_auto['sort'], "options"=>array("ASC"=>"Ascending", "DESC"=>"Descending"), "dojoType"=>"dijit.form.FilteringSelect"));
 						$output->data .= $this->i("data[start_date]", array("id"=>"data[start_date]", "type"=>"text", "dojoType"=>"dijit.form.DateTextBox", "label"=>"Start Date", "value"=>$tabular_template_auto['start_date']));
@@ -2282,9 +2271,25 @@ class Tabular_View extends Template_View {
 						$output->data .= "<h3>Axis Source</h3>";
 						$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/manualsourcesubmit", "dojoType='dijit.form.Form'");
 
+						if (empty($tabular_template_auto)) {
+							$output->data .= "<a href='".$this->webroot()."tabular/add/".$this->id."/".$this->subvar."/editsquidname/new'>Create Value</a>";
+							$output->data .= "<p>No values can be found.</p>";
+						} else {
+						}
 
 						$output->data .= $this->i("submit", array("label"=>"Next", "type"=>"submit", "value"=>"Next", "dojoType"=>"dijit.form.Button"));
 						$output->data .= $this->f_close();
+						break;
+					case "editsquidname":
+						$output->data .= "<h3>Custom Value</h3>";
+						$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/editsquidnamesubmit", "dojoType='dijit.form.Form'");
+
+						$output->data .= $this->i("data[human_name]", array("label"=>"Value Name", "type"=>"text", "default"=>$tabular_template_auto['human_name'], "dojoType"=>"dijit.form.ValidationTextBox"));
+
+						$output->data .= $this->i("submit", array("label"=>"Next", "type"=>"submit", "value"=>"Next", "dojoType"=>"dijit.form.Button"));
+						$output->data .= $this->f_close();
+						break;
+					case "editsquidconstraints":
 						break;
 				}
 				break;
@@ -2364,166 +2369,7 @@ class Tabular_View extends Template_View {
 				$output->title = "Constraints";
 				$output->title_desc = "";
 
-if (!empty($blah['constraints']) && count($blah['constraints']) > 0) {
-	$output->data .= "<h3>Constraint Logic</h3>";
-
-	$constraint_index = 1;
-
-	foreach ($blah['constraints'] as $constraint_tmp) {
-		$constraints_ascii[$constraint_index] = chr($constraint_index);
-		$constraints_id[$constraint_index] = $constraint_tmp['constraint_id'];
-		$constraints_text[$constraint_index] = $constraint_tmp['constraint'];
-
-		$constraint_index ++;
-	}
-
-	$logic_ascii = $blah['logic'];
-
-	foreach ($constraints_id as $constraint_index_tmp => $constraint_id_tmp) {
-		$logic_ascii = str_replace($constraint_id_tmp, $constraints_ascii[$constraint_index_tmp], $logic_ascii);
-	}
-
-	$output->data .= "
-		<script>
-			";
-
-	$output->data .= "
-			var constraints_ascii = new Array;
-			";
-	foreach ($constraints_ascii as $i => $tmp) {
-		$output->data .= "
-			constraints_ascii[$i] = '$tmp';
-			";
-	}
-
-	$output->data .= "
-			var constraints_id = new Array;
-			";
-	foreach ($constraints_id as $i => $tmp) {
-		$output->data .= "
-			constraints_id[$i] = '$tmp';
-			";
-	}
-
-	$output->data .= "
-			var constraints_text = new Array;
-			";
-	foreach ($constraints_text as $i => $tmp) {
-		$output->data .= "
-			constraints_text[$i] = '".str_replace("'", "\'", $tmp)."';
-			";
-	}
-
-	$output->data .= file_get_contents($this->sw_root.$this->sw_path."php_web/modules/tabular/constraints_ui.js");
-
-	$output->data .= "
-		</script>
-		<style>
-			#confoo_div {
-				margin: 20px 0px;
-				padding: 10px;
-				border: 1px solid #d3d7cf;
-			}
-				#confoo_div span {
-					position: relative;
-					border: 1px solid white;
-					vertical-align: middle;
-				}
-					#confoo_div span.constraint {
-						color: #888a85;
-					}
-					#confoo_div span.bracket {
-						border: 1px solid #fce94f;
-						background-color: #fce94f;
-					}
-					#confoo_div span.cursor_before {
-						border-left: 1px solid black;
-					}
-					#confoo_div span.selected {
-						border: 1px solid #204a87;
-						background-color: #204a87;
-						color: #eeeeec;
-					}
-					#confoo_div span.constraint.selected {
-						color: #babdb6;
-					}
-			#confoo_in {
-				width: 0px;
-				height: 0px;
-				position: absolute;
-				margin: 0px;
-				padding: 0px;
-				border: 0px;
-			}
-		</style>
-		";
-	$output->data .= $this->f("tabular/save/".$this->id."/constraintlogicsubmit/".$this->subid, "dojoType='dijit.form.Form'");
-	$output->data .= "
-		<div id='confoo_div'></div>
-		<input type='text' id='confoo_in' name='data[constraint_logic]' value='$logic_ascii' autocomplete='off' />
-		<input type='hidden' id='confoo_old' value='$logic_ascii' />
-		<input type='hidden' name='data[constraints_id]' value='".json_encode($constraints_id)."' />
-		<input type='hidden' name='data[constraints_ascii]' value='".json_encode($constraints_ascii)."' />
-		";
-	$output->data .= $this->i("submit", array("div_id"=>"confoo_save", "label"=>"Save", "type"=>"submit", "value"=>"Edit", "dojoType"=>"dijit.form.Button"));
-	$output->data .= $this->f_close();
-}
-
-				$output->data .= "<h3>Constraints</h3>";
-
-				if (!empty($blah['constraints'])) {
-					$output->data .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
-
-					$output->data .= "
-						<div class='reports'>
-							<table cellpadding='0' cellspacing='0'>
-								<tr>
-									<th>Constraint</th>
-									<th>&nbsp;</th>
-								</tr>
-								";
-
-					foreach ($blah['constraints'] as $constraint_tmp) {
-						$constraint_id = $constraint_tmp['constraint_id'];
-
-						$output->data .= "<tr>";
-						$output->data .= "<td>";
-
-						switch ($constraint_tmp['foobar']) {
-							case "constraint":
-								$output->data .= "<span class='".$constraint_tmp['foobar']."'>";
-								$output->data .= $constraint_tmp['constraint'];
-								$output->data .= "</span>";
-								break;
-						}
-
-						$output->data .= "</td>";
-						$output->data .= "<td>";
-						$output->data .= "<ul>";
-
-						switch ($constraint_tmp['foobar']) {
-							case "constraint":
-								if ($blah['default']) {
-									$output->data .= "<li><a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/".$constraint_id."'>Edit</a></li>";
-									$output->data .= "<li><a href='".$this->webroot()."tabular/save/".$this->id."/removeconstraintsubmit/".$constraint_id."' onclick='if (confirm(\"Remove constraint?\")) {return true;} else {return false;}'>Remove</a></li>";
-								} else {
-									$output->data .= "<li>&nbsp;</li>";
-								}
-								break;
-						}
-
-						$output->data .= "</ul>";
-						$output->data .= "</td>";
-						$output->data .= "</tr>";
-					}
-					$output->data .= "
-							</table>
-						</div>
-						";
-				} else {
-					$output->data .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
-					$output->data .= "<p>No constraints can be found.</p>";
-				}
+				$output->data .= Tabular_view::view_constraints($blah);
 
 				break;
 			case "editconstraint":
@@ -3168,6 +3014,174 @@ dojo.byId('dropdown_loading').style.display = 'none';
 		return $output;
 	}
 
+	/**
+	 * Called by Tabualr::view_add to show the constraints and constraint logic for a report. also used to show the constraints and constraint logic for a manual axis on a report.
+	 */
+	function view_constraints($blah) {
+		if (!empty($blah['constraints']) && count($blah['constraints']) > 0) {
+			$output .= "<h3>Constraint Logic</h3>";
+
+			$constraint_index = 1;
+
+			foreach ($blah['constraints'] as $constraint_tmp) {
+				$constraints_ascii[$constraint_index] = chr($constraint_index);
+				$constraints_id[$constraint_index] = $constraint_tmp['constraint_id'];
+				$constraints_text[$constraint_index] = $constraint_tmp['constraint'];
+
+				$constraint_index ++;
+			}
+
+			$logic_ascii = $blah['logic'];
+
+			foreach ($constraints_id as $constraint_index_tmp => $constraint_id_tmp) {
+				$logic_ascii = str_replace($constraint_id_tmp, $constraints_ascii[$constraint_index_tmp], $logic_ascii);
+			}
+
+			$output .= "
+				<script>
+					";
+
+			$output .= "
+					var constraints_ascii = new Array;
+					";
+			foreach ($constraints_ascii as $i => $tmp) {
+				$output .= "
+					constraints_ascii[$i] = '$tmp';
+					";
+			}
+
+			$output .= "
+					var constraints_id = new Array;
+					";
+			foreach ($constraints_id as $i => $tmp) {
+				$output .= "
+					constraints_id[$i] = '$tmp';
+					";
+			}
+
+			$output .= "
+					var constraints_text = new Array;
+					";
+			foreach ($constraints_text as $i => $tmp) {
+				$output .= "
+					constraints_text[$i] = '".str_replace("'", "\'", $tmp)."';
+					";
+			}
+
+			$output .= file_get_contents($this->sw_root.$this->sw_path."php_web/modules/tabular/constraints_ui.js");
+
+			$output .= "
+				</script>
+				<style>
+					#confoo_div {
+						margin: 20px 0px;
+						padding: 10px;
+						border: 1px solid #d3d7cf;
+					}
+						#confoo_div span {
+							position: relative;
+							border: 1px solid white;
+							vertical-align: middle;
+						}
+							#confoo_div span.constraint {
+								color: #888a85;
+							}
+							#confoo_div span.bracket {
+								border: 1px solid #fce94f;
+								background-color: #fce94f;
+							}
+							#confoo_div span.cursor_before {
+								border-left: 1px solid black;
+							}
+							#confoo_div span.selected {
+								border: 1px solid #204a87;
+								background-color: #204a87;
+								color: #eeeeec;
+							}
+							#confoo_div span.constraint.selected {
+								color: #babdb6;
+							}
+					#confoo_in {
+						width: 0px;
+						height: 0px;
+						position: absolute;
+						margin: 0px;
+						padding: 0px;
+						border: 0px;
+					}
+				</style>
+				";
+			$output .= $this->f("tabular/save/".$this->id."/constraintlogicsubmit/".$this->subid, "dojoType='dijit.form.Form'");
+			$output .= "
+				<div id='confoo_div'></div>
+				<input type='text' id='confoo_in' name='data[constraint_logic]' value='$logic_ascii' autocomplete='off' />
+				<input type='hidden' id='confoo_old' value='$logic_ascii' />
+				<input type='hidden' name='data[constraints_id]' value='".json_encode($constraints_id)."' />
+				<input type='hidden' name='data[constraints_ascii]' value='".json_encode($constraints_ascii)."' />
+				";
+			$output .= $this->i("submit", array("div_id"=>"confoo_save", "label"=>"Save", "type"=>"submit", "value"=>"Edit", "dojoType"=>"dijit.form.Button"));
+			$output .= $this->f_close();
+		}
+
+		$output .= "<h3>Constraints</h3>";
+
+		if (!empty($blah['constraints'])) {
+			$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
+
+			$output .= "
+				<div class='reports'>
+					<table cellpadding='0' cellspacing='0'>
+						<tr>
+							<th>Constraint</th>
+							<th>&nbsp;</th>
+						</tr>
+						";
+
+			foreach ($blah['constraints'] as $constraint_tmp) {
+				$constraint_id = $constraint_tmp['constraint_id'];
+
+				$output .= "<tr>";
+				$output .= "<td>";
+
+				switch ($constraint_tmp['foobar']) {
+					case "constraint":
+						$output .= "<span class='".$constraint_tmp['foobar']."'>";
+						$output .= $constraint_tmp['constraint'];
+						$output .= "</span>";
+						break;
+				}
+
+				$output .= "</td>";
+				$output .= "<td>";
+				$output .= "<ul>";
+
+				switch ($constraint_tmp['foobar']) {
+					case "constraint":
+						if ($blah['default']) {
+							$output .= "<li><a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/".$constraint_id."'>Edit</a></li>";
+							$output .= "<li><a href='".$this->webroot()."tabular/save/".$this->id."/removeconstraintsubmit/".$constraint_id."' onclick='if (confirm(\"Remove constraint?\")) {return true;} else {return false;}'>Remove</a></li>";
+						} else {
+							$output .= "<li>&nbsp;</li>";
+						}
+						break;
+				}
+
+				$output .= "</ul>";
+				$output .= "</td>";
+				$output .= "</tr>";
+			}
+			$output .= "
+					</table>
+				</div>
+				";
+		} else {
+			$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
+			$output .= "<p>No constraints can be found.</p>";
+		}
+
+		return $output;
+	}
+
 // 	function view_graph() {
 // 		$output->title = "Report Graph";
 // 		/* Options are in the menu*/
@@ -3268,14 +3282,14 @@ dojo.byId('dropdown_loading').style.display = 'none';
 									content: {},
 									// The LOAD function will be called on a successful response.
 									load: function(response, ioArgs) {
-	if (response) {
-		console.log(response);
-		if (dojo.byId('$processing_tr_id')) {
-			dojo.byId('$processing_tr_id').innerHTML = response;
-		}
-	} else {
-		console.log('no response');
-	}
+										if (response) {
+											console.log(response);
+											if (dojo.byId('$processing_tr_id')) {
+												dojo.byId('$processing_tr_id').innerHTML = response;
+											}
+										} else {
+											console.log('no response');
+										}
 										return response;
 									},
 									// The ERROR function will be called in an error case.
