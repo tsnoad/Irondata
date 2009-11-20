@@ -187,9 +187,7 @@ class Tabular extends Template {
 					$where[] = "CAST($alias_tmp.$column_name_tmp AS TEXT) ~ '^-?[0-9]+.?[0-9]*$'";
 					break;
 				case "average":
-					//as above but useing the avg() function
-// 					$select[$axis_name_tmp] = "AVG(CAST($alias_tmp.$column_name_tmp AS FLOAT))";
-
+					//as above but useing the avg() function and round to 4 signigicant digits
 					$select[$axis_name_tmp] = "ROUND(AVG(CAST($alias_tmp.$column_name_tmp AS FLOAT))::NUMERIC, FLOOR(4 - LOG(AVG(CAST($alias_tmp.$column_name_tmp AS FLOAT))::NUMERIC))::INT)";
 
 					$where[] = "CAST($alias_tmp.$column_name_tmp AS TEXT) ~ '^-?[0-9]+.?[0-9]*$'";
@@ -332,10 +330,6 @@ class Tabular extends Template {
 					//get distinct values that will make up the index for this axis
 					$query[$axis_name_tmp] = $this->hook_build_query($a_select, array("$table_name_tmp $alias_tmp" => 0), $a_where, $a_group, array("$axis_name_tmp $sort_tmp"), $limit);
 
-					//if we're only previwing the report, then only get the first ten distinct values of this index
-					if ($demo) {
-// 						$where[] = "$alias_tmp.$column_name_tmp IN (".rtrim($query[$axis_name_tmp], ";").")";
-					}
 
 if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 	$where[] = "($tmp_select='".implode("' OR $tmp_select='", $axis_limits[$axis_name_tmp])."')";
@@ -365,9 +359,20 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 
 					$select[$axis_name_tmp] = "f.human_name";
 
-					$join_tables[$axis_name_tmp] = "(VALUES (1, 'Canberra'), (2, 'Mt Ginini'), (3, 'Both')) AS f (id, human_name)";
+					foreach ($axis_tmp['squid_constraints'] as $squid_tmp) {
+						print_r($squid_tmp);
+					}
 
-					$where[] = "(((ac.site=1) AND f.id=1) OR ((ac.site=2) AND f.id=2) OR ((ac.site=1 OR ac.site=2) AND f.id=3))";
+					$join_tables[$axis_name_tmp] = array("table"=>"(VALUES (1, 'Canberra'), (2, 'Mt Ginini'), (3, 'Both')) AS f (id, human_name)", "alias"=>"", "manual_join"=>"ON (((ac.site=1) AND f.id=1) OR ((ac.site=2) AND f.id=2) OR ((ac.site=1 OR ac.site=2) AND f.id=3))");
+
+					if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
+						$where[] = "(f.human_name='".implode("' OR f.human_name='", $axis_limits[$axis_name_tmp])."')";
+					}
+
+					$group[$axis_name_tmp] = "f.human_name";
+
+					$query[$axis_name_tmp] = "SELECT f.human_name as \"{$axis_name_tmp}\" FROM (VALUES (1, 'Canberra'), (2, 'Mt Ginini'), (3, 'Both')) AS f (id, human_name);";
+
 					break;
 				default:
 					break;
@@ -1536,6 +1541,7 @@ FROM
   tabular_templates l
   LEFT OUTER JOIN tabular_templates_auto a ON (l.tabular_template_id=a.tabular_template_id) 
   LEFT OUTER JOIN tabular_templates_trend tr ON (l.tabular_template_id=tr.tabular_template_id) 
+  LEFT OUTER JOIN tabular_templates_single s ON (l.tabular_template_id=s.tabular_template_id) 
   LEFT OUTER JOIN tabular_templates_manual m ON (l.tabular_template_id=m.tabular_template_id) 
 WHERE 
   t.template_id=l.template_id ".$type." 
@@ -1590,6 +1596,27 @@ WHERE
 						$tabular_templates_type_query[$i]['tabular_template_trend_human_name'] = $tabular_templates_type_query[$i]['trend_column']['name'];
 					}
 					$tabular_templates_type_query[$i]['tabular_template_human_name'] = $tabular_templates_type_query[$i]['tabular_template_trend_human_name'];
+					break;
+				case "single":
+					break;
+				case "manual":
+					$tabular_templates_type_query[$i]['tabular_template_human_name'] = "Manual";
+
+					$squid_query = $this->dobj->db_fetch_all($this->dobj->db_query("
+SELECT
+  *
+FROM
+  tabular_templates_manual_squids ttms
+  INNER JOIN
+    tabular_templates_manual_squid_constraints ttmsc
+      ON (ttmsc.tabular_templates_manual_squid_id=ttms.tabular_templates_manual_squid_id)
+WHERE
+  ttms.tabular_templates_manual_id='{$tabular_templates_type_tmp['tabular_templates_manual_id']}';"));
+
+
+					if (!empty($squid_query)) {
+						$tabular_templates_type_query[$i]['squid_constraints'] = $squid_query;
+					}
 					break;
 				default:
 					break;
