@@ -353,26 +353,88 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 					$query[$axis_name_tmp] = "SELECT {$a_select[$axis_name_tmp]} AS {$axis_name_tmp};";
 					break;
 				case "manual":
-					//set these variables for easy access
-					$axis_name_tmp = $axis_tmp['type'];
-					$alias_tmp = "a".$axis_name_tmp;
+					if (!empty($axis_tmp['squid_constraints'])) {
+						//set these variables for easy access
+						$axis_name_tmp = $axis_tmp['type'];
+						$alias_tmp = "a".$axis_name_tmp;
 
-					$select[$axis_name_tmp] = "f.human_name";
+						foreach ($axis_tmp['squid_constraints'] as $squid_tmp) {
+							$squid_id_tmp = $squid_tmp['tabular_templates_manual_squid_id'];
 
-					foreach ($axis_tmp['squid_constraints'] as $squid_tmp) {
-						print_r($squid_tmp);
+							//create an array of squids! if you don't understand what this means, I suggest you familiarise yourself with the tabular_templates_manual table structure. srsly ^_^
+							$squids_tmp[$squid_id_tmp] = $squid_tmp['human_name'];
+
+							//set these variables for easy access
+							$squid_constraints_id_tmp = $squid_tmp['squid_constraints_id'];
+							$squid_alias_tmp = "{$alias_tmp}sc{$squid_constraints_id_tmp}";
+
+							$table_id_tmp = $squid_tmp['table_id'];
+							$table_name_tmp = $squid_tmp['table'];
+							$table_join_id_tmp = $squid_tmp['table_join_id'];
+							$column_name_tmp = $squid_tmp['column'];
+							$type_tmp = $squid_tmp['type'];
+							$value_tmp = $squid_tmp['value'];
+
+							//is this constraint's column in the same table as the intersection column?
+							if ($table_id_tmp == $intersection['auto_column']['table_id']) {
+								$squid_alias_tmp = "ac";
+							//if not...
+							} else if (!empty($table_join_id_tmp)) {
+								//...join this constraint's table to the query
+								$join_tables[$squid_alias_tmp] = array("table"=>$table_name_tmp, "table_id"=>$table_id_tmp, "alias"=>$squid_alias_tmp, "join_id"=>$table_join_id_tmp);
+							}
+
+							unset($where_tmp);
+
+							//generate the constraint SQL
+							$where_tmp = $this->where($squid_alias_tmp, $column_name_tmp, $type_tmp, $value_tmp);
+
+							//create an array of constraints by their (squid) constraint ids. in a moment we'll put them into logical order
+							$squid_wheres[$squid_constraints_id_tmp] = $where_tmp;
+						}
+
+						//loop through the constraint logic for each squid
+						foreach ($axis_tmp['squid_constraint_logic'] as $squid_logic_tmp) {
+							$squid_id_tmp = $squid_logic_tmp['tabular_templates_manual_squid_id'];
+
+							//constraint logic sql will need to be kept separated by squid_id
+							$squid_where_logical[$squid_id_tmp] = $squid_logic_tmp['logic'];
+
+							//loop through all the constraints we just created
+							foreach ($squid_wheres as $squid_constraints_id_tmp => $squid_where_tmp) {
+								//place the constraint into the constraint logic
+								$squid_where_logical[$squid_id_tmp] = str_replace($squid_constraints_id_tmp, $squid_where_tmp, $squid_where_logical[$squid_id_tmp]);
+							}
+						}
+
+						$select[$axis_name_tmp] = "f.human_name";
+
+						//loop thorugh the array of squids, that we created a moment ago. looking at the squid_ids will give us access to the squid's constraint logic.
+						foreach ($squids_tmp as $squid_id_tmp => $squid_tmp) {
+							//create an array to use in the sql FROM VALUES statement 
+							$tmp_values[] = "({$squid_id_tmp}, '{$squid_tmp}')";
+
+							//create an array to use in the sql JOIN statement
+							$tmp_join_on[] = "(({$squid_where_logical[$squid_id_tmp]}) AND f.id={$squid_id_tmp})";
+						}
+
+						//create a fake table of squid names, using sql VALUES (awesome!)
+						$tmp_values = "(VALUES ".implode(", ", $tmp_values).") AS f (id, human_name)";
+
+						//join the fake table using the squid constraints
+						$tmp_join_on = "ON (".implode(" OR ", $tmp_join_on).")";
+
+						//add the fake table to the query
+						$join_tables[$axis_name_tmp] = array("table"=>$tmp_values, "alias"=>"", "manual_join"=>$tmp_join_on);
+
+						if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
+							$where[] = "(f.human_name='".implode("' OR f.human_name='", $axis_limits[$axis_name_tmp])."')";
+						}
+
+						$group[$axis_name_tmp] = "f.human_name";
+
+						$query[$axis_name_tmp] = "SELECT f.human_name as \"{$axis_name_tmp}\" FROM {$tmp_values};";
 					}
-
-					$join_tables[$axis_name_tmp] = array("table"=>"(VALUES (1, 'Canberra'), (2, 'Mt Ginini'), (3, 'Both')) AS f (id, human_name)", "alias"=>"", "manual_join"=>"ON (((ac.site=1) AND f.id=1) OR ((ac.site=2) AND f.id=2) OR ((ac.site=1 OR ac.site=2) AND f.id=3))");
-
-					if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
-						$where[] = "(f.human_name='".implode("' OR f.human_name='", $axis_limits[$axis_name_tmp])."')";
-					}
-
-					$group[$axis_name_tmp] = "f.human_name";
-
-					$query[$axis_name_tmp] = "SELECT f.human_name as \"{$axis_name_tmp}\" FROM (VALUES (1, 'Canberra'), (2, 'Mt Ginini'), (3, 'Both')) AS f (id, human_name);";
-
 					break;
 				default:
 					break;
@@ -424,7 +486,7 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 		//generate the query
 		$query['c'] = $this->hook_build_query($select, $join_tables, $where, $group, $order, pow($limit, 2));
 
-		var_dump($query);
+// 		var_dump($query);
 
 		return $query;
 	}
@@ -1604,18 +1666,44 @@ WHERE
 
 					$squid_query = $this->dobj->db_fetch_all($this->dobj->db_query("
 SELECT
-  *
+  ttms.*,
+  ttmsc.*,
+  c.table_id,
+  c.name as column,
+  t.name as table
 FROM
   tabular_templates_manual_squids ttms
   INNER JOIN
     tabular_templates_manual_squid_constraints ttmsc
       ON (ttmsc.tabular_templates_manual_squid_id=ttms.tabular_templates_manual_squid_id)
+  INNER JOIN
+    columns c
+      ON (ttmsc.column_id=c.column_id)
+  INNER JOIN
+    tables t
+      ON (c.table_id=t.table_id)
 WHERE
   ttms.tabular_templates_manual_id='{$tabular_templates_type_tmp['tabular_templates_manual_id']}';"));
 
 
 					if (!empty($squid_query)) {
 						$tabular_templates_type_query[$i]['squid_constraints'] = $squid_query;
+					}
+
+					$squid_logic_query = $this->dobj->db_fetch_all($this->dobj->db_query("
+SELECT
+  ttms.*,
+  ttmscl.*
+FROM
+  tabular_templates_manual_squids ttms
+  INNER JOIN
+    tabular_templates_manual_squid_constraint_logic ttmscl
+      ON (ttmscl.tabular_templates_manual_squid_id=ttms.tabular_templates_manual_squid_id)
+WHERE
+  ttms.tabular_templates_manual_id='{$tabular_templates_type_tmp['tabular_templates_manual_id']}';"));
+
+					if (!empty($squid_logic_query)) {
+						$tabular_templates_type_query[$i]['squid_constraint_logic'] = $squid_logic_query;
 					}
 					break;
 				default:
