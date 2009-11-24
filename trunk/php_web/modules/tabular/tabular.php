@@ -1026,6 +1026,11 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 						}
 
 						break;
+					case "squidconstraintlogicsubmit":
+						if ($this->aux1) {
+							Tabular::view_constraintlogicsubmit();
+						}
+						break;
 					default:
 						break;
 				}
@@ -1063,21 +1068,7 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 				}
 				break;
 			case "constraintlogicsubmit":
-				$logic = $_REQUEST['data']['constraint_logic'];
-				$constraints_id = json_decode(stripslashes($_REQUEST['data']['constraints_id']), true);
-				$constraints_ascii = json_decode(stripslashes($_REQUEST['data']['constraints_ascii']), true);
-
-				foreach ($constraints_ascii as $index_tmp => $ascii_tmp) {
-					$logic = str_replace($ascii_tmp, $constraints_id[$index_tmp], $logic);
-				}
-
-				unset($_REQUEST['data']['constraint_logic']);
-				unset($_REQUEST['data']['constraints_id']);
-				unset($_REQUEST['data']['constraints_ascii']);
-
-				$_REQUEST['data']['logic'] = $logic;
-
-				$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "tabular_constraint_logic"));
+				Tabular::view_constraintlogicsubmit();
 				break;
 			case "editconstraintsubmit":
 				if ($this->subid) {
@@ -1262,6 +1253,9 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 			$this->redirect("tabular/add/".$this->id."/y/manualsource");
 
 		} else if ($this->subvar == "y" && $this->subid == "squidnamesubmit" && $tabular_template['y']['axis_type'] == "manual") {
+			$this->redirect("tabular/add/".$this->id."/y/squidconstraints/".$this->aux1);
+
+		} else if ($this->subvar == "y" && $this->subid == "squidconstraintlogicsubmit" && $tabular_template['y']['axis_type'] == "manual") {
 			$this->redirect("tabular/add/".$this->id."/y/squidconstraints/".$this->aux1);
 
 		} else if (empty($tabular_template['c'])) {
@@ -2249,6 +2243,31 @@ WHERE
 	}
 
 	/**
+	 * Called by Tabular::view_save to create edit constraint. Also used to edit constaint logic on manual axies
+	 */
+	function view_constraintlogicsubmit() {
+		$logic = $_REQUEST['data']['constraint_logic'];
+		$constraints_id = json_decode(stripslashes($_REQUEST['data']['constraints_id']), true);
+		$constraints_ascii = json_decode(stripslashes($_REQUEST['data']['constraints_ascii']), true);
+
+		foreach ($constraints_ascii as $index_tmp => $ascii_tmp) {
+			$logic = str_replace($ascii_tmp, $constraints_id[$index_tmp], $logic);
+		}
+
+		unset($_REQUEST['data']['constraint_logic']);
+		unset($_REQUEST['data']['constraints_id']);
+		unset($_REQUEST['data']['constraints_ascii']);
+
+		$_REQUEST['data']['logic'] = $logic;
+
+		if ($this->subvar == "constraintlogicsubmit") {
+			$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "tabular_constraint_logic"));
+		} else if ($this->subid == "squidconstraintlogicsubmit") {
+			$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_templates_manual_squid_id", $this->aux1, "tabular_templates_manual_squid_constraint_logic"));
+		}
+	}
+
+	/**
 	 * Called by Tabular::view_save to create a new constraint, or save changes to an existing one. Also used to edit constaints on manual axies
 	 */
 	function view_editconstraintsubmit() {
@@ -2567,11 +2586,24 @@ class Tabular_View extends Template_View {
 
 						$output->data .= $this->i("data[human_name]", array("label"=>"Value Name", "type"=>"text", "default"=>$tabular_template_auto['human_name'], "dojoType"=>"dijit.form.ValidationTextBox"));
 
-						$output->data .= $this->i("submit", array("label"=>"Next", "type"=>"submit", "value"=>"Next", "dojoType"=>"dijit.form.Button"));
+						$output->data .= "
+							<hr />
+							<div class='input'>
+								<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/{$this->subvar}/manualsource\"; return false;' name='cancel' />Cancel</button><button type='submit' value='Next' dojoType='dijit.form.Button' name='next' />Next</button>
+							</div>
+							";
+
 						$output->data .= $this->f_close();
 						break;
 					case "squidconstraints":
 						$output->data .= Tabular_view::view_constraints($blah);
+
+						$output->data .= "
+							<hr />
+							<div class='input'>
+								<button value='Back' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/{$this->subvar}/squidname/{$this->aux1}\"; return false;' name='constraint_page_back' id='constraint_page_back' />Back</button><button value='Done' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/{$this->subvar}/manualsource\"; return false;' name='constraint_page_forward' id='constraint_page_forward' />Done</button>
+							</div>
+							";
 						break;
 				}
 				break;
@@ -3289,15 +3321,21 @@ class Tabular_View extends Template_View {
 					}
 				</style>
 				";
-			$output .= $this->f("tabular/save/".$this->id."/constraintlogicsubmit/".$this->subid, "dojoType='dijit.form.Form'");
+			if ($this->subvar == "constraints") {
+				$output .= $this->f("tabular/save/{$this->id}/constraintlogicsubmit/{$this->subid}", "dojoType='dijit.form.Form'");
+			} else if ($this->subid == "squidconstraints") {
+				$output .= $this->f("tabular/save/{$this->id}/{$this->subvar}/squidconstraintlogicsubmit/{$this->aux1}", "dojoType='dijit.form.Form'");
+			}
 			$output .= "
 				<div id='confoo_div'></div>
 				<input type='text' id='confoo_in' name='data[constraint_logic]' value='$logic_ascii' autocomplete='off' />
 				<input type='hidden' id='confoo_old' value='$logic_ascii' />
 				<input type='hidden' name='data[constraints_id]' value='".json_encode($constraints_id)."' />
 				<input type='hidden' name='data[constraints_ascii]' value='".json_encode($constraints_ascii)."' />
+				<div id='confoo_save'>
+					<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=window.location; return false;' name='cancel' />Cancel</button><button type='submit' value='Save' dojoType='dijit.form.Button' name='save' />Save</button>
+				</div>
 				";
-			$output .= $this->i("submit", array("div_id"=>"confoo_save", "label"=>"Save", "type"=>"submit", "value"=>"Edit", "dojoType"=>"dijit.form.Button"));
 			$output .= $this->f_close();
 		}
 
