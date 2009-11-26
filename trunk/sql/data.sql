@@ -48,3 +48,12 @@ INSERT INTO modules VALUES ('template', 'Template Reports', 'Report template fun
 INSERT INTO modules VALUES ('user', 'User Management', 'User and group management', 'Core', NULL, 'active', 't');
 INSERT INTO modules VALUES ('workspace', 'User Workspaces', 'The users personal workspace', 'Core', NULL, 'active', 't');
 
+INSERT INTO modules VALUES ('csv', '', '', '', NULL, 'active', 't');
+INSERT INTO modules VALUES ('graphing', '', '', '', NULL, 'active', 't');
+INSERT INTO modules VALUES ('pdf', '', '', '', NULL, 'active', 't');
+
+INSERT INTO modules VALUES ('cron', '', '', '', NULL, 'active', 't');
+INSERT INTO modules VALUES ('ldap', '', '', '', NULL, 'active', 'f');
+INSERT INTO modules VALUES ('search', '', '', '', NULL, 'active', 'f');
+INSERT INTO modules VALUES ('help', '', '', '', NULL, 'active', 'f');
+
