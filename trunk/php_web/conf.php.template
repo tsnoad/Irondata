@@ -22,4 +22,45 @@ $conf['email']['password'] = "password";
 $conf['email']['from_address'] = "user@example.com";
 $conf['email']['from_name'] = "User Name";
 
+//address of the ldap host
+$conf['ldap']['host'] = "192.168.25.38";
+
+//main dn attribute to search for when fetching all users
+$conf['ldap']['base_dn'] = "o=IEAUST";
+
+//required distinct name attributes
+$conf['ldap']['required_dn'] = array(
+	"ou=Active",
+	"ou=User",
+	"ou=NAT_OFF"
+	);
+
+//groups to search for
+$conf['ldap']['search_groups'] = array(
+	"BO_Accred_Artic",
+	"BO_Admin_Prop_Serv",
+	"BO_Asses",
+	"BO_Canberra_Division",
+	"BO_Comm",
+	"BO_Con_Pub",
+	"BO_Develop",
+	"BO_Directors",
+	"BO_Divisions",
+	"BO_Ethics_Discipline",
+	"BO_Exec_Supp",
+	"BO_Fin_Manag",
+	"BO_Info_Manag",
+	"BO_Inter_Rel",
+	"BO_Lead_Comp",
+	"BO_Learn_Soc",
+	"BO_Marketing",
+	"BO_Mem_Serv",
+	"BO_Over_Qual",
+	"BO_People_Dev",
+	"BO_Pub_Pol",
+	"BO_Regist",
+	"BO_Test",
+	"BO_Users"
+	);
+
 ?>

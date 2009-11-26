@@ -986,17 +986,9 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 						}
 						break;
 					case "manualsourcesubmit":
-// 						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
-// 
-// 						$tabular_template_id = $tabular_template_query['tabular_template_id'];
-// 						$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
-// 
-// 						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_manual ttm ON (ttm.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
-// 
-// 						if ($update_query['tabular_templates_manual_id']) {
-// 						} else {
-// 							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_manual"));
-// 						}
+						break;
+					case "removesquidsubmit":
+						$this->dobj->db_query("DELETE FROM tabular_templates_manual_squids WHERE tabular_templates_manual_squid_id='{$this->aux1}';");
 						break;
 					case "squidnamesubmit":
 						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
@@ -1250,6 +1242,9 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 			$this->redirect("tabular/save/".$this->id."/y/singlesourcesubmit");
 
 		} else if ($this->subvar == "y" && $this->subid == "typesubmit" && $tabular_template['y']['axis_type'] == "manual") {
+			$this->redirect("tabular/add/".$this->id."/y/manualsource");
+
+		} else if ($this->subvar == "y" && $this->subid == "removesquidsubmit" && $tabular_template['y']['axis_type'] == "manual") {
 			$this->redirect("tabular/add/".$this->id."/y/manualsource");
 
 		} else if ($this->subvar == "y" && $this->subid == "squidnamesubmit" && $tabular_template['y']['axis_type'] == "manual") {
@@ -2567,6 +2562,7 @@ class Tabular_View extends Template_View {
 								$output->data .= "<td>";
 								$output->data .= "<ul>";
 								$output->data .= "<li><a href='".$this->webroot()."tabular/add/{$this->id}/y/squidname/{$squid_id}'>Edit</a></li>";
+								$output->data .= "<li><a href='".$this->webroot()."tabular/save/{$this->id}/y/removesquidsubmit/{$squid_id}' onclick='if (confirm(\"Remove Value?\")) {return true;} else {return false;}'>Remove</a></li>";
 								$output->data .= "</ul>";
 								$output->data .= "</td>";
 								$output->data .= "</tr>";

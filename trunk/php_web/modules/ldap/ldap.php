@@ -14,7 +14,6 @@ class Ldap extends User {
 	var $dobj;
 	var $name = "LDAP";
 	var $description = "LDAP";
-	var $ldaphost = '192.168.25.38';
 
 	function hook_admin_tools() {
 		return null;
@@ -36,6 +35,43 @@ class Ldap extends User {
 		return null;
 	}
 
+	/**
+	 * Checks that a user's dn has all the required attributes, as set in the conf file
+	 */
+	function check_required_dn($entry_dn) {
+		foreach ($this->conf['ldap']['required_dn'] as $required_tmp) {
+			if (strpos($entry_dn, $required_tmp) === false) return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Takes a the groupmembership array, and converts into usable data
+	 */
+	function cromulategroups($user_id, $units, $user_id_units, $groups) {
+		if (empty($groups)) return array($units, $user_id_units);
+
+		//create a huge string of all groups, mashed together ^_^
+		unset($groups['count']);
+		$all_groups_tmp = implode(",", $groups);
+
+		//loop through all the groups that we're expecting to find
+		foreach ($this->conf['ldap']['search_groups'] as $search_tmp) {
+			//if the current member of the current group...
+			if (strpos($all_groups_tmp, "cn=".$search_tmp) !== false) {
+				$unit_id = "ldap_".$search_tmp;
+
+				//... add the unit to the list of groups we'll display
+				$units[$unit_id] = $search_tmp;
+
+				//... and add the group to the user's list of groups
+				$user_id_units[$user_id][$unit_id] = $unit_id;
+			}
+		}
+
+		return array($units, $user_id_units);
+	}
 
 	/**
 	 * Called by User::view_login. Attempts to check the provided login details against users from the ldap server. If successful, saves the user's details and acl to the session variable and redirects to the appropriate page.
@@ -45,44 +81,44 @@ class Ldap extends User {
 			return false;
 		}
 		#Connect to the ldap server
-		$ds=ldap_connect($this->ldaphost);
+		$ds=ldap_connect($this->conf['ldap']['host']);
 		if ($ds) {
 			#Bind anonymously. Used to find the dn of the user. 
 			$r = ldap_bind($ds);
 			#Search for the user. 
-			$sr = ldap_search($ds, "o=ieaust", "cn=$usr");
+			$sr = ldap_search($ds, $this->conf['ldap']['base_dn'], "cn=$usr");
 
 			#Get all results. 
-			$info = ldap_get_entries($ds, $sr);
+			$ldap_entries = ldap_get_entries($ds, $sr);
 
-			foreach ($info as $i => $info_row) {
+			foreach ($ldap_entries as $entry) {
 				#Do not attempt to bind if the record has no DN (ie system records).
-				if (!($info_row['dn'])) {
+				if (!($entry['dn'])) {
 					continue;
 				}
-				$fulldn = $info_row['dn'];
+				$fulldn = $entry['dn'];
 
 				#Check that the supplied user can bind/login with the supplied password. 
 				if (@ldap_bind($ds, $fulldn, $pwd)) {
 					ldap_close($ds);
 
-					//create an array of organisational units to which the user belongs
-					if ($info_row['ou']['count'] > 1) {
-						foreach ($info_row['ou'] as $unit_index => $unit) {
-							if ($unit_index == "count") continue;
-							if (empty($unit)) continue;
+					if (empty($entry['uid'][0])) continue;
+					if (empty($entry['fullname'][0])) continue;
 
-							$units[$unit] = $unit;
-						}
-					} else if ($info_row['ou']['count'] > 0 && !empty($info_row['ou'][0])) {
-						$unit = strtolower($info_row['ou'][0]);
+					//make sure this user has all the requred dn attributes
+					if (!$this->check_required_dn($entry['dn'])) continue;
 
-						$units[$unit] = $unit;
-					}
+					$user_id = "ldap_".strtolower($entry['uid'][0]);
+					$name = $entry['fullname'][0];
+
+					list($units, $user_id_units) = $this->cromulategroups($user_id, $units, $user_id_units, $entry['groupmembership']);
 
 					//get permissions for the user and their groups
 					$acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM system_acls_ldap_users WHERE user_id='".$usr."' AND access=true;"));
-					$acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM system_acls_ldap_groups WHERE group_id='".implode("' OR group_id='", $units)."' AND access=true;"));
+
+					if (!empty($units)) {
+						$acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM system_acls_ldap_groups WHERE group_id='".implode("' OR group_id='", $units)."' AND access=true;"));
+					}
 
 					//convert the user's and user's groups acls into a single array telling if the user has permission or not for each role.
 					$acls_query = array_merge((array)$acls_users_query, (array)$acls_groups_query);
@@ -125,28 +161,25 @@ class Ldap extends User {
 		$search_string = "(uid=$usr)";
 
 		#Connect to the ldap server
-		$ds=ldap_connect($this->ldaphost);
+		$ds=ldap_connect($this->conf['ldap']['host']);
 		if ($ds) {
 			$r = ldap_bind($ds);
 			//search the directory for the logged in user id
-			$sr = ldap_search($ds, "o=ieaust", $search_string, array("uid", "ou"));
+			$sr = ldap_search($ds, $this->conf['ldap']['base_dn'], $search_string, array("uid", "ou"));
 
 			$ldap_entries = ldap_get_entries($ds, $sr);
 
 			foreach ($ldap_entries as $entry) {
-				//create an array of organisatinoal units to which the user belongs
-				if ($entry['ou']['count'] > 1) {
-					foreach ($entry['ou'] as $unit_index => $unit) {
-						if ($unit_index == "count") continue;
-						if (empty($unit)) continue;
+				if (empty($entry['uid'][0])) continue;
+				if (empty($entry['fullname'][0])) continue;
 
-						$units[$unit] = $unit;
-					}
-				} else if ($entry['ou']['count'] > 0 && !empty($entry['ou'][0])) {
-					$unit = strtolower($entry['ou'][0]);
+				//make sure this user has all the requred dn attributes
+				if (!$this->check_required_dn($entry['dn'])) continue;
 
-					$units[$unit] = $unit;
-				}
+				$user_id = "ldap_".strtolower($entry['uid'][0]);
+				$name = $entry['fullname'][0];
+
+				list($units, $user_id_units) = $this->cromulategroups($user_id, $units, $user_id_units, $entry['groupmembership']);
 			}
 
 			ldap_close($ds);
@@ -154,7 +187,10 @@ class Ldap extends User {
 
 		//get report permissions for the user and their groups
 		$rep_acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM report_acls_ldap_users WHERE user_id='".$usr."' AND access=true;"));
-		$rep_acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM report_acls_ldap_groups WHERE group_id='".implode("' OR group_id='", $units)."' AND access=true;"));
+
+		if (!empty($units)) {
+			$rep_acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM report_acls_ldap_groups WHERE group_id='".implode("' OR group_id='", $units)."' AND access=true;"));
+		}
 
 		//convert the user's and user's groups acls into a single array telling if the user has permission or not for each role of each report.
 		$rep_acls_query = array_merge((array)$rep_acls_users_query, (array)$rep_acls_groups_query);
@@ -181,9 +217,9 @@ class Ldap extends User {
 		//rekey by uid
 		if (!empty($recipients_query)) {
 			foreach ($recipients_query as $recipient) {
-				$uid = $recipient['uid'];
+				$user_id = $recipient['uid'];
 
-				$recipients[$uid] = true;
+				$recipients[$user_id] = true;
 			}
 		}
 
@@ -194,10 +230,10 @@ class Ldap extends User {
 		$search_string = "(|(uid=".implode(")(uid=", array_keys($recipients))."))";
 
 		#Connect to the ldap server
-		$ds=ldap_connect($this->ldaphost);
+		$ds=ldap_connect($this->conf['ldap']['host']);
 		if ($ds) {
 			$r = ldap_bind($ds);
-			$sr = ldap_search($ds, "o=ieaust", $search_string, array("uid", "fullname", "mail"));
+			$sr = ldap_search($ds, $this->conf['ldap']['base_dn'], $search_string, array("uid", "fullname", "mail"));
 
 			$ldap_entries = ldap_get_entries($ds, $sr);
 
@@ -206,7 +242,7 @@ class Ldap extends User {
 				if (empty($entry['fullname'][0])) continue;
 				if (empty($entry['mail'][0])) continue;
 
-				$uid = $entry['uid'][0];
+				$user_id = $entry['uid'][0];
 				$name = $entry['fullname'][0];
 				$email = strtolower($entry['mail'][0]);
 
@@ -241,11 +277,11 @@ class Ldap extends User {
 	 */
 	function hook_access_users() {
 		//get data from the ldap server
-		$ds=ldap_connect($this->ldaphost);
+		$ds=ldap_connect($this->conf['ldap']['host']);
 		if ($ds) {
 			$r = ldap_bind($ds);
 			//get all ids, names and organisational units
-			$sr = ldap_search($ds, "o=ieaust", "(&(mail=*)(fullname=*))", array("uid", "fullname", "sn", "ou"));
+			$sr = ldap_search($ds, $this->conf['ldap']['base_dn'], "(&(uid=*)(mail=*)(fullname=*)(groupmembership=*))", array("uid", "fullname", "sn", "groupmembership"));
 
 			//sort by second name
 			ldap_sort($ds, $sr, "sn");
@@ -257,32 +293,16 @@ class Ldap extends User {
 				if (empty($entry['uid'][0])) continue;
 				if (empty($entry['fullname'][0])) continue;
 
-				$uid = "ldap_".strtolower($entry['uid'][0]);
+				//make sure this user has all the requred dn attributes
+				if (!$this->check_required_dn($entry['dn'])) continue;
+
+				$user_id = "ldap_".strtolower($entry['uid'][0]);
 				$name = $entry['fullname'][0];
 
-				//create arrays of organisational units, and ou memberships by user
-				if ($entry['ou']['count'] > 1) {
-					foreach ($entry['ou'] as $unit_index => $unit) {
-						if ($unit_index == "count") continue;
-						if (empty($unit)) continue;
+				//create an array of users
+				$users[$user_id] = $name;
 
-						$unit_id = "ldap_".$unit;
-
-						$units[$unit_id] = $unit;
-
-						$uid_units[$uid][] = $unit_id;
-					}
-				} else if ($entry['ou']['count'] > 0 && !empty($entry['ou'][0])) {
-					$unit = strtolower($entry['ou'][0]);
-					$unit_id = "ldap_".$unit;
-
-					$units[$unit_id] = $unit;
-
-					$uid_units[$uid][] = $unit_id;
-				}
-
-				//cerate an array of users
-				$users[$uid] = $name;
+				list($units, $user_id_units) = $this->cromulategroups($user_id, $units, $user_id_units, $entry['groupmembership']);
 			}
 
 			ldap_close($ds);
@@ -292,7 +312,7 @@ class Ldap extends User {
 			return array(
 				"users" => $users,
 				"groups" => $units,
-				"users_groups" => $uid_units
+				"users_groups" => $user_id_units
 				);
 		}
 
@@ -515,9 +535,9 @@ class Ldap extends User {
 
 			if (!empty($recipients_query)) {
 				foreach ($recipients_query as $recipient) {
-					$uid = $recipient['uid'];
+					$user_id = $recipient['uid'];
 
-					$recipients[$uid] = true;
+					$recipients[$user_id] = true;
 				}
 			}
 
@@ -526,25 +546,25 @@ class Ldap extends User {
 			foreach ($_REQUEST['data'] as $key_tmp => $data_tmp) {
 				if (substr($key_tmp, 0, 10) != "recipient_") continue;
 
-				$uid = substr($key_tmp, 10);
+				$user_id = substr($key_tmp, 10);
 
 				//user not in database table: add them
-				if (empty($recipients[$uid])) {
-					$this->dobj->db_query($this->dobj->insert(array("template_id"=>$this->id, "uid"=>$uid), "ldap_recipients"));
+				if (empty($recipients[$user_id])) {
+					$this->dobj->db_query($this->dobj->insert(array("template_id"=>$this->id, "uid"=>$user_id), "ldap_recipients"));
 
-					$recipients[$uid] = true;
+					$recipients[$user_id] = true;
 
 				//user already in database table: no change
 				} else {
 				}
 
-				unset($recipients_subtraction[$uid]);
+				unset($recipients_subtraction[$user_id]);
 			}
 
 			if (!empty($recipients_subtraction)) {
-				foreach ($recipients_subtraction as $uid => $recipient) {
+				foreach ($recipients_subtraction as $user_id => $recipient) {
 					//user in database table, but not selected: remove them
-					$this->dobj->db_query("DELETE FROM ldap_recipients WHERE template_id='".$this->id."' AND uid='$uid';");
+					$this->dobj->db_query("DELETE FROM ldap_recipients WHERE template_id='".$this->id."' AND uid='$user_id';");
 				}
 			}
 
@@ -557,17 +577,17 @@ class Ldap extends User {
 
 		if (!empty($recipients_query)) {
 			foreach ($recipients_query as $recipient) {
-				$uid = $recipient['uid'];
+				$user_id = $recipient['uid'];
 
-				$recipients[$uid] = true;
+				$recipients[$user_id] = true;
 			}
 		}
 
 		#Connect to the ldap server
-		$ds=ldap_connect($this->ldaphost);
+		$ds=ldap_connect($this->conf['ldap']['host']);
 		if ($ds) {
 			$r = ldap_bind($ds);
-			$sr = ldap_search($ds, "o=ieaust", "(&(mail=*)(fullname=*))", array("uid", "fullname", "sn", "mail", "ou"));
+			$sr = ldap_search($ds, $this->conf['ldap']['base_dn'], "(&(mail=*)(fullname=*))", array("uid", "fullname", "sn", "mail", "groupmembership"));
 
 			ldap_sort($ds, $sr, "sn");
 
@@ -578,29 +598,16 @@ class Ldap extends User {
 				if (empty($entry['fullname'][0])) continue;
 				if (empty($entry['mail'][0])) continue;
 
-				$uid = $entry['uid'][0];
+				//make sure this user has all the requred dn attributes
+				if (!$this->check_required_dn($entry['dn'])) continue;
+
+				$user_id = $entry['uid'][0];
 				$name = $entry['fullname'][0];
 				$email = strtolower($entry['mail'][0]);
 
-				if ($entry['ou']['count'] > 1) {
-					foreach ($entry['ou'] as $unit_index => $unit) {
-						if ($unit_index == "count") continue;
-						if (empty($unit)) continue;
+				list($units, $user_id_units) = $this->cromulategroups($user_id, $units, $user_id_units, $entry['groupmembership']);
 
-						$units[$unit] = $unit;
-
-						$unit_entries[$unit][$uid] = $uid;
-						$uid_units[$uid][$unit] = $unit;
-					}
-				} else if ($entry['ou']['count'] > 0 && !empty($entry['ou'][0])) {
-					$unit = strtolower($entry['ou'][0]);
-					$units[$unit] = $unit;
-
-					$unit_entries[$unit][$uid] = $uid;
-					$uid_units[$uid][$unit] = $unit;
-				}
-
-				$users[$uid] = array($name, $email, implode(", ", (array)$uid_units[$uid]), !empty($recipients[$uid]));
+				$users[$user_id] = array($name, $email, implode(", ", (array)$user_id_units[$user_id]), !empty($recipients[$user_id]));
 			}
 
 			ldap_close($ds);
@@ -622,17 +629,17 @@ class Ldap_View {
 					<tr>
 						<th>Name</th>
 						<th>Email Address</th>
-						<th>Units</th>
+						<th>Memberships</th>
 						<th>&nbsp;</th>
 					</tr>
 					";
-		foreach ($users as $uid => $user) {
+		foreach ($users as $user_id => $user) {
 			$output->data .= "
 					<tr>
 						<td>".$user[0]."</td>
 						<td>".$user[1]."</td>
 						<td>".$user[2]."</td>
-						<td><input name='data[recipient_$uid]' type='checkbox' ".($user[3] ? "checked" : "")." /></td>
+						<td><input name='data[recipient_$user_id]' type='checkbox' ".($user[3] ? "checked" : "")." /></td>
 					</tr>
 					";
 		}
