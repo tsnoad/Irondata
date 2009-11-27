@@ -29,7 +29,7 @@
 			<script type="text/javascript" src="<?php echo $webroot; ?>modules/active/<?php echo $display->js_href; ?>"></script>
 		<?php endif; ?>
 	</head>
-	<body class='tundra'>
+	<body class='tundra' id="trousers">
 		<div class="container">
 			<div style="height: 0px;">&nbsp;</div>
 			<div class="container2">

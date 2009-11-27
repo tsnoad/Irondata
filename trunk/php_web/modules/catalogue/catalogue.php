@@ -49,6 +49,126 @@ class Catalogue extends Modules {
 			);
 	}
 
+	function render_join($table_join, $columns) {
+		$table_join_id = $table_join['table_join_id'];
+
+		$method_tmp = explode(",", $table_join['method']);
+
+		$method_start_table = $table_join['table1'];
+		$method_end_table = $table_join['table2'];
+
+		$this_pair_start_id = 0;
+		$this_pair_end_id = $this_pair_start_id + 1;
+
+		$last_pair_start_table = $method_start_table;
+
+		unset($method_reorg);
+
+		while ($method_tmp[$this_pair_start_id]) {
+			$this_pair_start_table = $columns[$method_tmp[$this_pair_start_id]]['table_id'];
+
+			if ($this_pair_start_id !== 0) $method_reorg[] = "internal join";
+
+			if ($last_pair_start_table != $this_pair_start_table) {
+				$method_reorg[] = $method_tmp[$this_pair_end_id];
+				$method_reorg[] = "referenced by";
+				$method_reorg[] = $method_tmp[$this_pair_start_id];
+			} else {
+				$method_reorg[] = $method_tmp[$this_pair_start_id];
+				$method_reorg[] = "references";
+				$method_reorg[] = $method_tmp[$this_pair_end_id];
+			}
+
+			$last_pair_start_table = $columns[$method_reorg[$this_pair_end_id]]['table_id'];
+
+			$this_pair_start_id += 2;
+			$this_pair_end_id = $this_pair_start_id + 1;
+		}
+
+
+// 		$foobar .= "<div class='input'>";
+// 		$foobar .= "<input type='radio' name='data[table_join_id]' value='".$table_join_id."' ".($current_join == $table_join_id ? "checked=\"checked\"" : "")." /><label>";
+
+// 		unset($explaination_tmp);
+// 		unset($explaination_count);
+// 		unset($explaination_sr_count);
+// 		unset($explaination_in_count);
+// 		$explaination_tmp .= "The selected column is linked, ";
+
+// 		if ($method_reorg[0] != $selected_column_id) {
+// 			$column = $columns[$selected_column_id];
+// 
+// 			$foobar .= "<span style='font-weight: bold;'>";
+// 			$foobar .= ucwords($column['table_name']);
+// 			$foobar .= ".";
+// 			$foobar .= ucwords($column['column_name']);
+// 			$foobar .= "</span>";
+// 
+// 			$foobar .= " &#x21C4; ";
+// 
+// // 			$explaination_tmp .= "via a self referential join, ";
+// // 			$explaination_count += 1;
+// // 			$explaination_sr_count += 1;
+// 		}
+
+		foreach ($method_reorg as $method_step) {
+			if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "<span style='font-weight: bold;'>";
+
+			switch ($method_step) {
+				case "internal join":
+					$foobar .= " &#x21C4; ";
+
+// 					$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_sr_count > 0 ? "another" : "a")." self referential join, ";
+// 					$explaination_count += 1;
+// 					$explaination_sr_count += 1;
+					break;
+				case "references":
+				case "referenced by":
+					$foobar .= " <span style='font-style: italic;'>";
+					$foobar .= $method_step;
+					$foobar .= "</span> ";
+
+// 					$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_in_count > 0 ? "another" : "an")." inner join, ";
+// 					$explaination_count += 1;
+// 					$explaination_in_count += 1;
+					break;
+				default:
+					$column = $columns[$method_step];
+
+					$foobar .= ucwords($column['table_name']);
+					$foobar .= ".";
+					$foobar .= ucwords($column['column_name']);
+					break;
+			}
+
+			if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "</span>";
+		}
+
+// 		if (end($method_reorg) != $intersection_column_id) {
+// 			$foobar .= " &#x21C4; ";
+// 
+// 			$column = $columns[$intersection_column_id];
+// 
+// 			$foobar .= "<span style='font-weight: bold;'>";
+// 			$foobar .= ucwords($column['table_name']);
+// 			$foobar .= ".";
+// 			$foobar .= ucwords($column['column_name']);
+// 			$foobar .= "</span>";
+// 
+// // 			$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_sr_count > 0 ? "another" : "a")." self referential join, ";
+// // 			$explaination_count += 1;
+// // 			$explaination_sr_count += 1;
+// 		}
+
+// 		$foobar .= "</label>";
+// 		$foobar .= "</div>";
+
+// 		$explaination_tmp .= "to the intersection column.";
+// 		$foobar .= "<p>".$explaination_tmp."</p>";
+
+		return $foobar;
+	}
+
 	/* View Display 
 	 * Displays the list of available databases in the catalogue.
 	 */
@@ -266,82 +386,35 @@ class Catalogue extends Modules {
 		}
 
 		/* Joins */
-		$table_joins_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM table_joins WHERE table1='".implode("' OR table1='", array_keys($tables))."';"));
+		$table_joins_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM table_joins WHERE (table1='".implode("' OR table1='", array_keys($tables))."') AND (table2='".implode("' OR table2='", array_keys($tables))."') ORDER BY table1, table2;"));
 
 		if (!empty($table_joins_query)) {
-			$columns_tmp = array();
 			foreach ($table_joins_query as $table_join_tmp) {
-				$columns_tmp = array_merge((array)$columns_tmp, (array)explode(",", $table_join_tmp['method']));
+				$table_join_id = $table_join_tmp['table_join_id'];
+				$table1 = $table_join_tmp['table1'];
+				$table2 = $table_join_tmp['table2'];
+
+				$joins[$table_join_id]['table1'] = $tables[$table1]['name'];
+				$joins[$table_join_id]['table2'] = $tables[$table2]['name'];
+			}
+
+
+			foreach ($table_joins_query as $table_join_tmp) {
+				$join_columns_tmp = array_merge((array)$join_columns_tmp, (array)explode(",", $table_join_tmp['method']));
 				$table_joins[$table_join_tmp['table_join_id']] = $table_join_tmp;
 			}
-			$columns_tmp = array_unique($columns_tmp);
+			$join_columns_tmp = array_unique($join_columns_tmp);
 
-			$columns_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT c.column_id, c.name as column_name, t.table_id, t.name as table_name FROM columns c INNER JOIN tables t ON (c.table_id=t.table_id) WHERE c.column_id='".implode("' OR c.column_id='", $columns_tmp)."';"));
-			foreach ($columns_query as $column_tmp) {
-				$join_columns[$column_tmp['column_id']] = $column_tmp;
-				$join_tables[$column_tmp['table_id']] = $column_tmp;
+			$join_columns_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT c.column_id, c.name as column_name, t.table_id, t.name as table_name FROM columns c INNER JOIN tables t ON (c.table_id=t.table_id) WHERE c.column_id='".implode("' OR c.column_id='", $join_columns_tmp)."';"));
+			foreach ($join_columns_query as $join_column_tmp) {
+				$join_columns[$join_column_tmp['column_id']] = $join_column_tmp;
+				$join_tables[$join_column_tmp['table_id']] = $join_column_tmp;
 			}
 
 			foreach ($table_joins as $table_join) {
-				$table_join_id = $table_join['table_join_id'];
-
-				$method_tmp = explode(",", $table_join['method']);
-
-				$method_start_table = $table_join['table1'];
-				$method_end_table = $table_join['table2'];
-
-				$this_pair_start_id = 0;
-				$this_pair_end_id = $this_pair_start_id + 1;
-
-				$last_pair_start_table = $method_start_table;
-
-				unset($method_reorg);
-
-				while ($method_tmp[$this_pair_start_id]) {
-					$this_pair_start_table = $join_columns[$method_tmp[$this_pair_start_id]]['table_id'];
-
-					if ($this_pair_start_id !== 0) $method_reorg[] = "internal join";
-
-					if ($last_pair_start_table != $this_pair_start_table) {
-						$method_reorg[] = $method_tmp[$this_pair_end_id];
-						$method_reorg[] = "referenced by";
-						$method_reorg[] = $method_tmp[$this_pair_start_id];
-					} else {
-						$method_reorg[] = $method_tmp[$this_pair_start_id];
-						$method_reorg[] = "references";
-						$method_reorg[] = $method_tmp[$this_pair_end_id];
-					}
-
-					$last_pair_start_table = $join_columns[$method_reorg[$this_pair_end_id]]['table_id'];
-
-					$this_pair_start_id += 2;
-					$this_pair_end_id = $this_pair_start_id + 1;
-				}
-
-				unset($method_tmp);
-				foreach ($method_reorg as $method_step) {
-					switch ($method_step) {
-						case "internal join":
-							$method_tmp .= " &#x21C4; ";
-							break;
-						case "references":
-						case "referenced by":
-							$method_tmp .= " <span style='font-style: italic;'>";
-							$method_tmp .= $method_step;
-							$method_tmp .= "</span> ";
-							break;
-						default:
-							$join_column = $join_columns[$method_step];
-
-							$method_tmp .= ucwords($join_column['table_name']);
-							$method_tmp .= ".";
-							$method_tmp .= ucwords($join_column['column_name']);
-							break;
-					}
-				}
-
-				$joins[$table_join_id]['name'] = $method_tmp;
+				$joins[$table_join['table_join_id']]['name'] = $this->render_join($table_join, $join_columns);
 			}
+
 		}
 
 		$output = Catalogue_View::view_edit_columns($dbs, $tables, $columns, $joins, $dbs['type']);
@@ -439,9 +512,10 @@ class Catalogue extends Modules {
 	
 	function add_column($data) {
 		$data['column_id'] = $this->dobj->nextval("columns");
+
 		$query = $this->dobj->insert($data, "columns");
-// var_dump($query);
 		$this->dobj->db_query($query);
+
 		return $data['column_id'];
 	}
 	
@@ -456,8 +530,6 @@ class Catalogue extends Modules {
 		if (!empty($data['dropdown'])) {
 			$data['dropdown'] = ($data['dropdown'] == "on" ? "t" : "f");
 		}
-// var_dump($data);
-// var_dump($id);
 
 		$query = $this->dobj->update($data, "column_id", $id, "columns");
 		$this->dobj->db_query($query);
@@ -488,6 +560,23 @@ class Catalogue extends Modules {
 // 		}
 // 
 // 		$this->redirect("catalogue/edit/".$this->id);
+	}
+	
+	/**
+	 * Remove Join
+	 *
+	 * Removes a table join from the catalogue
+	 */
+	function view_remove_join() {
+		if (empty($this->id)) return;
+
+		$table_join_id = $this->id;
+		$database_id = $this->subvar;
+		$prev_join_id = $this->subid;
+
+		$this->dobj->db_query("DELETE FROM table_joins WHERE table_join_id='$table_join_id';");
+
+		$this->redirect("catalogue/edit_columns/{$database_id}/{$prev_join_id}");
 	}
 }
 
@@ -645,6 +734,51 @@ Class Catalogue_View {
 						</td>
 					</tr>
 					";
+		}
+		$output->data .= "
+				</table>
+			</div>
+			";
+
+
+		$output->data .= "<h3>Table Joins</h3>";
+
+		if (!empty($this->subvar)) {
+			$output->data .= "
+				<script>
+					dojo.addOnLoad(function () {
+						dojo.byId('join_{$this->subvar}').scrollIntoView();
+					});
+				</script>
+				";
+		}
+
+		$output->data .= "
+			<div class='reports'>
+				<table cellpadding='0' cellspacing='0'>
+					<tr>
+						<th id='join_start'>A</th>
+						<th>B</th>
+						<th>via</th>
+						<th>&nbsp;</th>
+					</tr>
+					";
+		$prev_join = "start";
+
+		foreach ($joins as $join_id => $join) {
+			$output->data .= "
+					<tr>
+						<td id='join_{$join_id}'>{$join['table1']}</td>
+						<td>{$join['table2']}</td>
+						<td>{$join['name']}</td>
+						<td>
+							<ul>
+								<li>".$this->l("catalogue/remove_join/{$join_id}/{$this->id}/{$prev_join}", "Remove", "onclick='if (confirm(\"Remove table join?\")) {return true;} else {return false;}'")."</li>
+							</ul>
+						</td>
+					</tr>
+					";
+			$prev_join = $join_id;
 		}
 		$output->data .= "
 				</table>

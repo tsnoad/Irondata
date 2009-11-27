@@ -101,11 +101,6 @@ class Tabular extends Template {
 			});
 		}
 
-		function update_data_preview() {
-// 			var passContent = {};
-// 			ajax_load('".$this->webroot()."tabular/data_preview_ajax/".$this->id."', passContent, 'data_preview');
-		}
-
 		function update_data_preview_slow() {
 			var saved_report_id = window.document.getElementById('saved_report_id').innerHTML;
 
