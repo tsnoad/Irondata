@@ -227,11 +227,8 @@ class Tabular extends Template {
 						$a_select[$axis_name_tmp] = "$alias_tmp.$column_name_tmp";
 						$query[$axis_name_tmp] = $this->hook_build_query($a_select, array("$table_name_tmp $alias_tmp" => 0), false, array("$alias_tmp.$column_name_tmp"), array("$axis_name_tmp $sort_tmp"), $limit);
 					} else {
-						//if we're only previwing the report, then only get the first ten distinct values of this index
-						if ($demo) {
-							$where[] = "($alias_tmp.$column_name_tmp='".implode("' OR $alias_tmp.$column_name_tmp='", $axis_limits[$axis_name_tmp])."')";
-
-						}
+						//only select data with specified value on this axis
+						$where[] = "($alias_tmp.$column_name_tmp='".implode("' OR $alias_tmp.$column_name_tmp='", $axis_limits[$axis_name_tmp])."')";
 					}
 
 					//add the axis to the group by clause
@@ -325,10 +322,10 @@ class Tabular extends Template {
 					//get distinct values that will make up the index for this axis
 					$query[$axis_name_tmp] = $this->hook_build_query($a_select, array("$table_name_tmp $alias_tmp" => 0), $a_where, $a_group, array("$axis_name_tmp $sort_tmp"), $limit);
 
-
-if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
-	$where[] = "($tmp_select='".implode("' OR $tmp_select='", $axis_limits[$axis_name_tmp])."')";
-}
+					//only select data with specified value on this axis
+					if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
+						$where[] = "($tmp_select='".implode("' OR $tmp_select='", $axis_limits[$axis_name_tmp])."')";
+					}
 
 					//add the axis to the order by clause
 					$order[$axis_name_tmp] = "\"$axis_name_tmp\" $sort_tmp";
@@ -338,10 +335,11 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 					$axis_name_tmp = $axis_tmp['type'];
 					$alias_tmp = "a".$axis_name_tmp;
 
+					//for type single SQL should be SELECT 1 as y, so that data is grouped by this single value
 					$select[$axis_name_tmp] = "1";
 
+					//same goes for x/y axis query
 					unset($a_select);
-
 					$a_select[$axis_name_tmp] = "1";
 
 					//get distinct values that will make up the index for this axis
@@ -1389,7 +1387,10 @@ if (!empty($axis_limits[$axis_name_tmp]) && $demo) {
 
 
 			$foobar .= "<div class='input'>";
-			$foobar .= "<input type='radio' name='data[table_join_id]' value='".$table_join_id."' ".($current_join == $table_join_id ? "checked=\"checked\"" : "")." /><label>";
+
+			$join_selected = $current_join == $table_join_id || count($table_joins) === 1;
+
+			$foobar .= "<input type='radio' name='data[table_join_id]' value='".$table_join_id."' ".($join_selected ? "checked=\"checked\"" : "")." /><label>";
 
 			unset($explaination_tmp);
 			unset($explaination_count);
@@ -2488,10 +2489,10 @@ class Tabular_View extends Template_View {
 
 						if ($this->subvar == "y") {
 							$output->data .= "<div class='input'><input type='radio' name='data[axis_type]' value='single' ".($tabular_template['axis_type'] == "single" ? "checked='checked'" : "")." /><label>Single</label></div>";
-							$output->data .= "<p>Lorem ipsum dolor sit amet.</p>";
+							$output->data .= "<p>Data will not be indexed along the ".strtoupper($this->subvar)." axis.</p>";
 
 							$output->data .= "<div class='input'><input type='radio' name='data[axis_type]' value='manual' ".($tabular_template['axis_type'] == "manual" ? "checked='checked'" : "")." /><label>Custom Values</label></div>";
-							$output->data .= "<p>Lorem ipsum dolor sit amet.</p>";
+							$output->data .= "<p>Data will be indexed along the ".strtoupper($this->subvar)." axis, by manually created criteria.</p>";
 						}
 
 						$output->data .= $this->i("submit", array("label"=>"Next", "type"=>"submit", "value"=>"Next", "dojoType"=>"dijit.form.Button"));
@@ -2531,6 +2532,8 @@ class Tabular_View extends Template_View {
 						$output->data .= $this->f_close();
 						break;
 					case ("manualsource"):
+						$output->title_desc = "The ".strtoupper($this->subvar)." axis is a set of values: each made up of a set of manually created constraints. The intersection data will be indexed by the way it matches each of these values.";
+
 						$output->data .= "<h3>Axis Source</h3>";
 						$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/manualsourcesubmit", "dojoType='dijit.form.Form'");
 

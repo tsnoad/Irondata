@@ -118,7 +118,7 @@ CREATE TRIGGER squid_constraints_create AFTER INSERT ON tabular_templates_manual
 --If constraint logic is updated and all constraints are removed, delete the constraint logic row
 CREATE OR REPLACE FUNCTION squid_constraints_update() RETURNS trigger AS $$
   BEGIN
-    DELETE FROM tabular_templates_manual_squid_constraint_logic WHERE squid_constraints_id=NEW.squid_constraints_id AND logic IS NULL;
+    DELETE FROM tabular_templates_manual_squid_constraint_logic WHERE tabular_templates_manual_squid_id=NEW.tabular_templates_manual_squid_id AND logic IS NULL;
 
     RETURN null;
   END;
