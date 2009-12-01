@@ -81,6 +81,19 @@ CREATE TRIGGER tabular_constraints_create AFTER INSERT ON tabular_constraints
   FOR EACH ROW EXECUTE PROCEDURE tabular_constraints_create();
 
 
+--If constraint logic is updated and all constraints are removed, delete the constraint logic row
+CREATE OR REPLACE FUNCTION tabular_constraints_update() RETURNS trigger AS $$
+  BEGIN
+    DELETE FROM tabular_constraint_logic WHERE template_id=NEW.template_id AND logic IS NULL;
+
+    RETURN null;
+  END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tabular_constraints_update AFTER UPDATE ON tabular_constraint_logic
+  FOR EACH ROW EXECUTE PROCEDURE tabular_constraints_update();
+
+
 --Constraint logic for manual axies
 --After a new constraint is added, add the constraint id to the constraint logic. Constraint logic is what tells us how to put te where clause together and looks something like: 1 AND (2 OR 3)
 CREATE OR REPLACE FUNCTION squid_constraints_create() RETURNS trigger AS $$
@@ -101,6 +114,18 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER squid_constraints_create AFTER INSERT ON tabular_templates_manual_squid_constraints
   FOR EACH ROW EXECUTE PROCEDURE squid_constraints_create();
+
+--If constraint logic is updated and all constraints are removed, delete the constraint logic row
+CREATE OR REPLACE FUNCTION squid_constraints_update() RETURNS trigger AS $$
+  BEGIN
+    DELETE FROM tabular_templates_manual_squid_constraint_logic WHERE squid_constraints_id=NEW.squid_constraints_id AND logic IS NULL;
+
+    RETURN null;
+  END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER squid_constraints_update AFTER UPDATE ON tabular_templates_manual_squid_constraint_logic
+  FOR EACH ROW EXECUTE PROCEDURE squid_constraints_update();
 
 
 --If a new graph is generated for an existing saved report, overwrite the old graph
