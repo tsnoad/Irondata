@@ -630,6 +630,12 @@ class Tabular extends Template {
 		$this->redirect("tabular/add/".$temp['template_id']);
 	}
 
+	/**
+	 * View Add
+	 *
+	 * first point of contact for almost every page, when createing a tabular report. Runs queries to gather data to display in Tabular_View::view_add(). Takes aguments about which page from the url in the id, subvar, subid, etc variables
+	 *
+	 */
 	function view_add() {
 		switch ($this->subvar) {
 			case "x":
@@ -809,7 +815,7 @@ class Tabular extends Template {
 				break;
 		}
 
-
+		//Steps: what steps have been competed, and what step are we at
 		$tabular_templates_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT tt.*, tta.tabular_templates_auto_id, ttt.tabular_templates_trend_id, tts.tabular_templates_single_id, ttm.tabular_templates_manual_id FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_trend ttt ON (ttt.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_single tts ON (tts.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_manual ttm ON (ttm.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND ((tt.axis_type = 'auto' AND tta.tabular_templates_auto_id IS NOT NULL) OR (tt.axis_type = 'trend' AND ttt.tabular_templates_trend_id IS NOT NULL) OR (tt.axis_type = 'single' AND tts.tabular_templates_single_id IS NOT NULL) OR (tt.axis_type = 'manual' AND ttm.tabular_templates_manual_id IS NOT NULL));"));
 
 		if (!empty($tabular_templates_query)) {
@@ -818,6 +824,7 @@ class Tabular extends Template {
 			}
 		}
 
+		//put all step data in a usable array
 		if (empty($tabular_templates['c'])) {
 			$steps[0][0] = "Add Intersection";
 			$steps[0][2] = true;
@@ -920,6 +927,12 @@ class Tabular extends Template {
 		die();
 	}
 
+	/**
+	 * View Save
+	 *
+	 * Called as the action on forms on almost every page when creating a tabular report. Once complete, calls Tabular::view_add_next() to go to the next page. Takes aguments about which page from the url in the id, subvar, subid, etc variables
+	 *
+	 */
 	function view_save() {
 		switch ($this->subvar) {
 			case "cancel":
@@ -1195,7 +1208,6 @@ class Tabular extends Template {
 
 				$this->call_function("ALL", "hook_access_report_submit", array($acls, $this->id));
 
-// 				$this->redirect("user/access");
 				break;
 			default:
 				break;
@@ -1205,6 +1217,12 @@ class Tabular extends Template {
 		return;
 	}
 
+	/**
+	 * View Add Next
+	 *
+	 * Called by Tabular::view_save() and others. Works out the present status of a report, if anything step needs to be performed (like add in axis), or if not, what is the next step after the current, then redirects accordingly
+	 *
+	 */
 	function view_add_next() {
 		if (empty($this->id)) {
 			$this->redirect("template/home/");
@@ -1246,13 +1264,17 @@ class Tabular extends Template {
 		} else if ($this->subvar == "y" && $this->subid == "squidconstraintlogicsubmit" && $tabular_template['y']['axis_type'] == "manual") {
 			$this->redirect("tabular/add/".$this->id."/y/squidconstraints/".$this->aux1);
 
+		//if no intersection is selected...
 		} else if (empty($tabular_template['c'])) {
+			//... go to the intersection page
 			$this->redirect("tabular/add/".$this->id."/c/source");
 
 		} else if (empty($tabular_template['c']['tabular_templates_auto_id'])) {
 			$this->redirect("tabular/add/".$this->id."/c/source");
 
+		//if no x axis is selected...
 		} else if (empty($tabular_template['x'])) {
+			//... go to the x axis page
 			$this->redirect("tabular/add/".$this->id."/x/type");
 
 		} else if ($tabular_template['x']['axis_type'] == "auto" && empty($tabular_template['x']['tabular_templates_auto_id'])) {
@@ -1261,7 +1283,9 @@ class Tabular extends Template {
 		} else if ($tabular_template['x']['axis_type'] == "trend" && empty($tabular_template['x']['tabular_templates_trend_id'])) {
 			$this->redirect("tabular/add/".$this->id."/x/trendsource");
 
+		//if no y axis is selected...
 		} else if (empty($tabular_template['y'])) {
+			//... go to the y axis page
 			$this->redirect("tabular/add/".$this->id."/y/type");
 
 		} else if ($tabular_template['y']['axis_type'] == "auto" && empty($tabular_template['y']['tabular_templates_auto_id'])) {
@@ -1286,6 +1310,12 @@ class Tabular extends Template {
 		return;
 	}
 
+	/**
+	 * View Table Join Axis
+	 *
+	 * Called by x/y axis source and edit constraint. Given a selected column id and the insersection column id, shows all the possible table joins between them, and produces html form elements to allow the user so select one.
+	 *
+	 */
 	function view_table_join_ajax($current_join=null) {
 		$intersection = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) INNER JOIN columns c ON (c.column_id=tta.column_id) WHERE tt.template_id='".$this->id."' AND tt.type='c' LIMIT 1;"));
 		if (empty($intersection)) die;
@@ -1474,6 +1504,10 @@ class Tabular extends Template {
 		return $output;
 	}
 
+	/**
+	 * Deprecated function: replaced by Tabular::execute()... I think
+	 *
+	 */
 	function hook_run($demo=false, $data_only=false, $draft=true, $template_id=null) {
 		if (!empty($template_id)) {
 			$this->id = $template_id;
@@ -1522,6 +1556,10 @@ class Tabular extends Template {
 		}
 	}
 
+	/**
+	 * Deprecated function: replaced by Tabular::execute()... I think
+	 *
+	 */
 	function view_run() {
 // 		$template = $this->get_columns($this->id);
 // 		$constraints = $this->get_constraints($this->id);
@@ -1754,6 +1792,12 @@ WHERE
 // 		return $output;
 // 	}
 
+	/**
+	 * View Execute Scheduled
+	 *
+	 * Called by Cron::view_executor() to run a report, generate graphs, and email them. Calls Tabular::execute_scheduled() to do the heavy lifting
+	 *
+	 */
 	function view_execute_scheduled($data=array()) {
 		$template = (array)$data[0];
 		$template_id = $template['template_id'];
@@ -1762,16 +1806,19 @@ WHERE
 
 		$saved_report_id = $this->execute_scheduled($template_id);
 
+		//get the table pdf
 		if ($template['publish_table'] == "t") {
 			$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, false, false));
 			$table = $table['pdf'];
 		}
 
+		//get the graph pdf
 		if ($template['publish_graph'] == "t") {
 			$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], false, true));
 			$graph = $graph['graphing'];
 		}
 
+		//get the csv file
 		if (true) {
 			$csv = $this->call_function("csv", "get_or_generate", array($saved_report_id));
 			$csv = $csv['csv'];
@@ -1850,6 +1897,12 @@ WHERE
 		return $output;
 	}
 
+	/**
+	 * View Histories
+	 *
+	 * Fetches all saved reports for a given report, for the histories page
+	 *
+	 */
 	function view_histories() {
 		$template_id = $this->id;
 
@@ -1862,6 +1915,12 @@ WHERE
 		return Tabular_View::view_histories($saved_reports, $processing_report);
 	}
 
+	/**
+	 * View History
+	 *
+	 * Gets data and table/graph files for the history page
+	 *
+	 */
 	function view_history() {
 		$template_id = $this->id;
 		$saved_report_id = $this->subvar;
@@ -1903,14 +1962,32 @@ WHERE
 		return Tabular_View::view_history($tmp_table, $tmp_graph, $downloads);
 	}
 
+	/**
+	 * Execute Manually
+	 *
+	 * Calls Tabular::execute() with appropriate arguments to execute full (as opposed to execute demo)
+	 *
+	 */
 	function execute_manually($template_id) {
 		return $this->execute($template_id, false);
 	}
 
+	/**
+	 * Execute Scheduled
+	 *
+	 * Calls Tabular::execute() with appropriate arguments to execute full (as opposed to execute demo)
+	 *
+	 */
 	function execute_scheduled($template_id) {
 		return $this->execute($template_id, false);
 	}
 
+	/**
+	 * Execute Demo Quick
+	 *
+	 * Called by Tabular::view_data_preview_first_ajax() to get values for axies only. Calls Tabular::execute() with appropriate arguments to do so
+	 *
+	 */
 	function execute_demo_quick($template_id) {
 		return $this->execute($template_id, true, true);
 	}

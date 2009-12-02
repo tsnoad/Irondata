@@ -165,7 +165,7 @@ class Ldap extends User {
 		if ($ds) {
 			$r = ldap_bind($ds);
 			//search the directory for the logged in user id
-			$sr = ldap_search($ds, $this->conf['ldap']['base_dn'], $search_string, array("uid", "ou"));
+			$sr = ldap_search($ds, $this->conf['ldap']['base_dn'], $search_string, array("uid", "fullname", "groupmembership"));
 
 			$ldap_entries = ldap_get_entries($ds, $sr);
 
