@@ -592,12 +592,16 @@ class Template extends Modules {
 		foreach ($axis_keys as $axis) {
 			if (empty($foobar[$axis])) continue;
 
-			//special case?
+			//hook_build_query has told us how to join this table
 			if (!empty($foobar[$axis]['manual_join'])) {
 				$table_tmp = $foobar[$axis]['table'];
 				$alias_tmp = $foobar[$axis]['alias'];
 				$manual_join_tmp = $foobar[$axis]['manual_join'];
+
+				//use the join string hook_build_query gave us
 				$return .= "JOIN $table_tmp $alias_tmp $manual_join_tmp ";
+
+				//and that's all for this table... next!
 				continue;
 			}
 

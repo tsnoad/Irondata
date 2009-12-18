@@ -110,9 +110,6 @@ class Graphing extends Template {
 			return $this->hook_graph($saved_report['template_id'], $saved_report_id, $graph_type, $saved_report['report'], $svg, $pdf);
 		}
 
-		//if it does, simply return data about where it can be found
-// 		return $saved_report;
-
 		if ($svg) {
 			return array("object"=>Graphing_View::line_graph($saved_report['svg_url']), "pdf_url"=>$saved_report['pdf_url']);
 		}

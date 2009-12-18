@@ -1,6 +1,24 @@
 <?php
 
 /**
+    Irondata
+    Copyright (C) 2009  Evan Leybourn, Tobias Snoad
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/**
  * Table.php
  *
  * The Table report template module.
@@ -712,6 +730,8 @@ class Tabular extends Template {
 				break;
 			case "c":
 				switch ($this->subid) {
+					case "type":
+						break;
 					case "source":
 						if ((int)$this->id) {
 							$this->current = $this->get_template($this->id);
@@ -2680,6 +2700,19 @@ class Tabular_View extends Template_View {
 				break;
 			case "c":
 				switch ($this->subid) {
+					case ("type"):
+						$output->title = "Intersection Data Type";
+// 						$output->title_desc = "The intersection is a numerical column selected from the database. Values from this column will be indexed by unique values in two related colums (the X and Y axies), and will fill the area of the table.";
+
+						$output->data .= $this->i("data[aggregate]", array("label"=>"Squid", "type"=>"radio", "value"=>"squid", "default"=>false));
+// 						$output->data .= "<p>The number of records that match the given X axis and Y Axis.</p>";
+
+						$output->data .= $this->i("data[aggregate]", array("label"=>"Kippers", "type"=>"radio", "value"=>"kippers", "default"=>false));
+// 						$output->data .= "<p>The number of records that match the given X axis and Y Axis.</p>";
+
+						$output->data .= $this->i("data[aggregate]", array("label"=>"Giant Sailor Killing Squid", "type"=>"giantsquid", "value"=>"count", "default"=>false));
+// 						$output->data .= "<p>The number of records that match the given X axis and Y Axis.</p>";
+						break;
 					default:
 					case ("source"):
 						$output->title = "Intersection Data Source";
