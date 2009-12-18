@@ -1,5 +1,4 @@
 <?php
-
 /**
     Irondata
     Copyright (C) 2009  Evan Leybourn, Tobias Snoad

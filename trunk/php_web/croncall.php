@@ -1,9 +1,27 @@
 <?php
+/**
+    Irondata
+    Copyright (C) 2009  Evan Leybourn, Tobias Snoad
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * croncall.php
  *
- * fop?
+ * Called by crontab every minute. When run as scheduler, this page calls for any reports that are set to be run at this date and time, then adds them to the execution queue. When run as executor, this page calls the cron module to execute reports that are queued
+ *
  */
 
 if ($argv[1] != "scheduler" && $argv[1] != "executor") die("croncall must be run as either scheduler or executor.\n");
