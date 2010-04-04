@@ -21,14 +21,15 @@
 $conf['metabase']['type'] = 'postgres';
 $conf['metabase']['hostname'] = 'localhost';
 $conf['metabase']['database'] = 'irondata';
-$conf['metabase']['username'] = 'username';
-$conf['metabase']['password'] = 'password';
+$conf['metabase']['username'] = 'irondata';
+$conf['metabase']['password'] = 'irondata';
 
 //location of software relative to /
-$conf['paths']['sw_path'] = '/home/irondata/';
+$conf['paths']['sw_path'] = '/opt/irondata/';
 
-//location of tmp folder relative to /var/www/ and /tmp/
-$conf['paths']['tmp_path'] = 'graphs/';
+//location of tmp folder relative to sw_path and /tmp/
+$conf['paths']['tmp_path'] = 'trunk/www/graphs/';
+$conf['paths']['web_tmp_path'] = 'irondata/graphs/';
 
 $conf['paths']['svg2pdf_path'] = '/opt/svg2pdf/';
 $conf['paths']['phpmailer_path'] = '/opt/phpmailer/';
@@ -43,41 +44,14 @@ $conf['email']['from_name'] = "User Name";
 $conf['ldap']['host'] = "192.168.25.38";
 
 //main dn attribute to search for when fetching all users
-$conf['ldap']['base_dn'] = "o=IEAUST";
+$conf['ldap']['base_dn'] = "o=ORGNAME";
 
 //required distinct name attributes
 $conf['ldap']['required_dn'] = array(
-	"ou=Active",
-	"ou=User",
-	"ou=NAT_OFF"
 	);
 
 //groups to search for
 $conf['ldap']['search_groups'] = array(
-	"BO_Accred_Artic",
-	"BO_Admin_Prop_Serv",
-	"BO_Asses",
-	"BO_Canberra_Division",
-	"BO_Comm",
-	"BO_Con_Pub",
-	"BO_Develop",
-	"BO_Directors",
-	"BO_Divisions",
-	"BO_Ethics_Discipline",
-	"BO_Exec_Supp",
-	"BO_Fin_Manag",
-	"BO_Info_Manag",
-	"BO_Inter_Rel",
-	"BO_Lead_Comp",
-	"BO_Learn_Soc",
-	"BO_Marketing",
-	"BO_Mem_Serv",
-	"BO_Over_Qual",
-	"BO_People_Dev",
-	"BO_Pub_Pol",
-	"BO_Regist",
-	"BO_Test",
-	"BO_Users"
 	);
 
 ?>
