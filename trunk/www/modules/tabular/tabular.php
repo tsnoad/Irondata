@@ -3164,7 +3164,7 @@ class Tabular_View extends Template_View {
 			 $template[0]['footer'] = stripslashes($template[0]['footer']);
 
 			$logo_path = $this->sw_path."php_web/logos/";
-			$logo_tmp_path = "/tmp/".$this->tmp_path;
+			$logo_tmp_path = $this->sw_path.$this->tmp_path;
 
 			if (is_file($logo_path."logo.png")) {
 				$logo_name = "logo.png";
@@ -3179,7 +3179,7 @@ class Tabular_View extends Template_View {
 					symlink($logo_path.$logo_name, $logo_tmp_path.$logo_name);
 				}
 
-				$logo_url = "http://127.0.0.1/".$this->tmp_path;
+				$logo_url = "/".$this->web_tmp_path;
 
 				$template[0]['header'] = str_replace("%logo", "<img src='$logo_url$logo_name' />", $template[0]['header']);
 				$template[0]['footer'] = str_replace("%logo", "<img src='$logo_url$logo_name' />", $template[0]['footer']);

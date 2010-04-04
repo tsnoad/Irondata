@@ -74,8 +74,8 @@ class Csv extends Template {
 
 		if (empty($saved_report_id)) return;
 
-		if (!is_dir("/tmp/".$this->tmp_path)) {
-			mkdir("/tmp/".$this->tmp_path);
+		if (!is_dir($this->sw_path.$this->tmp_path)) {
+			mkdir($this->sw_path.$this->tmp_path);
 		}
 
 		//check if the csv document exists
@@ -94,8 +94,8 @@ class Csv extends Template {
 		$foo_json = $data[0];
 		$saved_report_id = $data[1];
 
-		$path_base = "/tmp/".$this->tmp_path;
-		$url_base = "/".$this->tmp_path;
+		$path_base = $this->sw_path.$this->tmp_path;
+		$url_base = $this->web_tmp_path;
 
 		$csv_document_id = $this->dobj->nextval("csv_documents");
 

@@ -111,8 +111,8 @@ class Graphing extends Template {
 
 		if (empty($saved_report_id)) return;
 
-		if (!is_dir("/tmp/".$this->tmp_path)) {
-			mkdir("/tmp/".$this->tmp_path);
+		if (!is_dir($this->sw_path.$this->tmp_path)) {
+			mkdir($this->sw_path.$this->tmp_path);
 		}
 
 		//check if the graph document exists
@@ -501,8 +501,8 @@ class Graphing extends Template {
 	 * @return Array of co-ordinates
 	 */
 	function define_paths($saved_report_id) {
-		$path_base = "/tmp/".$this->tmp_path;
-		$url_base = "/".$this->tmp_path;
+		$path_base = $this->sw_path.$this->tmp_path;
+		$url_base = $this->web_tmp_path;
 
 		$graph_document_id = $this->dobj->nextval("graph_documents");
 

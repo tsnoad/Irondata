@@ -76,8 +76,8 @@ class Pdf extends Template {
 
 		if (empty($saved_report_id)) return;
 
-		if (!is_dir("/tmp/".$this->tmp_path)) {
-			mkdir("/tmp/".$this->tmp_path);
+		if (!is_dir($this->sw_path.$this->tmp_path)) {
+			mkdir($this->sw_path.$this->tmp_path);
 		}
 
 		//check if the table document exists
@@ -108,8 +108,8 @@ class Pdf extends Template {
 		$template = $this->call_function("tabular", "get_columns", $template_id);
 		$template = $template['tabular'];
 
-		$path_base = "/tmp/".$this->tmp_path;
-		$url_base = "/".$this->tmp_path;
+		$path_base = $this->sw_path.$this->tmp_path;
+		$url_base = $this->web_tmp_path;
 
 		$table_document_id = $this->dobj->nextval("table_documents");
 
