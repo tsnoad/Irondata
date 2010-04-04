@@ -1,9 +1,9 @@
 #!/bin/bash
 
-dropdb irondata
-createdb irondata
-psql irondata < create_pgsql.sql
-psql irondata < triggers.sql
-psql irondata < data.sql
-psql irondata
+dropdb -U irondata irondata
+createdb -O irondata -E UNICODE irondata
+psql -U irondata irondata < create_pgsql.sql
+psql -U irondata irondata < triggers.sql
+psql -U irondata irondata < data.sql
+psql -U irondata irondata
 
