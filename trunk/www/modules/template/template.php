@@ -54,6 +54,7 @@ class Template extends Modules {
 		include("conf.php");
 		$this->conf = $conf;
 
+		$this->web_path = $conf['paths']['web_path'];
 		$this->sw_path = $conf['paths']['sw_path'];
 		$this->tmp_path = $conf['paths']['tmp_path'];
 

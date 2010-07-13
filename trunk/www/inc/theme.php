@@ -34,6 +34,10 @@ class Theme {
 		return 'default';
 	}
 	
+	function get_theme_path() {
+		return 'themes/'.get_theme().'/';
+	}
+	
 	function webroot() {
 		$url = $_REQUEST['url'];
 		$count = strlen($url);
@@ -213,6 +217,10 @@ class Theme {
 	}
 	
 	function i($name, $data=array()) {
+		//setup variables
+		$div_id = "";
+		$classes = "";
+		$attrs = "";
 		if (!array_key_exists('label', $data)) {
 			$data['label'] = ucwords($name);
 		}
@@ -227,7 +235,6 @@ class Theme {
 				$label = "<label for='".$name."' >".$data['label']."</label>";
 			}
 		}
-		$attrs = "";
 		foreach ($data as $i => $string) {
 			switch ($i) {
 				case "type":

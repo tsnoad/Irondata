@@ -502,7 +502,7 @@ class Graphing extends Template {
 	 */
 	function define_paths($saved_report_id) {
 		$path_base = $this->sw_path.$this->tmp_path;
-		$url_base = $this->web_tmp_path;
+		$url_base = $this->web_path.$this->tmp_path;
 
 		$graph_document_id = $this->dobj->nextval("graph_documents");
 

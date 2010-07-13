@@ -109,7 +109,7 @@ class Pdf extends Template {
 		$template = $template['tabular'];
 
 		$path_base = $this->sw_path.$this->tmp_path;
-		$url_base = $this->web_tmp_path;
+		$url_base = $this->web_path.$this->tmp_path;
 
 		$table_document_id = $this->dobj->nextval("table_documents");
 

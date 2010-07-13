@@ -24,14 +24,14 @@ $conf['metabase']['database'] = 'irondata';
 $conf['metabase']['username'] = 'irondata';
 $conf['metabase']['password'] = 'irondata';
 
-//location of software relative to /
-$conf['paths']['sw_path'] = '/opt/irondata/';
+//physical location of www relative to /
+$conf['paths']['sw_path'] = '/opt/irondata/trunk/www/';
+//web location of www relative to /
+$conf['paths']['web_path'] = '/irondata/';
 
-//location of tmp folder relative to sw_path and /tmp/
-$conf['paths']['tmp_path'] = 'trunk/www/graphs/';
-$conf['paths']['web_tmp_path'] = 'irondata/graphs/';
+//location of tmp folder relative to sw_path and web_path
+$conf['paths']['tmp_path'] = 'tmp/';
 
-$conf['paths']['svg2pdf_path'] = '/opt/svg2pdf/';
 $conf['paths']['phpmailer_path'] = '/opt/phpmailer/';
 
 $conf['email']['host'] = "mail.example.com";

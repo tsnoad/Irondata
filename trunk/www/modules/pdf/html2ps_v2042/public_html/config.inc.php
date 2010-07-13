@@ -112,7 +112,9 @@ define("MAX_LINE_LENGTH", 100);
 define('MAX_IMAGE_ROW_LEN',16);
 define('MAX_TRANSPARENT_IMAGE_ROW_LEN',16);
 
-define('CACHE_DIR', HTML2PS_DIR.'cache/');
+
+include 'conf.php';
+define('CACHE_DIR', $conf['paths']['sw_path'] . $conf['paths']['tmp_path']);
 define('OUTPUT_FILE_DIRECTORY', HTML2PS_DIR.'out/');
 define('FPDF_PATH', HTML2PS_DIR.'fpdf/');
 

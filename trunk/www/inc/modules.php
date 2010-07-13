@@ -184,7 +184,7 @@ class Modules extends Theme {
 
 				$url = $module."/".$function;
 
-				if ($_SESSION['skip_auth']) {
+				if (array_key_exists('skip_auth', $_SESSION) && $_SESSION['skip_auth']) {
 					$allow = true;
 				}
 

@@ -95,7 +95,7 @@ class Csv extends Template {
 		$saved_report_id = $data[1];
 
 		$path_base = $this->sw_path.$this->tmp_path;
-		$url_base = $this->web_tmp_path;
+		$url_base = $this->web_path.$this->tmp_path;
 
 		$csv_document_id = $this->dobj->nextval("csv_documents");
 
