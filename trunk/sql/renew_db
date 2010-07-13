@@ -2,8 +2,8 @@
 
 dropdb -U irondata irondata
 createdb -O irondata -E UNICODE irondata
+createlang plpgsql irondata
 psql -U irondata irondata < create_pgsql.sql
 psql -U irondata irondata < triggers.sql
 psql -U irondata irondata < data.sql
-psql -U irondata irondata
 

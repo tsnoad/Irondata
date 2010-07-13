@@ -166,7 +166,7 @@ CREATE TABLE saved_reports (
 CREATE TABLE list_templates (
 	list_template_id BIGSERIAL PRIMARY KEY,
 	template_id BIGINT REFERENCES templates ON DELETE CASCADE ON UPDATE CASCADE,
-	column_id BIGINT REFERENCES columns ON DELETE CASCADE ON UPDATE CASCADE,,
+	column_id BIGINT REFERENCES columns ON DELETE CASCADE ON UPDATE CASCADE,
 	index BOOL DEFAULT false,
 	duplicates BOOL,
 	subtotal BOOL, 
