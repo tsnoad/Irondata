@@ -43,15 +43,16 @@ class Modules extends Theme {
 	function __construct() {
 		include("conf.php");
 		$this->conf = $conf;
-
-		$url = explode("/", $_REQUEST['url']);
-		$this->set_this($url);
-	}
-	
-	function set_this($url) {
 		include_once("inc/db.php");
 		$this->dobj = new DB();
 
+		if (isset($_REQUEST['url'])) {
+			$url = explode("/", $_REQUEST['url']);
+			$this->set_this($url);
+		}
+	}
+	
+	function set_this($url) {
 		if (array_key_exists(2, $url)) {
 			$this->id = $url[2];
 		}
@@ -199,7 +200,7 @@ class Modules extends Theme {
 				if (!$allow) $allow |= preg_match("/^user\/view_logout/", $url);
 				if (!$allow) $allow |= preg_match("/\/set_session_report_acls/", $url);
 
-				if ($_SESSION['acls']['system']['login']) {
+				if (isset($_SESSION['acls']['system']['login'])) {
 					if (!$allow) $allow |= preg_match("/^workspace\/view_home/", $url);
 					if (!$allow) $allow |= preg_match("/^template\/view_home/", $url);
 					if (!$allow) $allow |= preg_match("/^search/", $url);
@@ -207,14 +208,14 @@ class Modules extends Theme {
 					if (!$allow) $allow |= preg_match("/^user\/view_logout/", $url);
 				}
 
-				if ($_SESSION['acls']['system']['reportscreate']) {
+				if (isset($_SESSION['acls']['system']['reportscreate'])) {
 					if (!$allow) $allow |= preg_match("/^template\/view_add/", $url);
 					if (!$allow) $allow |= preg_match("/\/hook_template_entry/", $url);
 					if (!$allow) $allow |= preg_match("/^catalogue\/get_databases/", $url);
 					if (!$allow) $allow |= preg_match("/\/view_add_select_object/", $url);
 				}
 
-				if ($_SESSION['acls']['system']['admin']) {
+				if (isset($_SESSION['acls']['system']['admin'])) {
 					if (!$allow) $allow |= preg_match("/^admin/", $url);
 					if (!$allow) $allow |= preg_match("/^catalogue/", $url);
 					if (!$allow) $allow |= preg_match("/^user/", $url);

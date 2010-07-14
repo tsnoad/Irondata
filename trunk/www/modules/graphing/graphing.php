@@ -185,7 +185,7 @@ class Graphing extends Template {
 
 		$area = $this->define_area();
 
-		unset($svg_data);
+		$svg_data = "";
 
 		if ($this->show_layout) $svg_data .= $this->show_layout_boxes($area);
 
@@ -354,6 +354,9 @@ class Graphing extends Template {
 	 * @return Array of the X, Y & C Axis indexes, datapoints, min/max datapoints and colors
 	 */
 	function index_data($type, $graph_data, $stacked=false) {
+		$max_c = null;
+		$min_c = null;
+		$results_foo = null;
 		$results = json_decode($graph_data, true);
 
 		//re-organise the x axis so we can use it easily
@@ -388,7 +391,11 @@ class Graphing extends Template {
 
 			foreach ($y_index as $y_tmp) {
 				foreach ($x_index as $x_tmp) {
-					$c_tmp = $results_foo[$y_tmp][$x_tmp];
+					if (isset($results_foo[$y_tmp][$x_tmp])) {
+						$c_tmp = $results_foo[$y_tmp][$x_tmp];
+					} else {
+						$c_tmp = null;
+					}
 
 					if ($stacked) {
 						switch ($type) {
@@ -646,8 +653,7 @@ class Graphing extends Template {
 	 */
 	function generate_x_index($type, $results, $title, $area) {
 		$title = htmlentities(ucwords($title));
-
-		$svg_data .= "<text x='".$area['xtitle_x']."' y='".($area['xtitle_y'] + $area['xtitle_h'])."' style='font-family: Georgia; font-size: 10pt;' >$title</text>";
+		$svg_data = "<text x='".$area['xtitle_x']."' y='".($area['xtitle_y'] + $area['xtitle_h'])."' style='font-family: Georgia; font-size: 10pt;' >$title</text>";
 
 		//prepare to start drawing at the left of the plot area
 		$x_tmp_x = $area['plot_x'];
@@ -734,8 +740,7 @@ class Graphing extends Template {
 	 */
 	function generate_y_index($results, $title, $area) {
 		$title = htmlentities(ucwords($title));
-
-		$svg_data .= "
+		$svg_data = "
 			<g transform='translate(".($area['ytitle_x'] + $area['ytitle_w']).", ".($area['ytitle_y'] + $area['ytitle_h']).")'>
 				<g transform='rotate(270)'>
 					<text x='0' y='0' style='font-family: Georgia; font-size: 10pt;'>$title</text>
@@ -775,9 +780,8 @@ class Graphing extends Template {
 	 */
 	function generate_c_index($type, $results, $title, $area) {
 		$title = htmlentities(ucwords($title));
-
+		$svg_data = "";
 		$svg_data .= "<line x1='".$area['ltitle_x']."' y1='".($area['ltitle_y'] - 5)."' x2='".($area['ltitle_x'] + $area['ltitle_w'])."' y2='".($area['ltitle_y'] - 10)."' style='fill: none; stroke: #d3d7cf; stroke-width: 1px;' />";
-
 		$svg_data .= "<text x='".$area['ltitle_x']."' y='".($area['ltitle_y'] + $area['ltitle_h'])."' style='font-family: Georgia; font-size: 12pt;' >$title</text>";
 
 		$c_tmp_y = $area['lindex_y'] + 10;
@@ -855,12 +859,13 @@ class Graphing extends Template {
 	 * @return XML markup used to build the SVG
 	 */
 	function generate_datapoints($plot_type, $results, $area) {
+		$svg_data = "";
 		switch ($plot_type) {
 			case "line":
 				foreach ($results['y_index'] as $y_tmp) {
 					$c_tmp_x = $area['plot_x'];
 
-					unset($points_tmp);
+					$points_tmp = "";
 
 					foreach ($results['x_index'] as $x_tmp) {
 						if (empty($results['results'][$y_tmp][$x_tmp])) {
@@ -1156,6 +1161,8 @@ class Graphing extends Template {
 		$a4_page_margin = 10 * $dpmm;
 
 		$a4_ratio = ($a4_page_w - ($a4_page_margin * 2)) / $graph_area_w;
+		$header = null;
+		$header_height = null;
 
 // 		$header = "
 // 			<span>%logo</span><br />

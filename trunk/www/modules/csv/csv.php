@@ -91,6 +91,7 @@ class Csv extends Template {
 	}
 	
 	function view_export($data=array()) {
+		$results_foo = array();
 		$foo_json = $data[0];
 		$saved_report_id = $data[1];
 
@@ -151,7 +152,7 @@ class Csv extends Template {
 				unset($c_tmp_array);
 
 				foreach ($x_index as $x_tmp) {
-					$c_tmp = $results_foo[$y_tmp][$x_tmp];
+					$c_tmp = isset($results_foo[$y_tmp][$x_tmp]) ? $results_foo[$y_tmp][$x_tmp] : null;
 					$c_tmp_array[] = $c_tmp;
 				}
 

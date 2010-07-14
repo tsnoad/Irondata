@@ -247,7 +247,9 @@ class User extends Modules {
 	}
 
 	function hook_auth() {
-		session_start();
+		if (session_id() == "") {
+			session_start();
+		}
 		/* Skip login views */
 		if (
 			($this->module == 'user' && $this->action == 'login') || 
@@ -313,12 +315,13 @@ class User extends Modules {
 	 * Login page. Calls hook_login() to do actual authentication.
 	 */
 	function view_login() {
+		$message = "";
 		$query = $this->dobj->db_fetch("SELECT * FROM settings WHERE module_id='admin' AND key='organisation'");
 		$company = $query['value'];
 		$query = $this->dobj->db_fetch("SELECT * FROM settings WHERE module_id='admin' AND key='url'");
 		$url = $query['value'];
 
-		if ($_REQUEST['data']['username']) {
+		if (isset($_REQUEST['data']['username'])) {
 			//run each modules login function (in order) untill we find one that works. The module will set the session variables and redirect the user.
 			$this->call_function("ALL", "hook_login", array($_REQUEST['data']['username'], $_REQUEST['data']['password']), true);
 

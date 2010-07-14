@@ -51,39 +51,10 @@ class Template extends Modules {
 	}
 	
 	function __construct() {
-		include("conf.php");
-		$this->conf = $conf;
-
-		$this->web_path = $conf['paths']['web_path'];
-		$this->sw_path = $conf['paths']['sw_path'];
-		$this->tmp_path = $conf['paths']['tmp_path'];
-
-		include_once("inc/db.php");
-		$this->dobj = new DB();
-		$url = explode("/", $_REQUEST['url']);
-		if (array_key_exists(2, $url)) {
-			$this->id = $url[2];
-		}
-		if (array_key_exists(3, $url)) {
-			$this->subvar = $url[3];
-		}
-		if (array_key_exists(4, $url)) {
-			$this->subid = $url[4];
-		}
-		if (array_key_exists(5, $url)) {
-			$this->aux1 = $url[5];
-		}
-		if (array_key_exists(6, $url)) {
-			$this->aux2 = $url[6];
-		}
-		if (array_key_exists(7, $url)) {
-			$this->aux3 = $url[7];
-		}
-		if (array_key_exists(8, $url)) {
-			$this->aux4 = $url[8];
-		}
-		$this->module = $url[0];
-		$this->action = $url[1];
+		parent::__construct();
+		$this->web_path = $this->conf['paths']['web_path'];
+		$this->sw_path = $this->conf['paths']['sw_path'];
+		$this->tmp_path = $this->conf['paths']['tmp_path'];
 	}
 
 	function hook_admin_tools() {
@@ -530,6 +501,7 @@ class Template extends Modules {
 		$q = "";
 		$s = "SELECT ";
 		$f = " FROM ";
+		$w = "";
 		foreach ($select as $i => $col) {
 			$s .= $col;
 			if (!is_numeric($i)) {
@@ -592,10 +564,12 @@ class Template extends Modules {
 	 * Called by hook_build_query. Takes an array of all tables that need to be placed into the query, using these tables' names, aliases and table join ids, creates the FROM part of the sql query.
 	 */
 	function join($foobar) {
+		$tables = array();
+		$columns = array();
 		//first things first: the intersection column's table
 		$table_tmp = $foobar['c']['table'];
 		$alias_tmp = $foobar['c']['alias'];
-		$return .= "$table_tmp $alias_tmp ";
+		$return = "$table_tmp $alias_tmp ";
 
 		//create an associate array of alises, keyed by table id, so we can look them up when needed
 		$aliases[$foobar['c']['table_id']] = $foobar['c']['alias'];
@@ -676,9 +650,9 @@ class Template extends Modules {
 				$step_b_table_id = $columns[$step_b_column_id]['table_id'];
 
 				//make sure these variables are empty
-				unset($step_start);
-				unset($step_end);
-				unset($intermediate_step);
+				$step_start = null;
+				$step_end = null;
+				$intermediate_step = null;
 
 				//if this step is the first step
 				if ($step == $first_step) {
@@ -714,8 +688,8 @@ class Template extends Modules {
 				//if this is the first or last step (although what we do here only counts for the first step)
 				if (!$intermediate_step) {
 					//make sure these variables are clear
-					unset($prev_step_start);
-					unset($prev_step_end);
+					$prev_step_start = null;
+					$prev_step_end = null;
 
 					//record the start and end column of this step, for reference in the next step
 					$prev_step_start = $step_start;
@@ -750,12 +724,28 @@ class Template extends Modules {
 				$step_end_column_name = $columns[$step_end_column_id]['name'];
 
 				//start and end column table ids
-				$step_start_table_id = $columns[$step_start_column_id]['table_id'];
-				$step_end_table_id = $columns[$step_end_column_id]['table_id'];
+				if (isset($columns[$step_start_column_id]['table_id'])) {
+					$step_start_table_id = $columns[$step_start_column_id]['table_id'];
+				} else {
+					$step_start_table_id = null;
+				}
+				if (isset($columns[$step_end_column_id]['table_id'])) {
+					$step_end_table_id = $columns[$step_end_column_id]['table_id'];
+				} else {
+					$step_end_table_id = null;
+				}
 
 				//start and end column table names
-				$step_start_table_name = $tables[$step_start_table_id]['name'];
-				$step_end_table_name = $tables[$step_end_table_id]['name'];
+				if (isset($tables[$step_start_table_id]['name'])) {
+					$step_start_table_name = $tables[$step_start_table_id]['name'];
+				} else {
+					$step_start_table_name = null;
+				}
+				if (isset($tables[$step_end_table_id]['name'])) {
+					$step_end_table_name = $tables[$step_end_table_id]['name'];
+				} else {
+					$step_end_table_name = null;
+				}
 
 				//end column table name, ready for insertion into sql
 				$table_tmp = $step_end_table_name;

@@ -47,7 +47,7 @@ class Search extends Modules {
 		return "/*#search {
 			font-size: 14px;
 			width: 100px;*/
-		/* 	background: url('".$this->webroot."themes/".$this->get_theme()."/images/id_search_background.png'); */
+		/* 	background: url('".$this->webroot()."themes/".$this->get_theme()."/images/id_search_background.png'); */
 		/* 	background-position: right; */
 		/* 	background-repeat: no-repeat; */
 		/*	background-color: white;
@@ -89,7 +89,7 @@ class Search extends Modules {
 					padding: 0px;
 					border: 0px;
 					background-color: transparent;
-					background-image: url('".$this->webroot."themes/".$this->get_theme()."/images/search_submit_bg.png');
+					background-image: url('".$this->webroot()."themes/".$this->get_theme()."/images/search_submit_bg.png');
 					color: transparent;
 					cursor: pointer;
 				}";

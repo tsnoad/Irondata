@@ -35,7 +35,7 @@ class Theme {
 	}
 	
 	function get_theme_path() {
-		return 'themes/'.get_theme().'/';
+		return 'themes/'.$this->get_theme().'/';
 	}
 	
 	function webroot() {
@@ -100,23 +100,44 @@ class Theme {
 		$webroot = $this->webroot();
 		$themeroot = $webroot.'themes/'.$theme.'/';	
 		$scriptroot = $webroot.'scripts/';
+		$main = "";
+		
+		//setup display variables
+		if (!isset($display->js)) {
+			$display->js = null;
+		}
+		if (!isset($display->js_href)) {
+			$display->js_href = null;
+		}
+		if (!isset($display->pagetitle)) {
+			$display->pagetitle = null;
+		}
+		if (!isset($display->top)) {
+			$display->top = null;
+		}
+		if (!isset($data->title)) {
+			$data->title = null;
+		}
 
-		if ($data->submenu) {
+		// create the main output string
+		if (isset($data->submenu)) {
 			$main .= $data->submenu;
 		}
 		
 		/* Wrap the elements in tags */
-		if ($data->title) {
+		if (isset($data->title)) {
 			$main .= "<h2>".ucwords($data->title)."</h2>";
 
-			if ($data->title_desc) {
+			if (isset($data->title_desc)) {
 				$main .= "<p class='h2attach'>".$data->title_desc."</p>";
 			}
 		}
 
-		$main .= $data->data;
+		if (isset($data->data)) {
+			$main .= $data->data;
+		}
 
-		if ($data->layout == 'ajax') {
+		if (isset($data->layout) && $data->layout == 'ajax') {
 			echo $main;
 		} else {
 			require_once('themes/'.$theme.'/html.inc');
@@ -130,18 +151,18 @@ class Theme {
 
 			$allow = false;
 
-			if ($_SESSION['acls']['system']['login']) {
+			if (isset($_SESSION['acls']['system']['login'])) {
 				if (!$allow) $allow |= preg_match("/^template\/home/", $url);
 				if (!$allow) $allow |= preg_match("/^search/", $url);
 				if (!$allow) $allow |= preg_match("/^help/", $url);
 				if (!$allow) $allow |= preg_match("/^user\/logout/", $url);
 			}
 
-			if ($_SESSION['acls']['system']['reportscreate']) {
+			if (isset($_SESSION['acls']['system']['reportscreate'])) {
 				if (!$allow) $allow |= preg_match("/^template\/add/", $url);
 			}
 
-			if ($_SESSION['acls']['system']['admin']) {
+			if (isset($_SESSION['acls']['system']['admin'])) {
 				if (!$allow) $allow |= preg_match("/^admin/", $url);
 				if (!$allow) $allow |= preg_match("/^catalogue/", $url);
 				if (!$allow) $allow |= preg_match("/^user/", $url);
@@ -221,11 +242,19 @@ class Theme {
 		$div_id = "";
 		$classes = "";
 		$attrs = "";
+		$label = "";
 		if (!array_key_exists('label', $data)) {
 			$data['label'] = ucwords($name);
 		}
+		if (!array_key_exists('type', $data)) {
+			$data['type'] = null;
+		}
+		if (!array_key_exists('default', $data)) {
+			$data['default'] = null;
+		}
+		
 		if ($data['label']) {
-			if ($data['type'] == "button" || $data['type'] == "submit" ) {
+			if ($data['type'] == "button" || $data['type'] == "submit") {
 				$label = $data['label'];
 			} else {
 				if ($data['label'] != "&nbsp;" && $data['type'] != "checkbox" && $data['type'] != "radio") {
@@ -523,7 +552,7 @@ class Theme {
 	}
 
 	function render_top_menu($menu_items) {
-		$output .= "
+		$output = "
 			<ul class='menu'>
 			";
 

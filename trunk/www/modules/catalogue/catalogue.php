@@ -67,6 +67,7 @@ class Catalogue extends Modules {
 	}
 
 	function render_join($table_join, $columns) {
+		$foobar = ""; //bad variable name. Must change
 		$table_join_id = $table_join['table_join_id'];
 
 		$method_tmp = explode(",", $table_join['method']);
@@ -81,7 +82,7 @@ class Catalogue extends Modules {
 
 		unset($method_reorg);
 
-		while ($method_tmp[$this_pair_start_id]) {
+		while (isset($method_tmp[$this_pair_start_id])) {
 			$this_pair_start_table = $columns[$method_tmp[$this_pair_start_id]]['table_id'];
 
 			if ($this_pair_start_id !== 0) $method_reorg[] = "internal join";
@@ -96,7 +97,11 @@ class Catalogue extends Modules {
 				$method_reorg[] = $method_tmp[$this_pair_end_id];
 			}
 
-			$last_pair_start_table = $columns[$method_reorg[$this_pair_end_id]]['table_id'];
+			if (isset($columns[$method_reorg[$this_pair_end_id]]['table_id'])) {
+				$last_pair_start_table = $columns[$method_reorg[$this_pair_end_id]]['table_id'];
+			} else {
+				$last_pair_start_table = null;
+			}
 
 			$this_pair_start_id += 2;
 			$this_pair_end_id = $this_pair_start_id + 1;
@@ -129,7 +134,7 @@ class Catalogue extends Modules {
 // 		}
 
 		foreach ($method_reorg as $method_step) {
-			if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "<span style='font-weight: bold;'>";
+			//TODO: selected_column_id does not exist if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "<span style='font-weight: bold;'>";
 
 			switch ($method_step) {
 				case "internal join":
@@ -158,7 +163,7 @@ class Catalogue extends Modules {
 					break;
 			}
 
-			if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "</span>";
+			//TODO: selected_column_id does not exist if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "</span>";
 		}
 
 // 		if (end($method_reorg) != $intersection_column_id) {
@@ -252,7 +257,7 @@ class Catalogue extends Modules {
 			if (!empty($error)) {
 				$dbs = $db;
 
-				$output = Catalogue_View::view_add_edit($dbs, null, $error);
+				$output = Catalogue_View::view_add_edit($dbs, $error);
 				return $output;
 			} else {
 				/* Save object */
@@ -275,7 +280,7 @@ class Catalogue extends Modules {
 		} else {
 			$dbs = false;
 		}
-		$output = Catalogue_View::view_add_edit($dbs, $type);
+		$output = Catalogue_View::view_add_edit($dbs);
 		return $output;
 	}
 	
@@ -305,7 +310,7 @@ class Catalogue extends Modules {
 	function view_edit() {
 		if (empty($this->id)) return;
 
-		if ($_REQUEST['data']) {
+		if (isset($_REQUEST['data'])) {
 			$query = "SELECT * FROM databases d, objects o WHERE o.object_id=d.object_id AND database_id=".$this->id;
 			$res = $this->dobj->db_query($query);
 			$dbs = $this->dobj->db_fetch($res);
@@ -327,7 +332,7 @@ class Catalogue extends Modules {
 			if (!empty($error)) {
 				$dbs = $db;
 
-				$output = Catalogue_View::view_add_edit($dbs, null, $error);
+				$output = Catalogue_View::view_add_edit($dbs, $error);
 				return $output;
 			} else {
 				$this->save_database($db, $this->id);
@@ -340,7 +345,7 @@ class Catalogue extends Modules {
 			$res = $this->dobj->db_query($query);
 			$dbs = $this->dobj->db_fetch($res);
 
-			$output = Catalogue_View::view_add_edit($dbs, $type);
+			$output = Catalogue_View::view_add_edit($dbs);
 			return $output;
 		}
 	}
@@ -349,6 +354,8 @@ class Catalogue extends Modules {
 	 * Displays the list of tables within the database
 	 */
 	function view_edit_columns() {
+		$join_columns_tmp = array();
+		
 		/* Database */
 		$query = "SELECT * FROM databases d, objects o WHERE o.object_id=d.object_id AND d.database_id='".$this->id."';";
 		$res = $this->dobj->db_query($query);
@@ -636,7 +643,7 @@ Class Catalogue_View {
 	/* View Add 
 	 * Displays the basic add database form. Most modules will provide their own version of this form.
 	 */
-	function view_add_edit($dbs, $types, $error=null) {
+	function view_add_edit($dbs, $error=null) {
 		$output = "";
 
 		if ($this->action == "add") {

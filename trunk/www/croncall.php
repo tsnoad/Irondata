@@ -23,14 +23,10 @@
  * Called by crontab every minute. When run as scheduler, this page calls for any reports that are set to be run at this date and time, then adds them to the execution queue. When run as executor, this page calls the cron module to execute reports that are queued
  *
  */
-
+if (!isset($_SERVER['SHELL'])) {
+	die("croncall may only be run by CLI");
+}
 if ($argv[1] != "scheduler" && $argv[1] != "executor") die("croncall must be run as either scheduler or executor.\n");
-
-$runcheck = shell_exec("ps aux | grep 'su - www-data -c php -f /var/www/irondata/croncall.php' | grep -v 'grep'");
-if (!empty($runcheck)) $runcheck = trim($runcheck);
-if (!empty($runcheck)) $runcheck = explode("\n", $runcheck);
-$runcheck = count($runcheck);
-if ($runcheck < 1) die("croncall may only be run by CLI");
 
 if ($argv[1] == "executor") {
 	$runcheck = shell_exec("ps aux | grep 'su - www-data -c php -f /var/www/irondata/croncall.php executor' | grep -v 'grep'");
@@ -74,7 +70,7 @@ switch ($argv[1]) {
 		$mo->action = "executor";
 
 		$return_tmp = $mo->call_function($mo->module, "view_".$mo->action);
-		$run_executor = $return_tmp['cron'];
+		$run_executor = isset($return_tmp['cron']) ? $return_tmp['cron'] : null;
 		break;
 	default:
 		break;
@@ -82,9 +78,7 @@ switch ($argv[1]) {
 
 chdir($cwd_cache);
 
-var_dump($run_executor);
-
-if ($run_executor) {
+if (isset($run_executor)) {
 	shell_exec("php -f /var/www/irondata/croncall.php executor");
 }
 

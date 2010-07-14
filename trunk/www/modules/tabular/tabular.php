@@ -654,6 +654,13 @@ class Tabular extends Template {
 	 *
 	 */
 	function view_add() {
+		//define default variables
+		$table_join_ajax = null;
+		$tabular_template = null;
+		$tabular_template_auto = null;
+		$blah = null; //TODO: bad variable name. Must change
+		$preview_table = null;
+		
 		switch ($this->subvar) {
 			case "x":
 			case "y":
@@ -880,6 +887,7 @@ class Tabular extends Template {
 		$steps[3][0] = "Preview";
 		$steps[3][1] = $this->webroot()."tabular/add/".$this->id."/preview";
 		$steps[3][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
+		$steps[3][3] = "";
 		if ($steps[3][2]) $steps[3][3] = "disabled";
 		if ($this->subvar == "preview") $steps[3][3] .= " current";
 
@@ -1941,6 +1949,8 @@ WHERE
 	 *
 	 */
 	function view_history() {
+		$tmp_table = null;
+		$tmp_graph = null;
 		$template_id = $this->id;
 		$saved_report_id = $this->subvar;
 
@@ -2041,7 +2051,11 @@ WHERE
 
 			foreach ($saved_report['y'] as $y_tmp) {
 				foreach ($saved_report['x'] as $x_tmp) {
-					$c_key = $saved_report_translate[$x_tmp['x']][$y_tmp['y']];
+					if (isset($saved_report_translate[$x_tmp['x']][$y_tmp['y']])) {
+						$c_key = $saved_report_translate[$x_tmp['x']][$y_tmp['y']];
+					} else {
+						$c_key = null;
+					}
 
 					if (!empty($saved_report['c'][$c_key])) {
 						continue;
@@ -2084,6 +2098,7 @@ WHERE
 
 		/* Generate the query to run */
 		$query = $this->hook_query($template, $constraints, $constraint_logic, $demo);
+		$start = time();
 
 		if ($quick && $demo) {
 			unset($query['c']);
@@ -2091,8 +2106,6 @@ WHERE
 			$data = parent::hook_run_query($template[0]['object_id'], $query);
 		} else if ($demo) {
 			unset($query['c']);
-
-			$start = time();
 
 			$data_tmp = parent::hook_run_query($template[0]['object_id'], $query);
 
@@ -2113,13 +2126,11 @@ WHERE
 
 			$data = array_merge((array)$data, (array)$data_tmp);
 
-			$end = time();
 		} else {
 			/* Run the query and get the results */
-			$start = time();
 			$data = parent::hook_run_query($template[0]['object_id'], $query);
-			$end = time();
 		}
+		$end = time();
 
 		$saved_report_id = $this->save_results($template_id, $data, "f", ($demo ? "t" : "f"), ($end-$start), 1);
 
@@ -2427,6 +2438,7 @@ WHERE
 	}
 
 	function view_data_preview_slow_ajax() {
+		$data_preview = "";
 		if ((int)$this->id) {
 			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
 			$saved_report_id = $this->execute_demo_cellwise($this->id);
@@ -2457,6 +2469,7 @@ WHERE
 	}
 
 	function view_data_preview_first_ajax() {
+		$data_preview = "";
 		if ((int)$this->id) {
 			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
 			$saved_report_id = $this->execute_demo_quick($this->id);
@@ -2487,6 +2500,7 @@ WHERE
 
 	function view_processing_history_ajax() {
 		$template_id = $this->id;
+		$report_query = null;
 
 		if (!empty($template_id)) {
 			$template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='$template_id' AND (execution_queued=true OR execution_executing=true);"));
@@ -2555,6 +2569,7 @@ class Tabular_View extends Template_View {
 		if (!empty($steps)) {
 			$output->submenu .= "<ol>";
 			foreach ($steps as $i => $step) {
+				$step[3] = isset($step[3]) ? $step[3] : null;
 				$output->submenu .= "<li>";
 				$output->submenu .= ($i + 1 === 1 ? "Step " : "").($i + 1).". ";
 				$output->submenu .= "<a href=\"".$step[1]."\" class=\"".$step[3]."\" ".($step[2] ? "onClick=\"void(0); return false;\"" : "").">";
@@ -3163,7 +3178,7 @@ class Tabular_View extends Template_View {
 			 $template[0]['header'] = stripslashes($template[0]['header']);
 			 $template[0]['footer'] = stripslashes($template[0]['footer']);
 
-			$logo_path = $this->sw_path.get_theme_path();
+			$logo_path = $this->sw_path.$this->get_theme_path();
 			$logo_tmp_path = $this->sw_path.$this->tmp_path;
 
 			if (is_file($logo_path."logo.png")) {
@@ -3287,7 +3302,11 @@ class Tabular_View extends Template_View {
 					$output->data .= "<tr>";
 					$output->data .= "<th class='y-index'>".$y_tmp."</th>";
 					foreach ($x_index as $x_tmp) {
-						$c_tmp = $results_foo[$y_tmp][$x_tmp];
+						if (isset($results_foo[$y_tmp][$x_tmp])) {
+							$c_tmp = $results_foo[$y_tmp][$x_tmp];
+						} else {
+							$c_tmp = null;
+						}
 						$output->data .= "<td>".$c_tmp."</td>";
 					}
 					$output->data .= "</tr>";
@@ -3692,7 +3711,7 @@ class Tabular_View extends Template_View {
 			if (!empty($processing_report)) {
 				$processing_id = $processing_report['template_id'];
 				$processing_tr_id = "processing_$processing_id";
-				$processing_ind_id = $processing_td_id."_indicator";
+				$processing_ind_id = $processing_tr_id."_indicator";
 
 				if ($processing_report['execution_queued'] == "t") {
 					$message_tmp = "Report Queued for Execution";
@@ -3710,6 +3729,7 @@ class Tabular_View extends Template_View {
 
 			if (!empty($saved_reports)) {
 				foreach ($saved_reports as $report_tmp) {
+					$dissemination = null;
 	// 				$dissemination = rand(-10, 20);
 	// 				if ($dissemination < 0) $dissemination = 0;
 	// 				$dissemination = "$dissemination user".($dissemination === 1 ? "" : "s");
@@ -3848,6 +3868,7 @@ class Tabular_View extends Template_View {
 
 	function view_processing_history_ajax($report_query, $template_query) {
 		$output->layout = "ajax";
+		$dissemination = null;
 
 		if (!empty($report_query)) {
 			$output->data = "
@@ -3863,7 +3884,7 @@ class Tabular_View extends Template_View {
 		} else if (!empty($template_query)) {
 			$processing_id = $template_query['template_id'];
 			$processing_tr_id = "processing_$processing_id";
-			$processing_ind_id = $processing_td_id."_indicator";
+			$processing_ind_id = $processing_tr_id."_indicator";
 
 			if ($template_query['execution_queued'] == "t") {
 				$message_tmp = "Report Queued for Execution";

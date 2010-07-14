@@ -62,15 +62,18 @@ $mo->call_function("ALL", "hook_auth");
 /* Display */
 if ($url[0]) {
 	$main = $mo->call_function($url[0], "view_".$url[1]);
+	if (!isset($main[$url[0]]->layout)) {
+		$main[$url[0]]->layout = "";
+	}
 	if ($main[$url[0]]->layout != "ajax") {
 		$js = $mo->call_function($url[0], "hook_javascript");
-		$display->js = $js[$url[0]];
+		$display->js = isset($js[$url[0]]) ? $js[$url[0]] : null;
 		$js_href = $mo->call_function($url[0], "hook_javascript_href");
-		$display->js_href = $js_href[$url[0]];
+		$display->js_href = isset($js_href[$url[0]]) ? $js_href[$url[0]] : null;
 // 		$menu = $mo->call_function($url[0], 'hook_menu');
 // 		$display->menu = $mo->render_menu($menu[$url[0]]);
 		$pagetitle = $mo->call_function($url[0], 'hook_pagetitle');
-		$display->pagetitle = $pagetitle[$url[0]];
+		$display->pagetitle = isset($pagetitle[$url[0]]) ? $pagetitle[$url[0]] : null;
 	}
 }
 
