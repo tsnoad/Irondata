@@ -1203,15 +1203,16 @@ class Tabular extends Template {
 					$_REQUEST['data']['email_dissemination'] = "f";
 				}
 
-				$ldap_recipient_selector = ($_REQUEST['data']['ldap'] == "ldap");
-				unset($_REQUEST['data']['ldap']);
+				//TODO: I do not believe this is required. If I am wrong it should be moved to the LDAP module. 
+				//$ldap_recipient_selector = ($_REQUEST['data']['ldap'] == "ldap");
+				//unset($_REQUEST['data']['ldap']);
 
 				$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "templates"));
 
-				if ($ldap_recipient_selector) {
-					$this->redirect("ldap/recipient_selector/".$this->id);
-					die();
-				}
+				//if ($ldap_recipient_selector) {
+				//	$this->redirect("ldap/recipient_selector/".$this->id);
+				//	die();
+				//}
 				break;
 			case "accesssubmit":
 				if (empty($_REQUEST['data'])) return;
@@ -3052,8 +3053,7 @@ class Tabular_View extends Template_View {
 					";
 
 				$output->data .= implode("\n", $recipient_selectors);
-
-				$output->data .= "<hr />";
+				$output->data .= "<p>This should be a comma seperated list of email addresses.</p>";
 
 				$output->data .= $this->i("data[email_subject]", array("label"=>"Message Subject", "type"=>"text", "default"=>$template['email_subject'], "dojo"=>"dijit.form.TextBox"));
 
