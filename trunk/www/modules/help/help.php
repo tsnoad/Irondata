@@ -72,7 +72,7 @@ class Help_View {
 			$description = $topic[1];
 			$path = $topic[2];
 
-			$output->data .= "<li style='margin: 10px 0px; padding: 0px;'><span style='font-size: 12pt;'>".$this->l($path, $title)."</span> <span style='padding-left: 20px; color: #888a85; font-size: 10pt;'>$description</span></li>";
+			$output->data .= "<li style='margin: 10px 0px; padding: 0px;'><span style='font-size: 12pt;'>".$this->l($path, $title, "target='_blank'")."</span> <span style='padding-left: 20px; color: #888a85; font-size: 10pt;'>$description</span></li>";
 		}
 
 		$output->data .= "

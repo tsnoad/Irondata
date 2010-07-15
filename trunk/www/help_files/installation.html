@@ -29,13 +29,11 @@
 			<ul class="toc">
 				<li><a href="#Notes">Notes</a></li>
 				<li><a href="#packages">Install Packages</a></li>
+				<li><a href="#svn">Install Irondata Source Code</a></li>
 				<li><a href="#php">Configure PHP</a></li>
 				<li><a href="#apache">Configure Apache</a></li>
-				<li><a href="#user">Create User</a></li>
 				<li><a href="#postgres">Install Postgresql</a></li>
-				<li><a href="#svn">Install Irondata Source Code</a></li>
 				<li><a href="#irondata">Configure Irondata</a></li>
-				<li><a href="#database">Create Database</a></li>
 				<li><a href="#inkscape">Install Inkscape</a></li>
 				<li><a href="#phpmailer">Install PHPMailer</a></li>
 				<li><a href="#crontab">Configure Crontab</a></li>
@@ -52,206 +50,177 @@
 
 			<a name="notes"></a>
 			<h2>Notes</h2>
-			<p>This document assumes a default database user account and install location. These can be changed, but please take care.</p>
-			<p class='above_pre'>Default database user name:</p>
-			<pre class='p_above'>irondata</pre>
-			<p class='above_pre'>Default install location:</p>
-			<pre class='p_above'>/home/irondata</pre>
+<p>This document assumes a default database user account and install location. These can be changed, but please take care.</p> 
+<p>Default database name: irondata</p> 
+<p>Default database user name: irondata</p> 
+<p>Default database password (please change): irondata</p> 
+<p>Default install location: /opt/irondata</p> 
+<p>Default owner: www-data</p> 
 			<a class="top" href="#top">Top</a>
 			<hr />
 
 			<a name="packages"></a>
-			<h2>Install Packages</h2>
-			<p class='above_pre'>Install required packages with apt:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo apt-get install apache2 php5 php5-cli php5-ldap php5-gd subversion</pre>
-			<a class="top" href="#top">Top</a>
-			<hr />
-
-			<a name="php"></a>
-			<h2>Configure PHP</h2>
-			<p>The default configuration of PHP limits memory use to 32MB. Creating graphs and tables frequently requires more memory.</p>
-			<p class='above_pre'>Open the php.ini configuration file:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo nano /etc/php5/apache2/php.ini</pre>
-			<p class='above_pre'>Find the line:</p>
-			<pre class='p_above'>memory_limit = 32M      ; Maximum amount of memory a script may consume (32MB)</pre>
-			<p class='above_pre'>Change to:</p>
-			<pre class='p_above'>memory_limit = 256M      ; Maximum amount of memory a script may consume (256MB)</pre>
-			<p class='above_pre'>Open the CLI php.ini configuration file:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo nano /etc/php5/cli/php.ini</pre>
-			<p class='above_pre'>Find the line:</p>
-			<pre class='p_above'>memory_limit = 32M      ; Maximum amount of memory a script may consume (32MB)</pre>
-			<p class='above_pre'>Change to:</p>
-			<pre class='p_above'>memory_limit = 256M      ; Maximum amount of memory a script may consume (256MB)</pre>
-
-			<p class='spaceabove'>Restarting Apache is required for these changes to take effect.</p>
-			<p class='above_pre'>Restart Apache for changes to take effect:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo /etc/init.d/apache2 restart</pre>
-			<a class="top" href="#top">Top</a>
-			<hr />
-
-			<a name="apache"></a>
-			<h2>Configure Apache</h2>
-			<p>Irondata's module structure requires the Apache Rewrite module.</p>
-			<p class='above_pre'>Enable the Rewrite module</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo a2enmod rewrite</pre>
-
-			<p class='spaceabove'>Apache's configuration file must be changed so that Irondata can be accessed.</p>
-			<p class='above_pre'>Open the Apache sites configuration file:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo nano /etc/apache2/sites-enabled/000-default</pre>
-			<p class='above_pre'>Add the following lines before the final virtualhost tag.</p>
-			<pre class='p_above'>	&lt;Directory "/var/www/irondata/"&gt;
-		AllowOverride All
-	&lt;/Directory&gt;</pre>
-			<p class='above_pre'>The new declarations must be added before the final virtualhost tag.</p>
-			<pre class='p_above'>	&lt;Directory "/var/www/irondata/"&gt;
-		AllowOverride All
-	&lt;/Directory&gt;
-<strong>&lt;/VirtualHost&gt;</strong></pre>
-
-			<p class='spaceabove'>Irondata requires the Apache LDAP module for LDAP authentication.</p>
-			<p class='above_pre'>Enable the LDAP module:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo a2enmod authnz_ldap</pre>
-
-			<p class='spaceabove'>Restarting Apache is required for these changes to take effect.</p>
-			<p class='above_pre'>Restart Apache for changes to take effect:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo /etc/init.d/apache2 restart</pre>
-			<a class="top" href="#top">Top</a>
-			<hr />
-
-			<a name="user"></a>
-			<h2>Create User</h2>
-			<p>A new user account is required to create the database, and for PHP to access the database.</p>
-			<p class='above_pre'>Create a new user account:</p>
-			<pre class='p_above p_below'><span>user@user-desktop:~$ </span>sudo adduser --no-create-home irondata</pre>
-			<p class='below_pre'>When prompted, enter a desired password.</p>
-			<a class="top" href="#top">Top</a>
-			<hr />
-
-			<a name="postgres"></a>
-			<h2>Install Postgresql</h2>
-			<p>PostgreSQL is required for storage of data.</p>
-			<p class='above_pre'>Install PostgreSQL and PHP-PostgreSQL libraries:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo apt-get install postgresql php5-pgsql</pre>
-
-			<p class='spaceabove'>A new PostgreSQL role is required for the database user to be able to access the database.</p>
-			<p class='above_pre'>Log in as the PostgreSQL administrator</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo su - postgres</pre>
-			<p class='above_pre'>Create a role for the database user:</p>
-			<pre class='p_above p_below'><span>postgres@user-desktop:~$ </span>createuser -P -s irondata</pre>
-			<p class='below_pre'>When prompted, enter the password for the user created above.</p>
-
-			<p class='spaceabove'> Irondata requires plPGSQL for database triggers and functions.</p>
-			<p class='above_pre'>Add the plPGSQL language to the system:</p>
-			<pre class='p_above'><span>postgres@user-desktop:~$ </span>createlang plpgsql</pre>
-
-			<p class='spaceabove'>Restarting Apache and PostgreSQL is required for these changes to take effect.</p>
-			<p class='above_pre'>Log out as the PostgreSQL Administrator:</p>
-			<pre class='p_above'><span>postgres@user-desktop:~$ </span>exit</pre>
-			<p class='above_pre'>Restart PostgreSQL for changes to take effect:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo /etc/init.d/postgresql-8.3 restart</pre>
-			<p class='above_pre'>Restart Apache for changes to take effect:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo /etc/init.d/apache2 restart</pre>
+<p>Install required packages with apt:</p> 
+<pre>user@user-desktop:~$ sudo apt-get install apache2 php5 php5-cli php5-gd php5-pgsql postgresql git-core</pre> 
+<p>Install optional packages with apt:</p> 
+<pre>user@user-desktop:~$ sudo apt-get install php5-ldap</pre> 
 			<a class="top" href="#top">Top</a>
 			<hr />
 
 			<a name="svn"></a>
 			<h2>Install Irondata Source Code</h2>
-			<p>The source code must be downloaded and placed in the appropriate folder.</p>
-			<p class='above_pre'>Download the source code:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo svn co svn://lgsolutions.com.au:3000/golf2/branches/head /home/irondata</pre>
-			<p class='above_pre'>Make the source code accessable over the internet:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo ln -s /home/irondata /var/www/irondata</pre>
-			<p class='above_pre'>Make the temporary folder accessable over the internet:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo ln -s /tmp/graphs /var/www/graphs</pre>
+<p>The source code must be downloaded and placed in the appropriate folder.</p> 
+<pre>user@user-desktop:~$ mkdir /opt/irondata
+user@user-desktop:~$ cd /opt/irondata
+user@user-desktop:~$ sudo git clone git://github.com/tsnoad/Irondata.git .</pre> 
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="php"></a>
+			<h2>Configure PHP</h2>
+<p>The default configuration of <span class="caps">PHP</span> limits memory use to 32MB. Creating graphs and tables frequently requires more memory.</p> 
+<p>Open the php.ini configuration file:</p> 
+<pre>user@user-desktop:~$ sudo nano /etc/php5/apache2/php.ini</pre> 
+<p>Replace the default memory_limit to at least 256M</p> 
+<pre>memory_limit = 256M      ; Maximum amount of memory a script may consume (256MB)</pre> 
+<p>Open the <span class="caps">CLI</span> php.ini configuration file:</p> 
+<pre>user@user-desktop:~$ sudo nano /etc/php5/cli/php.ini</pre> 
+<p>Replace the default memory_limit to at least 256M</p> 
+<pre>memory_limit = 256M      ; Maximum amount of memory a script may consume (256MB)</pre> 
+<p>Restart Apache for changes to take effect:</p> 
+<pre>user@user-desktop:~$ sudo /etc/init.d/apache2 restart</pre> 
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="apache"></a>
+			<h2>Configure Apache</h2>
+<p>Irondata&#8217;s module structure requires the Apache Rewrite module.</p> 
+<pre>user@user-desktop:~$ sudo a2enmod rewrite</pre> 
+<p>Apache&#8217;s configuration file must be changed so that Irondata can be accessed.</p> 
+<pre>user@user-desktop:~$ sudo nano /etc/apache2/sites-available/default</pre> 
+<p>Add the following lines before the final virtualhost tag. (Please note: If you change the /irondata alias you will also need to modify the .htaccess file in the www root.)</p> 
+<pre>Alias /irondata/ "/opt/irondata/trunk/www/"
+&lt;Directory "/opt/irondata/trunk/www/"&gt;
+    AllowOverride All
+&lt;/Directory&gt;</pre> 
+<p>(Optional) Irondata requires the Apache <span class="caps">LDAP</span> module for <span class="caps">LDAP</span> authentication.</p> 
+<pre>user@user-desktop:~$ sudo a2enmod authnz_ldap</pre> 
+<p>Restart Apache for changes to take effect:</p> 
+<pre>user@user-desktop:~$ sudo /etc/init.d/apache2 restart</pre> 
+			<a class="top" href="#top">Top</a>
+			<hr />
+
+			<a name="postgres"></a>
+			<h2>Install Postgresql</h2>
+<p>PostgreSQL is required for storage of data.</p> 
+<p>A new PostgreSQL role is required for the database user to be able to access the database.</p> 
+<p>Log in as the PostgreSQL administrator</p> 
+<pre>user@user-desktop:~$ sudo su - postgres</pre> 
+<p>Create a role for the database user &#8211; When prompted, enter the password &#8216;irondata&#8217; for the user created above.:</p> 
+<pre>postgres@user-desktop:~$ createuser -P -s irondata</pre> 
+<p>The database must be created to store Irondata&#8217;s settings and data.</p> 
+<pre>user@user-desktop:~$ sudo su - postgres
+postgres@user-desktop:~$ createdb -E UNICODE -O irondata irondata</pre> 
+<p>Move to the <span class="caps">SQL</span> directory:</p> 
+<pre>postgres@user-desktop:~$ cd /opt/irondata/trunk/sql/</pre> 
+<p>Run the renew_db script, to initialise the irondata database. The database user &#8220;irondata&#8221; is hardcoded into this file. Please edit it if you have changed the username.</p> 
+<pre>postgres@user-desktop:~/sql$ ./renew_db</pre> 
+<p>Log out as the postgres user:</p> 
+<pre>postgres@user-desktop:~/sql$ exit</pre> 
 			<a class="top" href="#top">Top</a>
 			<hr />
 
 			<a name="irondata"></a>
 			<h2>Configure Irondata</h2>
-			<p>Justification</p>
-			<p class='above_pre'>action</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo cp /home/irondata/php_web/conf.php.template \
-/home/irondata/php_web/conf.php</pre>
-			<p class='above_pre'>action</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo nano /home/irondata/php_web/conf.php</pre>
-<!-- 			<p class='above_pre'>action</p> -->
-			<pre class='p_above'>&lt;?php
-
-// Metabase Settings 
+<p>Modify the Irondata configuration file based on the details defined above. You will need to change these examples to your settings if you have not installed it in the default location.</p> 
+<p>Create the configuration file</p> 
+<pre>user@user-desktop:~$ sudo cp /opt/irondata/trunk/www/conf.php.template \
+/opt/irondata/trunk/www/conf.php
+user@user-desktop:~$ sudo nano /opt/irondata/trunk/www/conf.php</pre> 
+<pre>&lt;?php // Metabase Settings 
 $conf['metabase']['type'] = 'postgres';
 $conf['metabase']['hostname'] = 'localhost';
 $conf['metabase']['database'] = 'irondata';
-$conf['metabase']['username'] = 'username';
-$conf['metabase']['password'] = 'password';
-
-//location of software relative to /var/www/
-$conf['paths']['sw_path'] = 'irondata/';
-
-//location of tmp folder relative to /var/www/
-$conf['paths']['tmp_path'] = 'graphs/';
-
-?&gt;</pre>
-			<p class='above_pre'>action</p>
-			<pre class='p_above'>$conf['metabase']['username'] = 'username';</pre>
-			<p class='above_pre'>action</p>
-			<pre class='p_above'>$conf['metabase']['password'] = 'password';</pre>
-			<p class='above_pre'>action</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo chmod -R 755 /home/irondata</pre>
-			<a class="top" href="#top">Top</a>
-			<hr />
-
-			<a name="database"></a>
-			<h2>Create Database</h2>
-			<p>The database must be created to store Irondata's settings and data.</p>
-			<p class='above_pre'>Log in as the irondata user:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo su - irondata</pre>
-			<p class='above_pre'>Create the Irondata database:</p>
-			<pre class='p_above'><span>irondata@user-desktop:~$ </span>createdb irondata</pre>
-			<p class='above_pre'>Move to the SQL directory:</p>
-			<pre class='p_above'><span>irondata@user-desktop:~$ </span>cd /home/irondata/sql/</pre>
-			<p class='above_pre'>Run the renew_db script, to initialise the irondata database.</p>
-			<pre class='p_above p_below'><span>irondata@user-desktop:~/sql$ </span>./renew_db</pre>
-			<p class='above_pre below_pre'>the renew_db script will exit to the SQL prompt:</p>
-			<pre class='p_above'><span>irondata=# </span></pre>
-			<p class='above_pre'>Quit the SQL prompt:</p>
-			<pre class='p_above'><span>irondata=# </span>\q</pre>
-			<p class='above_pre'>Log out as the irondata user:</p>
-			<pre class='p_above'><span>irondata@user-desktop:~/sql$ </span>exit</pre>
+$conf['metabase']['username'] = 'irondata';
+$conf['metabase']['password'] = 'irondata';
+ 
+//physical location of www relative to /
+$conf['paths']['sw_path'] = '/opt/irondata/trunk/www/';
+//web location of www relative to /
+$conf['paths']['web_path'] = '/irondata/';
+//location of tmp folder relative to sw_path and web_path
+$conf['paths']['tmp_path'] = 'tmp/';
+ 
+$conf['paths']['phpmailer_path'] = '/opt/phpmailer/';
+ 
+$conf['email']['host'] = "mail.example.com";
+$conf['email']['username'] = "username";
+$conf['email']['password'] = "password";
+$conf['email']['from_address'] = "user@example.com";
+$conf['email']['from_name'] = "User Name";
+ 
+//address of the ldap host (only if using the LDAP module)
+$conf['ldap']['host'] = "192.168.25.38";
+ 
+//main dn attribute to search for when fetching all users  (only if using the LDAP module)
+$conf['ldap']['base_dn'] = "o=ORGNAME";
+ 
+//required distinct name attributes  (only if using the LDAP module)
+$conf['ldap']['required_dn'] = array(
+	);
+ 
+//groups to search for
+$conf['ldap']['search_groups'] = array(
+	);
+?&gt;</pre> 
+<p>Change to your postgres user and password</p> 
+<pre>$conf['metabase']['username'] = 'irondata';
+$conf['metabase']['password'] = 'password';</pre> 
+<p>Save your file and set it to be readable.</p> 
+<pre>user@user-desktop:~$ mkdir /opt/irondata/trunk/www/tmp
+user@user-desktop:~$ sudo chmod 777 /opt/irondata/trunk/www/tmp</pre> 
 			<a class="top" href="#top">Top</a>
 			<hr />
 
 			<a name="inkscape"></a>
 			<h2>Install Inkscape</h2>
-			<p>The Inkscape vector graphics package is required for the creation of PDF graphs.</p>
-			<p class='above_pre'>Install inskcape package with apt:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo apt-get install inkscape</pre>
+<p>The Inkscape vector graphics package is required for the creation of <span class="caps">PDF</span> graphs.</p> 
+<p>Install inskcape package with apt and configure the inkscape settings path for the www-data user (default /var/www home directory):</p> 
+<pre>user@user-desktop:~$ sudo apt-get install inkscape
+sudo mkdir /var/www/.config
+sudo chown www-data:www-data /var/www/.config/
+sudo chmod u+rwx,og-rwx /var/www/.config/
+sudo mkdir /var/www/.gnome2
+sudo chown www-data:www-data /var/www/.gnome2/
+sudo chmod u+rwx,og-rwx /var/www/.gnome2/</pre> 
 			<a class="top" href="#top">Top</a>
 			<hr />
 
 			<a name="phpmailer"></a>
 			<h2>Install PHPMailer</h2>
-			<p>Irondata reuires the PHPMailer script by Worx International to send completed reports by email. Version 2.3 is included with irondata.</p>
-			<p class='above_pre'>Copy the PHPmailer archive to /opt:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo cp /home/irondata/phpMailer_v2.3.tar.gz /opt/</pre>
-			<p class='above_pre'>Move to /opt:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>cd /opt/</pre>
-			<p class='above_pre'>Extract files from the archive:</p>
-			<pre class='p_above'><span>user@user-desktop:/opt$ </span>sudo tar -xvzf phpMailer_v2.3.tar.gz</pre>
-			<p class='above_pre'>Rename the PHPMailer folder:</p>
-			<pre class='p_above'><span>user@user-desktop:/opt$ </span>sudo mv phpMailer_v2.3 phpmailer</pre>
-			<p class='above_pre'>Delete the Archive:</p>
-			<pre class='p_above'><span>user@user-desktop:/opt$ </span>sudo rm phpMailer_v2.3.tar.gz</pre>
+<p>Irondata reuires the PHPMailer script by Worx International to send completed reports by email. Version 2.3 is included with irondata.</p> 
+<p>Copy the PHPmailer archive to /opt:</p> 
+<pre>user@user-desktop:~$ sudo cp /home/irondata/phpMailer_v2.3.tar.gz /opt/</pre> 
+<p>Move to /opt:</p> 
+<pre>user@user-desktop:~$ cd /opt/</pre> 
+<p>Extract files from the archive:</p> 
+<pre>user@user-desktop:/opt$ sudo tar -xvzf phpMailer_v2.3.tar.gz</pre> 
+<p>Rename the PHPMailer folder:</p> 
+<pre>user@user-desktop:/opt$ sudo mv phpMailer_v2.3 phpmailer</pre> 
+<p>Delete the Archive:</p> 
+<pre>user@user-desktop:/opt$ sudo rm phpMailer_v2.3.tar.gz</pre> 
 			<a class="top" href="#top">Top</a>
 			<hr />
 
 			<a name="crontab"></a>
 			<h2>Configure Crontab</h2>
-			<p>Irondata uses Crontab to schedule the execution of reports and to execute reports in the background.</p>
-			<p class='above_pre'>Open sudo's crontab file for editing:</p>
-			<pre class='p_above'><span>user@user-desktop:~$ </span>sudo crontab -e</pre>
-			<p class='above_pre'>Add the lines:</p>
-			<pre class='p_above'>  0 * * * * su - www-data -c 'php -f /home/irondata/php_web/croncall.php scheduler'
-  * * * * * su - www-data -c 'php -f /home/irondata/php_web/croncall.php executor'</pre>
+<p>Irondata uses Crontab to schedule the execution of reports and to execute reports in the background.</p> 
+<p>Open sudo&#8217;s crontab file for editing:</p> 
+<pre>user@user-desktop:~$ sudo crontab -e</pre> 
+<p>Add the lines:</p> 
+<pre>0 * * * * su - www-data -c 'php -f /opt/irondata/trunk/www/croncall.php scheduler'
+* * * * * su - www-data -c 'php -f /opt/irondata/trunk/www/croncall.php executor'
+</pre> 
 			<a class="top" href="#top">Top</a>
 			<hr />
 		</div>
