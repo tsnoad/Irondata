@@ -28,7 +28,6 @@ $conf['metabase']['password'] = 'irondata';
 $conf['paths']['sw_path'] = '/opt/irondata/trunk/www/';
 //web location of www relative to /
 $conf['paths']['web_path'] = '/irondata/';
-
 //location of tmp folder relative to sw_path and web_path
 $conf['paths']['tmp_path'] = 'tmp/';
 
@@ -40,17 +39,17 @@ $conf['email']['password'] = "password";
 $conf['email']['from_address'] = "user@example.com";
 $conf['email']['from_name'] = "User Name";
 
-//address of the ldap host
+//address of the ldap host (only if using the LDAP module)
 $conf['ldap']['host'] = "192.168.25.38";
 
-//main dn attribute to search for when fetching all users
+//main dn attribute to search for when fetching all users (only if using the LDAP module)
 $conf['ldap']['base_dn'] = "o=ORGNAME";
 
-//required distinct name attributes
+//required distinct name attributes (only if using the LDAP module)
 $conf['ldap']['required_dn'] = array(
 	);
 
-//groups to search for
+//groups to search for (only if using the LDAP module)
 $conf['ldap']['search_groups'] = array(
 	);
 
