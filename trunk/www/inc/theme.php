@@ -299,7 +299,7 @@ class Theme {
 							$sel = "";
 						}
 
-						if ($data['options_disabled'][$i] === true) {
+						if (isset($data['options_disabled'][$i]) && $data['options_disabled'][$i] === true) {
 							$dis = "disabled='true'";
 						} else {
 							$dis = "";

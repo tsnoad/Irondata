@@ -894,6 +894,7 @@ class Tabular extends Template {
 		$steps[4][0] = "Constraints";
 		$steps[4][1] = $this->webroot()."tabular/add/".$this->id."/constraints";
 		$steps[4][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
+		$steps[4][3] = "";
 		if ($steps[4][2]) $steps[4][3] = "disabled";
 		if ($this->subvar == "constraints") $steps[4][3] .= " current";
 
@@ -1352,7 +1353,7 @@ class Tabular extends Template {
 		$intersection_column_id = $intersection['column_id'];
 
 
-		$foobar .= "<h3>Axis Relationship</h3>";
+		$foobar = "<h3>Axis Relationship</h3>";
 		$foobar .= "<p class='h3attach'>The selected column may be linked to the intersection column, by one of a number of different routes.</p>";
 
 		//self referential joins
@@ -2176,7 +2177,9 @@ WHERE
 					tc.*, 
 					tcl.*,
 					c.name AS column_name, 
-					t.name AS table_name 
+					t.name AS table_name, 
+					c.human_name AS column_human_name, 
+					t.human_name AS table_human_name 
 				FROM 
 					tabular_constraints tc 
 					INNER JOIN tabular_constraint_logic tcl ON (tcl.template_id=tc.template_id) 
@@ -2193,7 +2196,9 @@ WHERE
 					sc.*, 
 					scl.*,
 					c.name AS column_name, 
-					t.name AS table_name 
+					t.name AS table_name, 
+					c.human_name AS column_human_name, 
+					t.human_name AS table_human_name 
 				FROM 
 					tabular_templates_manual_squid_constraints sc 
 					INNER JOIN tabular_templates_manual_squid_constraint_logic scl ON (scl.tabular_templates_manual_squid_id=sc.tabular_templates_manual_squid_id) 
@@ -2218,10 +2223,13 @@ WHERE
 					$constraint_id = $constraint_tmp['squid_constraints_id'];
 				}
 
-				$index_id = $constraint_tmp['index_id'];
+				$index_id = isset($constraint_tmp['index_id']) ? $constraint_tmp['index_id'] : null;
 				$table_name = $constraint_tmp['table_name'];
 				$column_name = $constraint_tmp['column_name'];
-				$column = ucwords($table_name).".".ucwords($column_name);
+				/* The constraints should show with the human name, not data name */
+				$table_human_name = $constraint_tmp['table_human_name'];
+				$column_human_name = $constraint_tmp['column_human_name'];
+				$column = $table_human_name.".".$column_human_name;
 
 				$type_array = array(
 					"eq"=>"Equals",
@@ -2267,6 +2275,7 @@ WHERE
 	 * Called by Tabular::view_add. Gets all data required to show the add/edit constraint page
 	 */
 	function view_editconstraint() {
+		$constraint_query = null;
 		switch ($this->subvar) {
 			case "editconstraint":
 				$constraint_id = $this->subid;
@@ -2695,7 +2704,8 @@ class Tabular_View extends Template_View {
 						$output->data .= "
 							<hr />
 							<div class='input'>
-								<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/{$this->subvar}/manualsource\"; return false;' name='cancel' />Cancel</button><button type='submit' value='Next' dojoType='dijit.form.Button' name='next' />Next</button>
+								<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/{$this->subvar}/manualsource\"; return false;' name='cancel' >Cancel</button>
+								<button type='submit' value='Next' dojoType='dijit.form.Button' name='next' >Next</button>
 							</div>
 							";
 
@@ -2707,7 +2717,8 @@ class Tabular_View extends Template_View {
 						$output->data .= "
 							<hr />
 							<div class='input'>
-								<button value='Back' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/{$this->subvar}/squidname/{$this->aux1}\"; return false;' name='constraint_page_back' id='constraint_page_back' />Back</button><button value='Done' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/{$this->subvar}/manualsource\"; return false;' name='constraint_page_forward' id='constraint_page_forward' />Done</button>
+								<button value='Back' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/{$this->subvar}/squidname/{$this->aux1}\"; return false;' name='constraint_page_back' id='constraint_page_back' >Back</button>
+								<button value='Done' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/{$this->subvar}/manualsource\"; return false;' name='constraint_page_forward' id='constraint_page_forward' >Done</button>
 							</div>
 							";
 						break;
@@ -3347,9 +3358,10 @@ class Tabular_View extends Template_View {
 	}
 
 	/**
-	 * Called by Tabualr::view_add to show the constraints and constraint logic for a report. also used to show the constraints and constraint logic for a manual axis on a report.
+	 * Called by Tabular::view_add to show the constraints and constraint logic for a report. also used to show the constraints and constraint logic for a manual axis on a report.
 	 */
 	function view_constraints($blah) {
+		$output = "";
 		if (!empty($blah['constraints']) && count($blah['constraints']) > 0) {
 			$output .= "<h3>Constraint Logic</h3>";
 
@@ -3400,7 +3412,7 @@ class Tabular_View extends Template_View {
 					";
 			}
 
-			$output .= file_get_contents($this->sw_root.$this->sw_path."php_web/modules/tabular/constraints_ui.js");
+			$output .= file_get_contents($this->sw_path."modules/tabular/constraints_ui.js");
 
 			$output .= "
 				</script>
@@ -3455,7 +3467,8 @@ class Tabular_View extends Template_View {
 				<input type='hidden' name='data[constraints_id]' value='".json_encode($constraints_id)."' />
 				<input type='hidden' name='data[constraints_ascii]' value='".json_encode($constraints_ascii)."' />
 				<div id='confoo_save'>
-					<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=window.location; return false;' name='cancel' />Cancel</button><button type='submit' value='Save' dojoType='dijit.form.Button' name='save' />Save</button>
+					<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=window.location; return false;' name='cancel' >Cancel</button>
+					<button type='submit' value='Save' dojoType='dijit.form.Button' name='save' >Save</button>
 				</div>
 				";
 			$output .= $this->f_close();
@@ -3538,7 +3551,18 @@ class Tabular_View extends Template_View {
 	 * Called by Tabular_view::view_add to show the add/edit constraint form. Also used for add/edit manual axis contraint
 	 */
 	function view_editconstraint($blah) {
-		if ($blah['error']) {
+		// Set empty variables
+		$output = "";
+		if (!isset($blah['data']['value'])) {
+			$blah['data']['value'] = null;
+		}
+		if (!isset($blah['data']['type'])) {
+			$blah['data']['type'] = null;
+		}
+		if (!isset($blah['data']['column_id'])) {
+			$blah['data']['column_id'] = null;
+		}
+		if (isset($blah['error'])) {
 			$output .= "<p style='color: #a40000; font-family: Arial; font-size: 10pt; font-weight: bold;'>".$blah['error']."</p>";
 		}
 
@@ -3548,7 +3572,7 @@ class Tabular_View extends Template_View {
 
 				$output .= $this->f("tabular/save/{$this->id}/editconstraintsubmit/{$constraint_id}", "dojoType='dijit.form.Form'");
 
-				$cancel = "<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/constraints\"; return false;' name='cancel' />Cancel</button>";
+				$cancel = "<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/constraints\"; return false;' name='cancel' >Cancel</button>";
 				break;
 			case "editsquidconstraint":
 				$squid_id = $this->subid;
@@ -3556,7 +3580,7 @@ class Tabular_View extends Template_View {
 
 				$output .= $this->f("tabular/save/{$this->id}/editsquidconstraintsubmit/{$squid_id}/{$constraint_id}", "dojoType='dijit.form.Form'");
 
-				$cancel = "<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/y/squidconstraints/{$squid_id}\"; return false;' name='cancel' />Cancel</button>";
+				$cancel = "<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."tabular/add/{$this->id}/y/squidconstraints/{$squid_id}\"; return false;' name='cancel' >Cancel</button>";
 				break;
 		}
 
@@ -3655,12 +3679,12 @@ class Tabular_View extends Template_View {
 
 		$output .= "<hr />";
 		$output .= "<div id='join_display'>";
-		$output .= $table_join_ajax;
+		//TODO: Not required - DELETE $output .= $table_join_ajax;
 		$output .= "</div>";
 
 		$output .= "
 			<div class='input'>
-				{$cancel}<button type='submit' value='Next' dojoType='dijit.form.Button' name='submit' />Save</button>
+				{$cancel}<button type='submit' value='Next' dojoType='dijit.form.Button' name='submit' >Save</button>
 			</div>
 			";
 

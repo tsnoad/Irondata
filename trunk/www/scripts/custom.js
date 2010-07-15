@@ -75,7 +75,7 @@ function create_input(name, type, params) {
 			params['label'] = name;
 		}
 		var label = dojo.doc.createElement('label');
-		label.for = name;
+		label.HTMLfor = name;
 		label.innerHTML = params['label'];
 		element.appendChild(label);
 	}
