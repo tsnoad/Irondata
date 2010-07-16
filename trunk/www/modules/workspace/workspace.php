@@ -32,6 +32,7 @@ class Workspace extends Modules {
 	var $name = "Workspace";
 	var $description = "The users personal workspace";
 	var $current;
+	var $module_group = "Core";
 	
 	function __construct() {
 		include_once("inc/db.php");

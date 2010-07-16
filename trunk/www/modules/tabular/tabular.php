@@ -32,6 +32,7 @@ class Tabular extends Template {
 	var $dobj;
 	var $name = "Tabular";
 	var $description = "A tabular report type. Multiple axis' with a numeric intersection between them.";
+	var $module_group = "Core";
 
 	/* The Top Menu hook function.
 	 * Displays the module in the main menu. Or menu of primary functions.

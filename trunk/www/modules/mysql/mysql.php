@@ -32,6 +32,7 @@ class Mysql extends Catalogue {
 	var $dobj;
 	var $name = "MySQL";
 	var $description = "A MySQL data source type. OBSOLETE";
+	var $module_group = "Data Sources";
 	
 	function hook_top_menu() {
 		return null;

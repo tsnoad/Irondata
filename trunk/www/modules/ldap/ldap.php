@@ -31,6 +31,7 @@ class Ldap extends User {
 	var $dobj;
 	var $name = "LDAP";
 	var $description = "LDAP";
+	var $module_group = "Users / Security";
 
 	function hook_admin_tools() {
 		return null;

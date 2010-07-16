@@ -31,6 +31,7 @@ class Admin extends Modules {
 	var $dobj;
 	var $name = "IronData Administration";
 	var $description = "This is the administration module.";
+	var $module_group = "Core";
 
 	function __construct() {
 		include_once("inc/db.php");
@@ -116,7 +117,14 @@ class Admin extends Modules {
 				}
 			}
 		}
-		$output = Admin_View::view_modules($modules, $settings);
+		/* Sort modules by group */
+		$sorted = array();
+		foreach ($modules as $i => $module) {
+			$group = isset($module->module_group) ? $module->module_group : "Other";
+			$sorted[$group][$i] = $module;
+		}
+		ksort($sorted);
+		$output = Admin_View::view_modules($sorted, $settings);
 		return $output;
 	}
 	
@@ -139,32 +147,36 @@ class Admin_View {
 	function view_modules($modules, $settings) {
 		$output->title = "Modules";
 		$output->data .= $this->f("admin/modules");
-		$output->data .= "
-			<div class='reports'>
-				<table cellpadding='0' cellspacing='0'>
-					<tr>
-						<th>Module Name</th>
-						<th>Description</th>
-						<th>Installed</th>
-						<th>&nbsp;</th>
-					</tr>
-					";
-		foreach ($modules as $i => $mod) {
-			$default = ($mod->status == 'active') ? true : false;
-			$disabled = (isset($mod->core) && $mod->core == 't') ? true : false;
-			$setting = isset($settings[$i]) ? $settings[$i] : null;
-
+		$output->data .= "<div class='reports'>";
+		foreach ($modules as $group_name => $group) {
+			$output->data .= "<h3>".$group_name."</h3>";
 			$output->data .= "
-					<tr>
-						<td>".$mod->name."</td>
-						<td>".$mod->description."</td>
-						<td><input type='checkbox' name='data[modules][".$i."]' ".($disabled ? "disabled" : "")." ".($default ? "checked" : "")." /></td>
-						<td>".($setting ? $this->l($setting, "Module Settings") : "&nbsp;")."</td>
-					</tr>
-					";
+					<table cellpadding='0' cellspacing='0'>
+						<tr>
+							<th style='width: 25%;'>Module Name</th>
+							<th style='width: 60%;'>Description</th>
+							<th style='width: 10%;'>Installed</th>
+							<th style='width: 5%;'>&nbsp;</th>
+						</tr>
+						";
+			
+			foreach ($group as $i => $mod) {
+				$default = ($mod->status == 'active') ? true : false;
+				$disabled = (isset($mod->core) && $mod->core == 't') ? true : false;
+				$setting = isset($settings[$i]) ? $settings[$i] : null;
+
+				$output->data .= "
+						<tr>
+							<td>".$mod->name."</td>
+							<td>".$mod->description."</td>
+							<td><input type='checkbox' name='data[modules][".$i."]' ".($disabled ? "disabled" : "")." ".($default ? "checked" : "")." /></td>
+							<td>".($setting ? $this->l($setting, "Module Settings") : "&nbsp;")."</td>
+						</tr>
+						";
+			}
+			$output->data .= "</table>";
 		}
-		$output->data .= "
-				</table>
+		$output->data .= "				
 			</div>
 			";
 

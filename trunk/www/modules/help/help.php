@@ -31,6 +31,7 @@ class Help extends Modules {
 	var $dobj;
 	var $name = "Help";
 	var $description = "Help topics";
+	var $module_group = "Other";
 
 	var $topics = array(
 		"reports.html" => array("Generating & Running Reports", "Guide to using reports.", "help_files/reports.html"),

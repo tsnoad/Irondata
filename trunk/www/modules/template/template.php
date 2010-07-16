@@ -37,6 +37,7 @@ class Template extends Modules {
 	var $dobj;
 	var $name = "Template";
 	var $description = "Report template functions.";
+	var $module_group = "Core";
 	
 	function hook_pagetitle() {
 		return "Report";

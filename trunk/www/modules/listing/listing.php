@@ -32,6 +32,7 @@ class Listing extends Template {
 	var $dobj;
 	var $name = "Listing";
 	var $description = "The listing report type. Single axis and a list of values. e.g. a list of customers";
+	var $module_group = "Templates";
 	
 	/* The Top Menu hook function. 
 	 * Displays the module in the main menu. Or menu of primary functions. 

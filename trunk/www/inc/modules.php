@@ -104,10 +104,11 @@ class Modules extends Theme {
  				$foo = new $className;
 				$mod = null;
 				$mod->name = $foo->name ? $foo->name : $dir;
+				$mod->module_group = $foo->module_group;
 				$mod->description = $foo->description;
 				foreach ($active as $i => $actmod) {
 					if ($actmod['module_id'] == $dir) {
-						$mod->status = $actmod['status'];;
+						$mod->status = $actmod['status'];
 						$mod->core = $actmod['core'];
 						break;
 					} else {

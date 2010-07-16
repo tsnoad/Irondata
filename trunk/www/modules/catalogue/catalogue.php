@@ -30,6 +30,7 @@ class Catalogue extends Modules {
 	var $dobj;
 	var $name = "Metabase";
 	var $description = "The catalogue or metabase. This controls Irondata and describes the databases that are available to it.";
+	var $module_group = "Core";
 	
 	function hook_pagetitle() {
 		return "Metabase";

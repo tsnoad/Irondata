@@ -31,6 +31,7 @@ class Inline_historical extends Catalogue {
 	var $dobj;
 	var $name = "Inline Historical";
 	var $description = "Looks for, and updates the queries for an inline start_date and end_date field.";
+	var $module_group = "Templates";
 
 	/* The Top Menu hook function. 
 	 * Displays the module in the main menu. Or menu of primary functions. 

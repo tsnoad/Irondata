@@ -31,6 +31,7 @@ class User extends Modules {
 	var $dobj;
 	var $name = "Users";
 	var $description = "User and group management";
+	var $module_group = "Core";
 
 	/* The Top Menu hook function.
 	 * Displays the module in the main menu. Or menu of primary functions.

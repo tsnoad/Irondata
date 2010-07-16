@@ -37,6 +37,7 @@ class Search extends Modules {
 	var $dobj;
 	var $name = "Search";
 	var $description = "Basic report search functionality.";
+	var $module_group = "Other";
 	
 	function hook_pagetitle() {
 		return "Seach";

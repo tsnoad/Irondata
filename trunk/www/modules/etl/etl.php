@@ -33,6 +33,7 @@ class Etl extends Listing {
 	var $dobj;
 	var $name = "ETL";
 	var $description = "Provide Extration, Transformation and Load (ETL) functionality.";
+	var $module_group = "Other";
 
 	/* The Template hook function. 
 	 * Is this module available within the Templates
