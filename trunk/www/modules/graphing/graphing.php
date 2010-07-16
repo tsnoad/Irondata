@@ -375,11 +375,24 @@ class Graphing extends Template {
 		//re-organise intersection data so we can access it by x and y keys
 		if (!empty($results['c'])) {
 			foreach ($results['c'] as $result_tmp) {
-				if ($result_tmp['c'] == "0") continue;
 
 				$x_tmp = $result_tmp['x'];
 				$y_tmp = $result_tmp['y'];
 				$c_tmp = $result_tmp['c'];
+
+				//record the maximum number found in the intersection
+				if (!is_numeric($max_c)) {
+					$max_c = $c_tmp;
+				} else if ($c_tmp > $max_c) {
+					$max_c = $c_tmp;
+				}
+				//record the minimum number found in the intersection
+				if (!is_numeric($min_c)) {
+					$min_c = $c_tmp;
+				} else if ($c_tmp < $min_c) {
+					$min_c = $c_tmp;
+				}
+
 
 				//index by Y THEN X. counter-intuitive, i know, but trust me...
 				$results_foo[$y_tmp][$x_tmp] = $c_tmp;
@@ -388,17 +401,11 @@ class Graphing extends Template {
 			if ($stacked) {
 				$x_stacking_tmp = array_combine($x_index, array_pad(array(), count($x_index), 0));
 				$x_stacking_neg_tmp = array_combine($x_index, array_pad(array(), count($x_index), 0));
-			}
 
-			foreach ($y_index as $y_tmp) {
-				foreach ($x_index as $x_tmp) {
-					if (isset($results_foo[$y_tmp][$x_tmp])) {
-						$c_tmp = $results_foo[$y_tmp][$x_tmp];
-					} else {
-						$c_tmp = null;
-					}
+				foreach ($y_index as $y_tmp) {
+					foreach ($x_index as $x_tmp) {
+						$c_tmp = isset($results_foo[$y_tmp][$x_tmp]) ? $results_foo[$y_tmp][$x_tmp] : null;
 
-					if ($stacked) {
 						switch ($type) {
 							case "line":
 								break;
@@ -424,22 +431,6 @@ class Graphing extends Template {
 						}
 					}
 
-					//use isset: if this datapoint was SET as 0 we still need to check it against min/max
-					if (isset($results_foo[$y_tmp][$x_tmp])) {
-						//record the maximum number found in the intersection
-						if (empty($max_c)) {
-							$max_c = $c_tmp;
-						} else if ($c_tmp > $max_c) {
-							$max_c = $c_tmp;
-						}
-
-						//record the minimum number found in the intersection
-						if (empty($min_c)) {
-							$min_c = $c_tmp;
-						} else if ($c_tmp < $min_c) {
-							$min_c = $c_tmp;
-						}
-					}
 				}
 			}
 
@@ -447,26 +438,23 @@ class Graphing extends Template {
 				$min_c = 0;
 			}
 
-			if ($min_c === $max_c) {
+			if ($min_c === $max_c && $min_c >= 0) {
 				$min_c = 0;
+			} elseif ($min_c === $max_c && $min_c < 0) {
+				$max_c = 0;
 			}
 
-	// 		$skoo = "1".str_pad("", strlen($max_c - $min_c) - 1, "0");
-	// 		$skoo = (float)$skoo;
-	// 
-	// 		$max_c = ceil($max_c / $skoo) * $skoo;
-	// 		$min_c = floor($min_c / $skoo) * $skoo;
-
-			//create a index for the intersection - this will appear as the y axis on the graph. cast floats to strings to comparison, otherwise we get precision errors
-
-			for ($i = $min_c; (string)$i <= (string)$max_c; $i += ($max_c - $min_c) / 2) {
-// var_dump($i);
-				$c_index[] = $i;
-			}
+			//create a index for the intersection - this will appear as the y axis on the graph. 
+			//there are only three visual indices. the minimum, maximum and mid-point.
+			$c_index[] = $min_c;
+			$c_index[] = ($max_c - $min_c) / 2;
+			$c_index[] = $max_c;
 		} else {
-			for ($i = 0; $i <= 10; $i += (10 - 0) / 2) {
-				$c_index[] = $i;
-			}
+			//create a index for the intersection - this will appear as the y axis on the graph. 
+			//there are only three visual indices. the minimum, maximum and mid-point.
+			$c_index[] = 0;
+			$c_index[] = 5;
+			$c_index[] = 10;
 		}
 
 		switch ($type) {
@@ -869,7 +857,7 @@ class Graphing extends Template {
 					$points_tmp = "";
 
 					foreach ($results['x_index'] as $x_tmp) {
-						if (empty($results['results'][$y_tmp][$x_tmp])) {
+						if (!is_numeric($results['results'][$y_tmp][$x_tmp])) {
 							if (count($results['x_index']) > 1) {
 								$c_tmp_x += $area['plot_w'] / (count($results['x_index']) - 1);
 							}
@@ -917,7 +905,7 @@ class Graphing extends Template {
 					$points_open_tmp .= "$c_tmp_x,$c_tmp_y ";
 
 					foreach ($results['x_index'] as $x_tmp) {
-						if (empty($results['results'][$y_tmp][$x_tmp])) {
+						if (!is_numeric($results['results'][$y_tmp][$x_tmp])) {
 							$c_tmp_x += $area['plot_w'] / (count($results['x_index']) - 1);
 							continue;
 						}
@@ -994,7 +982,7 @@ class Graphing extends Template {
 					unset($bar_height_cache, $bar_height);
 
 					foreach (array_reverse($results['y_index']) as $y_tmp) {
-						if (empty($results['results'][$y_tmp][$x_tmp])) {
+						if (!is_numeric($results['results'][$y_tmp][$x_tmp])) {
 							continue;
 						}
 
