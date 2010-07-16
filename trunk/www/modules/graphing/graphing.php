@@ -128,7 +128,8 @@ class Graphing extends Template {
 		}
 
 		if ($svg) {
-			return array("object"=>Graphing_View::line_graph($saved_report['svg_url']), "pdf_url"=>$saved_report['pdf_url']);
+			$area = $this->define_area();
+			return array("object"=>Graphing_View::line_graph($saved_report['svg_url'], $area['graph_w'], $area['graph_h']+90), "pdf_url"=>$saved_report['pdf_url']);
 		}
 
 		if ($pdf) {

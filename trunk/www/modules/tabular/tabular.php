@@ -2777,22 +2777,22 @@ class Tabular_View extends Template_View {
 
 						$output->data .= "<hr />";
 
-						$output->data .= $this->i("data[aggregate]", array("label"=>"Count", "type"=>"radio", "value"=>"count", "default"=>($tabular_template_auto['aggregate'] == "count")));
+						$output->data .= $this->i("data[aggregate]", array("label"=>"Count All Values", "type"=>"radio", "value"=>"count", "default"=>($tabular_template_auto['aggregate'] == "count")));
 						$output->data .= "<p>The number of records that match the given X axis and Y Axis.</p>";
 
-						$output->data .= $this->i("data[aggregate]", array("label"=>"Count Distinct Values", "type"=>"radio", "value"=>"count distinct", "default"=>($tabular_template_auto['aggregate'] == "count distinct")));
+						$output->data .= $this->i("data[aggregate]", array("label"=>"Count Only Unique Values", "type"=>"radio", "value"=>"count distinct", "default"=>($tabular_template_auto['aggregate'] == "count distinct")));
 						$output->data .= "<p>The number of records, with a distinct value in the selected column, that match the given X axis and Y Axis.</p>";
 
-						$output->data .= $this->i("data[aggregate]", array("label"=>"Sum", "type"=>"radio", "value"=>"sum", "default"=>($tabular_template_auto['aggregate'] == "sum")));
+						$output->data .= $this->i("data[aggregate]", array("label"=>"The Sum of All Values", "type"=>"radio", "value"=>"sum", "default"=>($tabular_template_auto['aggregate'] == "sum")));
 						$output->data .= "<p>The total sum of all values that match the given X axis and Y Axis.</p>";
 
-						$output->data .= $this->i("data[aggregate]", array("label"=>"Minimum", "type"=>"radio", "value"=>"min", "default"=>($tabular_template_auto['aggregate'] == "min")));
+						$output->data .= $this->i("data[aggregate]", array("label"=>"The Minimum Value", "type"=>"radio", "value"=>"min", "default"=>($tabular_template_auto['aggregate'] == "min")));
 						$output->data .= "<p>The smallest value of all values that match the given X axis and Y Axis.</p>";
 
-						$output->data .= $this->i("data[aggregate]", array("label"=>"Maximum", "type"=>"radio", "value"=>"max", "default"=>($tabular_template_auto['aggregate'] == "max")));
+						$output->data .= $this->i("data[aggregate]", array("label"=>"The Maximum Value", "type"=>"radio", "value"=>"max", "default"=>($tabular_template_auto['aggregate'] == "max")));
 						$output->data .= "<p>The largest value of all values that match the given X axis and Y Axis.</p>";
 
-						$output->data .= $this->i("data[aggregate]", array("label"=>"Average", "type"=>"radio", "value"=>"average", "default"=>($tabular_template_auto['aggregate'] == "average")));
+						$output->data .= $this->i("data[aggregate]", array("label"=>"The Average of All Values", "type"=>"radio", "value"=>"average", "default"=>($tabular_template_auto['aggregate'] == "average")));
 						$output->data .= "<p>The average of all values that match the given X axis and Y Axis.</p>";
 						$output->data .= "<hr />";
 

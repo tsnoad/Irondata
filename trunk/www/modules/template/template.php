@@ -843,10 +843,11 @@ class Template_View {
 	
 	function view_add($module, $objects, $type='', $modules) {
 		$module = $this->id;
+		$output->data = "";
 
 		if (empty($module)) {
 			foreach ($modules as $i => $module) {
-				$output->data = "<h3>".$this->l("template/add/".$module['module'], "Create ".$module['label'])."</h3>";
+				$output->data .= "<h3>".$this->l("template/add/".$module['module'], "Create ".$module['label'])."</h3>";
 				$output->data .= "<p class='h3attach'>".$module['description']."</p>";
 			}
 		} else {
