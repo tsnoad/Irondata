@@ -66,7 +66,8 @@ class Tabular extends Template {
 	function hook_template_entry() {
 		return array(
 			"label"=>"Tabular Report",
-			"module"=>"tabular"
+			"module"=>"tabular",
+			"description"=>"A tabular report takes numerical values from a selected database column, and indexes them by unique values in the X axis and Y axis, also taken from database columns, that have a relationship with the first column."
 		);
 	}
 

@@ -58,6 +58,7 @@ class Template extends Modules {
 	}
 
 	function hook_admin_tools() {
+		$admin_tools = array();
 // 		$admin_tools[] = array("template/default_access", "Default Report Access - New User");
 // 		$admin_tools[] = array("template/default_access", "Default Report Access - New Report");
 		return $admin_tools;
@@ -843,11 +844,10 @@ class Template_View {
 		$module = $this->id;
 
 		if (empty($module)) {
-			$output->data = "<h3>".$this->l("template/add/tabular", "Create Tabular Report")."</h3>";
-			$output->data .= "<p class='h3attach'>A tabular report takes numerical values from a selected database column, and indexes them by unique values in the X axis and Y axis, also taken from database columns, that have a relationship with the first column.</p>";
-
-			$output->data .= "<h3>".$this->l("template/add/listing", "Create List Report", (empty($modules['listing']) ? "class='disabled'" : ""))."</h3>";
-			$output->data .= "<p class='h3attach'>A list report takes an index column from the database, then additional columns. Each row of the report shows attributes from the columns, that are related to the index.</p>";
+			foreach ($modules as $i => $module) {
+				$output->data = "<h3>".$this->l("template/add/".$module['module'], "Create ".$module['label'])."</h3>";
+				$output->data .= "<p class='h3attach'>".$module['description']."</p>";
+			}
 		} else {
 			$output->title = "Source Database";
 

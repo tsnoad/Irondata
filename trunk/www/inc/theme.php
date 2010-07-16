@@ -556,12 +556,12 @@ class Theme {
 			<ul class='menu'>
 			";
 
-		$reports_item = $menu_items['template']['reports'];
-		$help_item = $menu_items['help']['help'];
-		$search_item = $menu_items['search']['search'];
-		$admin_item = $menu_items['admin']['admin'];
-		$databases_item = $menu_items['catalogue']['databases'];
-		$logout_item = $menu_items['user']['logout'];
+		$reports_item = isset($menu_items['template']['reports']) ? $menu_items['template']['reports'] : null;
+		$help_item = isset($menu_items['help']['help']) ? $menu_items['help']['help'] : null;
+		$search_item = isset($menu_items['search']['search']) ? $menu_items['search']['search'] : null;
+		$admin_item = isset($menu_items['admin']['admin']) ? $menu_items['admin']['admin'] : null;
+		$databases_item = isset($menu_items['catalogue']['databases']) ? $menu_items['catalogue']['databases'] : null;
+		$logout_item = isset($menu_items['user']['logout']) ? $menu_items['user']['logout'] : null;
 
 		if (!empty($reports_item)) {
 			$block1[] = "<li>$reports_item</li>";

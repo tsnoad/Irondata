@@ -80,7 +80,8 @@ class Listing extends Template {
 	function hook_template_entry() {
 		return array(
 			"label"=>"List Report",
-			"module"=>"list"
+			"module"=>"list",
+			"description"=>"A list report takes an index column from the database, then additional columns. Each row of the report shows attributes from the columns, that are related to the index."
 		);
 	}
 	

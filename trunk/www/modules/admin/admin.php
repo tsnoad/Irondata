@@ -96,19 +96,19 @@ class Admin extends Modules {
 	function view_modules() {
 		$modules = $this->getDetailed();
 		$settings = $this->call_function("ALL", "hook_module_settings");
-		if ($_REQUEST['data']['modules']) {
+		if (isset($_REQUEST['data']['modules'])) {
 			foreach ($modules as $j => $all) {
 				/* Install selected modules */
-				if ($all->status == false && $_REQUEST['data']['modules'][$j]) {
+				if ($all->status == false && isset($_REQUEST['data']['modules'][$j])) {
 					/* New module */
 					$query = "INSERT INTO modules (module_id, name, description, type, subtype, status, core) VALUES ($$".$j."$$, $$".$all->name."$$, $$".$all->description."$$, $$".$all->type."$$, $$".$all->subtype."$$, 'active', 'f')";
 					$all->status = 'active';
 					$this->dobj->db_query($query);
-				} elseif ($all->status != 'active' && $_REQUEST['data']['modules'][$j]) {
+				} elseif ($all->status != 'active' && isset($_REQUEST['data']['modules'][$j])) {
 					$query = "UPDATE modules SET status='active' WHERE module_id='".$j."'";
 					$all->status = 'active';
 					$this->dobj->db_query($query);
-				} elseif ($all->status == 'active' && $all->core == 'f' && !$_REQUEST['data']['modules'][$j]) {
+				} elseif ($all->status == 'active' && $all->core == 'f' && !isset($_REQUEST['data']['modules'][$j])) {
 					/* Uninstall unselected modules */
 					$query = "UPDATE modules SET status='inactive' WHERE module_id='".$j."'";
 					$all->status = 'inactive';
@@ -151,14 +151,15 @@ class Admin_View {
 					";
 		foreach ($modules as $i => $mod) {
 			$default = ($mod->status == 'active') ? true : false;
-			$disabled = ($mod->core == 't') ? true : false;
+			$disabled = (isset($mod->core) && $mod->core == 't') ? true : false;
+			$setting = isset($settings[$i]) ? $settings[$i] : null;
 
 			$output->data .= "
 					<tr>
 						<td>".$mod->name."</td>
 						<td>".$mod->description."</td>
 						<td><input type='checkbox' name='data[modules][".$i."]' ".($disabled ? "disabled" : "")." ".($default ? "checked" : "")." /></td>
-						<td>".($settings[$i] ? $this->l($settings[$i], "Module Settings") : "&nbsp;")."</td>
+						<td>".($setting ? $this->l($setting, "Module Settings") : "&nbsp;")."</td>
 					</tr>
 					";
 		}
