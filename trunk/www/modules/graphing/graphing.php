@@ -379,23 +379,20 @@ class Graphing extends Template {
 				$x_tmp = $result_tmp['x'];
 				$y_tmp = $result_tmp['y'];
 				$c_tmp = $result_tmp['c'];
+				
+				if (is_numeric($c_tmp)) {
+					//record the maximum number found in the intersection
+					if ($max_c == null || $c_tmp > $max_c) {
+						$max_c = $c_tmp;
+					}
+					//record the minimum number found in the intersection
+					if ($min_c == null || $c_tmp < $min_c) {
+						$min_c = $c_tmp;
+					}
 
-				//record the maximum number found in the intersection
-				if (!is_numeric($max_c)) {
-					$max_c = $c_tmp;
-				} else if ($c_tmp > $max_c) {
-					$max_c = $c_tmp;
+					//index by Y THEN X. counter-intuitive, i know, but trust me...
+					$results_foo[$y_tmp][$x_tmp] = $c_tmp;
 				}
-				//record the minimum number found in the intersection
-				if (!is_numeric($min_c)) {
-					$min_c = $c_tmp;
-				} else if ($c_tmp < $min_c) {
-					$min_c = $c_tmp;
-				}
-
-
-				//index by Y THEN X. counter-intuitive, i know, but trust me...
-				$results_foo[$y_tmp][$x_tmp] = $c_tmp;
 			}
 
 			if ($stacked) {
@@ -447,7 +444,7 @@ class Graphing extends Template {
 			//create a index for the intersection - this will appear as the y axis on the graph. 
 			//there are only three visual indices. the minimum, maximum and mid-point.
 			$c_index[] = $min_c;
-			$c_index[] = ($max_c - $min_c) / 2;
+			$c_index[] = $min_c + (($max_c - $min_c) / 2);
 			$c_index[] = $max_c;
 		} else {
 			//create a index for the intersection - this will appear as the y axis on the graph. 
@@ -857,7 +854,7 @@ class Graphing extends Template {
 					$points_tmp = "";
 
 					foreach ($results['x_index'] as $x_tmp) {
-						if (!is_numeric($results['results'][$y_tmp][$x_tmp])) {
+						if (!isset($results['results'][$y_tmp][$x_tmp])) {
 							if (count($results['x_index']) > 1) {
 								$c_tmp_x += $area['plot_w'] / (count($results['x_index']) - 1);
 							}
@@ -871,7 +868,9 @@ class Graphing extends Template {
 
 						$c_tmp -= $results['min_c'];
 
-						$c_tmp /= ($results['max_c'] - $results['min_c']);
+						if ($results['max_c'] - $results['min_c'] != 0) {
+							$c_tmp /= ($results['max_c'] - $results['min_c']);
+						}
 
 						$c_tmp *= $area['plot_h'];
 
