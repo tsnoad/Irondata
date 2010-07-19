@@ -24,7 +24,7 @@
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 
 class Modules extends Theme {
@@ -50,6 +50,82 @@ class Modules extends Theme {
 			$url = explode("/", $_REQUEST['url']);
 			$this->set_this($url);
 		}
+	}
+	
+	/**
+	 * Does this module interact with the users workspace. This will populate links on
+	 * the workspace
+	 *
+	 * @return Returns an array containing the title and path of the link on the workspace
+	 */
+	function hook_workspace() {
+		return null;
+	}
+	
+	/**
+	 * What does this function do?
+	 * TODO: Update this comment
+	 */
+	function hook_admin_tools() {
+		return null;
+	}
+	
+	/**
+	 * Include any module specific CSS
+	 *
+	 * @return Returns a string conatins the module CSS
+	 */
+	function hook_style() {
+		return null;
+	}
+	
+	/**
+	 * The Top Menu hook function.
+	 * Displays the module in the main menu. Or menu of primary functions.
+	 *
+	 * @return Returns an associative array on links to display on the menu
+	 */
+	function hook_top_menu() {
+		return null;
+	}
+	
+	/**
+	 * The Menu hook function.
+	 * Displays items in the side bar. This can be dependant on the actual URL used.
+	 *
+	 * @return Returns an array of arrays of menu links
+	 */
+	function hook_menu() {
+		return null;
+	}
+	
+	/**
+	 * What roles / persmissions are required for users within this module
+	 * If blank, we assume anybody can do anything.
+	 *
+	 * @return Returns an array of permissions
+	 */
+	function hook_roles() {
+		return null;
+	}
+	
+	/**
+	 * The Javascript hook function.
+	 * Send the following javascript to the browser.
+	 *
+	 * @param $type A generic parameter.
+	 * @return The javascript string to include
+	 */
+	function hook_javascript($type=null) {
+		return null;
+	}
+	
+	/**
+	 * What does this function do?
+	 * TODO: Update this comment
+	 */
+	function hook_output() {
+		return null;
 	}
 	
 	function set_this($url) {

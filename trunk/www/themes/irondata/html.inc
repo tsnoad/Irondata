@@ -27,6 +27,7 @@
 			@import "<?php echo $scriptroot;?>dojo/resources/dojo.css";
 
 		</style>
+		<link rel="shortcut icon" href="<?php echo $themeroot; ?>/images/favicon.ico" />
 		<link href="<?php echo $themeroot; ?>style.css" rel="stylesheet" type="text/css" media="screen" />
 		<link href="<?php echo $themeroot; ?>style.css" rel="stylesheet" type="text/css" media="print" />
 		<link href="<?php echo $themeroot; ?>dojo.css" rel="stylesheet" type="text/css" media="screen" />

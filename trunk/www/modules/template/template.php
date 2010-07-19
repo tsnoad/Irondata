@@ -24,7 +24,7 @@
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 
 class Template extends Modules {
@@ -39,34 +39,48 @@ class Template extends Modules {
 	var $description = "Report template functions.";
 	var $module_group = "Core";
 	
-	function hook_pagetitle() {
-		return "Report";
-	}
-
-	function hook_workspace() {
-		return array("title"=>"Report Workspace", "path"=>"".$this->webroot()."template/workspace_display");
-	}
-
-	function hook_roles() {
-		return null;
-	}
-	
 	function __construct() {
 		parent::__construct();
 		$this->web_path = $this->conf['paths']['web_path'];
 		$this->sw_path = $this->conf['paths']['sw_path'];
 		$this->tmp_path = $this->conf['paths']['tmp_path'];
 	}
+	
+	function hook_pagetitle() {
+		return "Report";
+	}
 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_workspace()
+	 */
+	function hook_workspace() {
+		return array("title"=>"Report Workspace", "path"=>"".$this->webroot()."template/workspace_display");
+	}
+
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_roles()
+	 */
+	function hook_roles() {
+		return null;
+	}
+
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_admin_tools()
+	 */
 	function hook_admin_tools() {
+		//TODO: What does this do?
 		$admin_tools = array();
 // 		$admin_tools[] = array("template/default_access", "Default Report Access - New User");
 // 		$admin_tools[] = array("template/default_access", "Default Report Access - New Report");
 		return $admin_tools;
 	}
 	
-	/* The Top Menu hook function. 
-	 * Displays the module in the main menu. Or menu of primary functions. 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_top_menu()
 	 */
 	function hook_top_menu() {
 		return array(
@@ -74,20 +88,22 @@ class Template extends Modules {
 			);
 	}
 
-	/* The Menu hook function. 
-	 * Displays items in the side bar. This can be dependant on the actual URL used. 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_menu()
 	 */
 	function hook_menu() {
+		//TODO: Is this used anymore?
 // 		$menu = array();
-// 
+//
 // 		$menu[$i][$j] = array();
-// 
+//
 // if (!$this->newschool) {
 // 		switch ($this->action) {
 // 			case "view_add":
 // 			case "add":
 // if (!$this->newschool) {
-// 				if ((int)$this->id) {	
+// 				if ((int)$this->id) {
 // 					$this->current = $this->get_template($this->id);
 // 					$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
 // 					$menu = array();
@@ -111,9 +127,124 @@ class Template extends Modules {
 // }
 // 		return $menu;
 	}
+
+	/**
+	 *
+	 * Called by view_add to fetch user and group acls for a given report
+	 *
+	 * @param $template_id
+	 * @return An array of access control requirements
+	 */
+	function hook_access_report_acls($template_id) {
+		if (empty($template_id)) return;
+
+		$acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT 'user_'||user_id as user_id, role, access FROM report_acls_users WHERE access=true AND template_id='$template_id';"));
+		$acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT 'user_'||group_id as group_id, role, access FROM report_acls_groups WHERE access=true AND template_id='$template_id';"));
+
+		return array(
+			"acls" => array(
+				"users" => $acls_users_query,
+				"groups" => $acls_groups_query
+				)
+			);
+	}
+
+	/**
+	 * Called by view_save to save edited acl for a given report
+	 *
+	 * @param $acls The permissions to save
+	 * @param $template_id The template id
+	 */
+	function hook_access_report_submit($acls, $template_id) {
+		//get existing acls from the database
+		$acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT user_id as user_id, role, access FROM report_acls_users WHERE access=true AND template_id='$template_id';"));
+		$acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT group_id as group_id, role, access FROM report_acls_groups WHERE access=true AND template_id='$template_id';"));
+
+		//convert acl into a readable array. from this we remove the aces that are unchanged. then we can delete the aces that are no longer selected
+		foreach (array("users" => $acls_users_query, "groups" => $acls_groups_query) as $users_meta_key => $acls_delete_tmp) {
+			if (!empty($acls_delete_tmp)) {
+				foreach ($acls_delete_tmp as $acl_delete_tmp) {
+					if ($users_meta_key == "users") {
+						$user_id = $acl_delete_tmp['user_id'];
+					} else if ($users_meta_key == "groups") {
+						$user_id = $acl_delete_tmp['group_id'];
+					}
+
+					if ($user_id == "admin") continue;
+
+					$role_id = $acl_delete_tmp['role'];
+
+					$acls_delete[$users_meta_key][$user_id][$role_id] = true;
+				}
+			}
+		}
+
+		//loop through data we got back from the form
+		if (!empty($acls)) {
+			foreach ($acls as $users_meta_key => $users) {
+				foreach ($users as $user_id => $roles) {
+					//if this user isn't a database user, ignore
+					if (substr($user_id, 0, 5) != "user_") continue;
+
+					$user_id = substr($user_id, 5);
+
+					foreach ($roles as $role_id => $access) {
+						//if the current ace does not exist in the old acl, then add it to the list of new aces
+						if (empty($acls_delete[$users_meta_key][$user_id][$role_id])) {
+							$acls_insert[$users_meta_key][$user_id][$role_id] = true;
+						//otherwise the ace has not been changed: remove it from the list of aces to delete
+						} else {
+							unset($acls_delete[$users_meta_key][$user_id][$role_id]);
+						}
+					}
+				}
+			}
+		}
+
+		//loop through the list of aces to remove
+		if (!empty($acls_delete)) {
+			foreach ($acls_delete as $users_meta_key => $users) {
+				foreach ($users as $user_id => $roles) {
+					foreach ($roles as $role_id => $access) {
+						if (empty($access)) continue;
+
+						if ($users_meta_key == "users") {
+							//remove ace from the database
+							$this->dobj->db_query("DELETE FROM report_acls_users WHERE user_id='$user_id' AND template_id='$template_id' AND role='$role_id';");
+						} else if ($users_meta_key == "groups") {
+							//remove ace from the database
+							$this->dobj->db_query("DELETE FROM report_acls_groups WHERE group_id='$user_id' AND template_id='$template_id' AND role='$role_id';");
+						}
+					}
+				}
+			}
+		}
+
+		//loop through the list of aces to add
+		if (!empty($acls_insert)) {
+			foreach ($acls_insert as $users_meta_key => $users) {
+				foreach ($users as $user_id => $roles) {
+					foreach ($roles as $role_id => $access) {
+						if (empty($access)) continue;
+
+						if ($users_meta_key == "users") {
+							//add the ace to the database
+							$this->dobj->db_query($this->dobj->insert(array("user_id"=>$user_id, "template_id"=>$template_id, "role"=>$role_id), "report_acls_users"));
+						} else if ($users_meta_key == "groups") {
+							//add the ace to the database
+							$this->dobj->db_query($this->dobj->insert(array("group_id"=>$user_id, "template_id"=>$template_id, "role"=>$role_id), "report_acls_groups"));
+						}
+					}
+				}
+			}
+		}
+
+		return;
+	}
 	
-	/* The Constraint Options hook function. 
-	 * Displays the list of possible contraints. 
+	
+	/* The Constraint Options hook function.
+	 * Displays the list of possible contraints.
 	 */
 	function hook_constraint_options() {
 		return array(
@@ -127,6 +258,10 @@ class Template extends Modules {
 		);
 	}
 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_javascript()
+	 */
 	function hook_javascript($type = "listing"){
 		return "
 
@@ -270,18 +405,36 @@ class Template extends Modules {
 
 		";
 	}
+
+	/**
+	 * Create the initial report object in the database
+	 *
+	 * @param $object_id The database id
+	 * @param $type The type of report. Defaults to tabular
+	 */
+	function view_add_select_object($object_id, $type='tabular') {
+		//create the new template in the database
+		$temp =array();
+		$temp['name'] = "Unnamed Report - ".date("g:i A l jS F, Y");
+		$temp['module'] = $type;
+		$temp['object_id'] = $object_id;
+		$temp['template_id'] = $this->dobj->nextval("templates");
+		$temp['header'] = $this->default_header();
+		$temp['footer'] = $this->default_footer();
+		$temp['owner'] = $_SESSION['user'];
+		$query = $this->dobj->insert($temp, "templates");
+		$this->dobj->db_query($query);
+
+		//update the user's report acl: a trigger will have granted them access in the database
+		$this->call_function("ALL", "set_session_report_acls", array());
+	}
 	
 	function view_add($module='', $type='') {
-// 		if ($_REQUEST['module']) {
-// 			$template_id = $this->add_template($_REQUEST);
-// 			$this->redirect($_REQUEST['module']."/add/".$template_id);
-// 		} else {
-			$modules = $this->call_function("ALL", "hook_template_entry");
-			$objects = $this->call_function("catalogue", "get_databases");
+		$modules = $this->call_function("ALL", "hook_template_entry");
+		$objects = $this->call_function("catalogue", "get_databases");
 
-			$output = Template_View::view_add($module, $objects, $type, $modules);
-			return $output;
-// 		}
+		$output = Template_View::view_add($module, $objects, $type, $modules);
+		return $output;
 	}
 	
 	function wrap_column($id, $name, $values=array()) {
@@ -307,7 +460,7 @@ class Template extends Modules {
 		$output = "";
 		$output->data = "";
 		return $output;
-	}	
+	}
 	
 	function where($alias_tmp, $column_tmp, $type_tmp, $value_tmp) {
 		switch ($type_tmp) {
@@ -531,9 +684,9 @@ class Template extends Modules {
 // 				if (!is_array($w_tmp)) {
 // 					$w_tmp = array($w_tmp);
 // 				}
-// 
+//
 // 				if (empty($w_tmp[1])) $w_tmp[1] = "AND";
-// 
+//
 // 				$w .= " ".$w_tmp[1]." ".$w_tmp[0]." ";
 // 			}
 
@@ -982,7 +1135,7 @@ class Template_View {
 						";
 
 			foreach ($reports as $i => $report) {
-				unset($view_id);
+				$view_id = null;
 
 				if ($report['saved'] > 0) {
 					$view_id = $report['template_id'];
@@ -1131,37 +1284,37 @@ class Template_View {
 // 		if (!$demo) {
 // 			$output->title = "Quizblorg";
 // 		}
-// 
+//
 // 		$saved_report_id = $this->id;
-// 
+//
 // 		if (!$demo) {
 // // 			$output->data .= "<button dojoType='dijit.form.Button' onClick='ajax_load(\"".$this->webroot()."tabular/save_reports/".$this->id."\", undefined, \"message\")' >Save Results</button>";
-// 
+//
 // // 			$hook = $this->call_function("ALL", "hook_export_entry");
 // // 			foreach ($hook as $i => $entry) {
 // // 				$output->data .= "<button dojoType='dijit.form.Button' onClick='window.location=\"".$this->webroot()."".$entry['module']."/".$entry['callback']."/".$this->id."/".$now."\"' >".$entry['label']."</button>";
 // // 			}
 // // 			$output->data .= "<button dojoType='dijit.form.Button'  onClick='window.location=\"".$this->webroot()."tabular/graph/".$this->id."/".$now."\"' >Generate Graph</button>";
 // // 			$output->data .= "<button dojoType='dijit.form.Button' onClick='window.location=\"".$this->webroot()."workspace/home/\"' >Close</button>";
-// 
-// 
+//
+//
 // 			$output->data .= "<h4>".$this->l("", "Download Table, Graph and CSV")."</h4>";
 // 			$output->data .= "<h4>".$this->l("", "Download Table")."</h4>";
 // 			$output->data .= "<h4>".$this->l("", "Download Graph")."</h4>";
 // 			$output->data .= "<h4>".$this->l("", "Download CSV")."</h4>";
 // 		}
-// 
+//
 // 		if ($template[0]['publish_format'] == "table" || $template[0]['publish_format'] == "table and graph") {
 // 			$output->data .= "<h3>Tabular Data</h3>";
 // // 			$tmp_output = $this->hook_output(array($data, $template, $demo, $now));
 // // 			$output->data .= $tmp_output->data;
 // 		}
-// 
+//
 // 		if ($template[0]['publish_format'] == "graph" || $template[0]['publish_format'] == "table and graph") {
 // 			$output->data .= "<h3>Graphic Data</h3>";
 // // 			$tmp_output = $this->call_function("graphing", "hook_graph", array($template[0]['graph_type'], $foo_json, true, false));
 // // 			$output->data .= $tmp_output['graphing']['object'];
-// 
+//
 // 			$tmp_output = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template[0]['graph_type'], true, false));
 // 			$output->data .= $tmp_output['graphing']['object'];
 // 		}

@@ -26,7 +26,6 @@
  * @date 26-07-2008
  *
  */
-
 class Tabular extends Template {
 	var $conn;
 	var $dobj;
@@ -34,23 +33,35 @@ class Tabular extends Template {
 	var $description = "A tabular report type. Multiple axis' with a numeric intersection between them.";
 	var $module_group = "Core";
 
-	/* The Top Menu hook function.
-	 * Displays the module in the main menu. Or menu of primary functions.
+	/**
+	 * Overwrite hook_top_menu in Template.php - this module should have no top menu
+	 *
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_top_menu()
 	 */
 	function hook_top_menu() {
 		return null;
 	}
-
+	
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_admin_tools()
+	 */
 	function hook_admin_tools() {
 		return null;
 	}
 
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_workspace()
+	 */
 	function hook_workspace() {
 		return null;
 	}
 
-	/* The Menu hook function.
-	 * Displays items in the side bar. This can be dependant on the actual URL used.
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_menu()
 	 */
 	function hook_menu() {
 		$menu = array();
@@ -61,25 +72,19 @@ class Tabular extends Template {
 		return $menu;
 	}
 
-	/* The Template hook function.
-	 * Is this module available within the Templates
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_roles()
 	 */
-	function hook_template_entry() {
-		return array(
-			"label"=>"Tabular Report",
-			"module"=>"tabular",
-			"description"=>"A tabular report takes numerical values from a selected database column, and indexes them by unique values in the X axis and Y axis, also taken from database columns, that have a relationship with the first column."
-		);
-	}
-
 	function hook_roles() {
 		return array(
 			"reportscreate" => array("Create Reports", "")
 			);
 	}
 
-	/* The Javascript hook function.
-	 * Send the following javascript to the browser.
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_javascript()
 	 */
 	function hook_javascript() {
 		$js = parent::hook_javascript("tabular");
@@ -153,9 +158,30 @@ class Tabular extends Template {
 		}
 		";
 	}
+	
+	/**
+	 * The Template hook function.
+	 * Is this module available within the Templates
+	 *
+	 * @return Returns an array describing the entry in the new template screen
+	 */
+		function hook_template_entry() {
+		return array(
+			"label"=>"Tabular Report",
+			"module"=>"tabular",
+			"description"=>"A tabular report takes numerical values from a selected database column, and indexes them by unique values in the X axis and Y axis, also taken from database columns, that have a relationship with the first column."
+		);
+	}
 
 	/**
 	 * Called by Tabular::execute. Given a template, generate the queries to get all the data for the report.
+	 *
+	 * @param $template The template id
+	 * @param $constraints Any constraints to apply
+	 * @param $constraint_logic The constraint logic
+	 * @param $demo Is this a demo (ie restrict to 10 results)
+	 * @param $axis_limits Are there any limits to the axes
+	 * @return A SQL string
 	 */
 	function hook_query($template, $constraints, $constraint_logic=null, $demo=false, $axis_limits=null) {
 		//$templates contains information about how we show each axis, and how we show the intersection
@@ -423,7 +449,7 @@ class Tabular extends Template {
 
 						//loop thorugh the array of squids, that we created a moment ago. looking at the squid_ids will give us access to the squid's constraint logic.
 						foreach ($squids_tmp as $squid_id_tmp => $squid_tmp) {
-							//create an array to use in the sql FROM VALUES statement 
+							//create an array to use in the sql FROM VALUES statement
 							$tmp_values[] = "({$squid_id_tmp}, '{$squid_tmp}')";
 
 							//create an array to use in the sql JOIN statement
@@ -503,7 +529,11 @@ class Tabular extends Template {
 		return $query;
 	}
 
-	function hook_output($results/*, $template=false, $demo=false, $now=false*/) {
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_output()
+	 */
+	function hook_output($results) {
 		$template = $results[1];
 		$demo = $results[2];
 		$now = $results[3];
@@ -511,149 +541,29 @@ class Tabular extends Template {
 
 		$results = $results[0];
 
-// 		if (!$template) {
-// 			$template = $this->get_columns($this->id);
-// 		}
-
 		$output = Tabular_View::hook_output($results, $template, $demo, $now, $pdf);
 		return $output;
 	}
 
 	/**
-	 * Called by Tabular::view_add to fetch user and group acls for a given report
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::view_add_select_object()
 	 */
-	function hook_access_report_acls($template_id) {
-		if (empty($template_id)) return;
-
-		$acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT 'user_'||user_id as user_id, role, access FROM report_acls_users WHERE access=true AND template_id='$template_id';"));
-		$acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT 'user_'||group_id as group_id, role, access FROM report_acls_groups WHERE access=true AND template_id='$template_id';"));
-
-		return array(
-			"acls" => array(
-				"users" => $acls_users_query,
-				"groups" => $acls_groups_query
-				)
-			);
-	}
-
-	/**
-	 * Called by Tabular::view_save to save edited acl for a given report
-	 */
-	function hook_access_report_submit($acls, $template_id) {
-		//get existing aces from the database
-		$acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT user_id as user_id, role, access FROM report_acls_users WHERE access=true AND template_id='$template_id';"));
-		$acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT group_id as group_id, role, access FROM report_acls_groups WHERE access=true AND template_id='$template_id';"));
-
-		//convert acl into a readable array. from this we remove the aces that are unchanged. then we can delete the aces that are no longer selected
-		foreach (array("users" => $acls_users_query, "groups" => $acls_groups_query) as $users_meta_key => $acls_delete_tmp) {
-			if (!empty($acls_delete_tmp)) {
-				foreach ($acls_delete_tmp as $acl_delete_tmp) {
-					if ($users_meta_key == "users") {
-						$user_id = $acl_delete_tmp['user_id'];
-					} else if ($users_meta_key == "groups") {
-						$user_id = $acl_delete_tmp['group_id'];
-					}
-
-					if ($user_id == "admin") continue;
-
-					$role_id = $acl_delete_tmp['role'];
-
-					$acls_delete[$users_meta_key][$user_id][$role_id] = true;
-				}
-			}
-		}
-
-		//loop through data we got back from the form
-		if (!empty($acls)) {
-			foreach ($acls as $users_meta_key => $users) {
-				foreach ($users as $user_id => $roles) {
-					//if this user isn't a database user, ignore
-					if (substr($user_id, 0, 5) != "user_") continue;
-
-					$user_id = substr($user_id, 5);
-
-					foreach ($roles as $role_id => $access) {
-						//if the current ace does not exist in the old acl, then add it to the list of new aces
-						if (empty($acls_delete[$users_meta_key][$user_id][$role_id])) {
-							$acls_insert[$users_meta_key][$user_id][$role_id] = true;
-						//otherwise the ace has not been changed: remove it from the list of aces to delete
-						} else {
-							unset($acls_delete[$users_meta_key][$user_id][$role_id]);
-						}
-					}
-				}
-			}
-		}
-
-		//loop through the list of aces to remove
-		if (!empty($acls_delete)) {
-			foreach ($acls_delete as $users_meta_key => $users) {
-				foreach ($users as $user_id => $roles) {
-					foreach ($roles as $role_id => $access) {
-						if (empty($access)) continue;
-
-						if ($users_meta_key == "users") {
-							//remove ace from the database
-							$this->dobj->db_query("DELETE FROM report_acls_users WHERE user_id='$user_id' AND template_id='$template_id' AND role='$role_id';");
-						} else if ($users_meta_key == "groups") {
-							//remove ace from the database
-							$this->dobj->db_query("DELETE FROM report_acls_groups WHERE group_id='$user_id' AND template_id='$template_id' AND role='$role_id';");
-						}
-					}
-				}
-			}
-		}
-
-		//loop through the list of aces to add
-		if (!empty($acls_insert)) {
-			foreach ($acls_insert as $users_meta_key => $users) {
-				foreach ($users as $user_id => $roles) {
-					foreach ($roles as $role_id => $access) {
-						if (empty($access)) continue;
-
-						if ($users_meta_key == "users") {
-							//add the ace to the database
-							$this->dobj->db_query($this->dobj->insert(array("user_id"=>$user_id, "template_id"=>$template_id, "role"=>$role_id), "report_acls_users"));
-						} else if ($users_meta_key == "groups") {
-							//add the ace to the database
-							$this->dobj->db_query($this->dobj->insert(array("group_id"=>$user_id, "template_id"=>$template_id, "role"=>$role_id), "report_acls_groups"));
-						}
-					}
-				}
-			}
-		}
-
-		return;
-	}
-
 	function view_add_select_object() {
 		$object_id = $this->id;
 
 		if (empty($object_id)) return;
-
-		//create the new template in the database
-		$temp =array();
-		$temp['name'] = "Unnamed Report - ".date("g:i A l jS F, Y");
-		$temp['module'] = "tabular";
-		$temp['object_id'] = $object_id;
-		$temp['template_id'] = $this->dobj->nextval("templates");
-		$temp['header'] = $this->default_header();
-		$temp['footer'] = $this->default_footer();
-		$temp['owner'] = $_SESSION['user'];
-		$query = $this->dobj->insert($temp, "templates");
-		$this->dobj->db_query($query);
-
-		//update the user's report acl: a trigger will have granted them access in the database
-		$this->call_function("ALL", "set_session_report_acls", array());
-
+		parent::view_add_select_object($object_id, 'tabular');
 		$this->redirect("tabular/add/".$temp['template_id']);
 	}
 
 	/**
-	 * View Add
+	 * First point of contact for almost every page, when createing a tabular report.
+	 * Runs queries to gather data to display in Tabular_View::view_add().
+	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
 	 *
-	 * first point of contact for almost every page, when createing a tabular report. Runs queries to gather data to display in Tabular_View::view_add(). Takes aguments about which page from the url in the id, subvar, subid, etc variables
-	 *
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::view_add()
 	 */
 	function view_add() {
 		//define default variables
@@ -1206,7 +1116,7 @@ class Tabular extends Template {
 					$_REQUEST['data']['email_dissemination'] = "f";
 				}
 
-				//TODO: I do not believe this is required. If I am wrong it should be moved to the LDAP module. 
+				//TODO: I do not believe this is required. If I am wrong it should be moved to the LDAP module.
 				//$ldap_recipient_selector = ($_REQUEST['data']['ldap'] == "ldap");
 				//unset($_REQUEST['data']['ldap']);
 
@@ -1605,7 +1515,7 @@ class Tabular extends Template {
 // 		if ($output === true) {
 // 			$output = $this->hook_run();
 // 		}
-// 
+//
 // 		return $output;
 
 		$template_id = null;
@@ -1644,23 +1554,23 @@ class Tabular extends Template {
 		}
 
 		$tabular_templates_type_query = $this->dobj->db_fetch_all($this->dobj->db_query("
-SELECT 
-  *, 
-  a.column_id as auto_column_id, 
+SELECT
+  *,
+  a.column_id as auto_column_id,
   tr.column_id as trend_column_id,
   a.table_join_id as auto_join_id,
   tr.table_join_id as trend_join_id,
   a.human_name as tabular_template_auto_human_name,
   tr.human_name as tabular_template_trend_human_name
-FROM 
-  templates t, 
+FROM
+  templates t,
   tabular_templates l
-  LEFT OUTER JOIN tabular_templates_auto a ON (l.tabular_template_id=a.tabular_template_id) 
-  LEFT OUTER JOIN tabular_templates_trend tr ON (l.tabular_template_id=tr.tabular_template_id) 
-  LEFT OUTER JOIN tabular_templates_single s ON (l.tabular_template_id=s.tabular_template_id) 
-  LEFT OUTER JOIN tabular_templates_manual m ON (l.tabular_template_id=m.tabular_template_id) 
-WHERE 
-  t.template_id=l.template_id ".$type." 
+  LEFT OUTER JOIN tabular_templates_auto a ON (l.tabular_template_id=a.tabular_template_id)
+  LEFT OUTER JOIN tabular_templates_trend tr ON (l.tabular_template_id=tr.tabular_template_id)
+  LEFT OUTER JOIN tabular_templates_single s ON (l.tabular_template_id=s.tabular_template_id)
+  LEFT OUTER JOIN tabular_templates_manual m ON (l.tabular_template_id=m.tabular_template_id)
+WHERE
+  t.template_id=l.template_id ".$type."
   AND t.template_id=".$template_id.";"));
 
 		foreach ($tabular_templates_type_query as $tabular_templates_type_tmp) {
@@ -1673,15 +1583,15 @@ WHERE
 		}
 
 		$columns_query = $this->dobj->db_fetch_all($this->dobj->db_query("
-SELECT 
+SELECT
   c.column_id,
   c.name,
   t.table_id,
   t.name as table_name
-FROM 
-  columns c 
-  INNER JOIN tables t ON (t.table_id=c.table_id) 
-WHERE 
+FROM
+  columns c
+  INNER JOIN tables t ON (t.table_id=c.table_id)
+WHERE
   c.column_id='".implode("' OR c.column_id='", $column_ids_array)."';"));
 
 		foreach ($columns_query as $column_tmp) {
@@ -2125,7 +2035,7 @@ WHERE
 // var_dump($query);
 			unset($query['x']);
 			unset($query['y']);
-// 
+//
 			$data = parent::hook_run_query($template[0]['object_id'], $query);
 
 			$data = array_merge((array)$data, (array)$data_tmp);
@@ -2175,38 +2085,38 @@ WHERE
 
 		if (!$squid) {
 			$constraints_query = $this->dobj->db_fetch_all($this->dobj->db_query("
-				SELECT 
-					tc.*, 
+				SELECT
+					tc.*,
 					tcl.*,
-					c.name AS column_name, 
-					t.name AS table_name, 
-					c.human_name AS column_human_name, 
-					t.human_name AS table_human_name 
-				FROM 
-					tabular_constraints tc 
-					INNER JOIN tabular_constraint_logic tcl ON (tcl.template_id=tc.template_id) 
-					INNER JOIN columns c ON (c.column_id=tc.column_id) 
-					INNER JOIN tables t ON (t.table_id=c.table_id) 
-				WHERE 
+					c.name AS column_name,
+					t.name AS table_name,
+					c.human_name AS column_human_name,
+					t.human_name AS table_human_name
+				FROM
+					tabular_constraints tc
+					INNER JOIN tabular_constraint_logic tcl ON (tcl.template_id=tc.template_id)
+					INNER JOIN columns c ON (c.column_id=tc.column_id)
+					INNER JOIN tables t ON (t.table_id=c.table_id)
+				WHERE
 					tc.template_id='{$this->id}'
 				ORDER BY
 					tc.tabular_constraints_id
 				;"));
 		} else {
 			$constraints_query = $this->dobj->db_fetch_all($this->dobj->db_query("
-				SELECT 
-					sc.*, 
+				SELECT
+					sc.*,
 					scl.*,
-					c.name AS column_name, 
-					t.name AS table_name, 
-					c.human_name AS column_human_name, 
-					t.human_name AS table_human_name 
-				FROM 
-					tabular_templates_manual_squid_constraints sc 
-					INNER JOIN tabular_templates_manual_squid_constraint_logic scl ON (scl.tabular_templates_manual_squid_id=sc.tabular_templates_manual_squid_id) 
-					INNER JOIN columns c ON (c.column_id=sc.column_id) 
-					INNER JOIN tables t ON (t.table_id=c.table_id) 
-				WHERE 
+					c.name AS column_name,
+					t.name AS table_name,
+					c.human_name AS column_human_name,
+					t.human_name AS table_human_name
+				FROM
+					tabular_templates_manual_squid_constraints sc
+					INNER JOIN tabular_templates_manual_squid_constraint_logic scl ON (scl.tabular_templates_manual_squid_id=sc.tabular_templates_manual_squid_id)
+					INNER JOIN columns c ON (c.column_id=sc.column_id)
+					INNER JOIN tables t ON (t.table_id=c.table_id)
+				WHERE
 					sc.tabular_templates_manual_squid_id='{$this->aux1}'
 				ORDER BY
 					sc.squid_constraints_id
@@ -3704,7 +3614,7 @@ class Tabular_View extends Template_View {
 // 			<script type='text/javascript'>
 // 				var foo;
 // 				var options = {};
-// 
+//
 // 				var chart = new dojox.charting.Chart2D('GraphContainerArea');
 // 				dojo.addOnLoad(makeObjects);
 // 			</script>

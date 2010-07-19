@@ -20,13 +20,12 @@
 /**
  * Listing.php
  *
- * The Listing report template module. 
+ * The Listing report template module.
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
-
 class Listing extends Template {
 	var $conn;
 	var $dobj;
@@ -34,17 +33,30 @@ class Listing extends Template {
 	var $description = "The listing report type. Single axis and a list of values. e.g. a list of customers";
 	var $module_group = "Templates";
 	
-	/* The Top Menu hook function. 
-	 * Displays the module in the main menu. Or menu of primary functions. 
+	/**
+	 * Overwrite hook_top_menu in Template.php - this module should have no top menu
+	 *
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_top_menu()
 	 */
 	function hook_top_menu() {
 		return null;
 	}
 
+	/**
+	 * Overwrite hook_top_menu in Template.php - this module should have no admin tools
+	 *
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_admin_tools()
+	 */
 	function hook_admin_tools() {
 		return null;
 	}
 	
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_style()
+	 */
 	function hook_style() {
 		return "td.columns div{ display: none;}
 		#style div.dojoDndSource {margin: 5px; background: #ccc;}
@@ -55,12 +67,17 @@ class Listing extends Template {
 		#style td {display: block;}";
 	}
 
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_workspace()
+	 */
 	function hook_workspace() {
 		return null;
 	}
 	
-	/* The Menu hook function. 
-	 * Displays items in the side bar. This can be dependant on the actual URL used. 
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_menu()
 	 */
 	function hook_menu() {
 		$menu = array();
@@ -70,24 +87,20 @@ class Listing extends Template {
 		}
 		return $menu;
 	}
-
-	function hook_roles() {
-		return null;
-	}
-
-	/* The Template hook function. 
-	 * Is this module available within the Templates
+	
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_roles()
 	 */
-	function hook_template_entry() {
+	function hook_roles() {
 		return array(
-			"label"=>"List Report",
-			"module"=>"listing",
-			"description"=>"A list report takes an index column from the database, then additional columns. Each row of the report shows attributes from the columns, that are related to the index."
-		);
+			"reportscreate" => array("Create Reports", "")
+			);
 	}
 	
-	/* The Javascript hook function. 
-	 * Send the following javascript to the browser.
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_javascript()
 	 */
 	function hook_javascript() {
 		$js = parent::hook_javascript("listing");
@@ -272,7 +285,7 @@ class Listing extends Template {
 			var dialog2 = new dijit.TooltipDialog({id:'s_column_dialog_'+id},dialog);
 			button.dropDown = dialog2;
 
-			styleStore = new dojo.data.ItemFileReadStore({id:'aggStore',url: '".$this->webroot()."listing/style_dd_json'}); 
+			styleStore = new dojo.data.ItemFileReadStore({id:'aggStore',url: '".$this->webroot()."listing/style_dd_json'});
 
 			var xid = create_input('id', 'hidden', {id:'s_id_'+id, value: id, label: false});
 			var label = create_input('label', 'text', {label: 'Label: ', id:'label_'+id, value: data['label'][0], onChange: save_template});
@@ -302,7 +315,7 @@ class Listing extends Template {
 		var node_creator = function(data, hint){
 			var types = [];
 			var node = dojo.doc.createElement('td');
-			types.push('stylebox');dojo.addClass(node, 'stylebox'); 
+			types.push('stylebox');dojo.addClass(node, 'stylebox');
 			if (hint != 'avatar') {
 				node.appendChild(data);
 			}
@@ -344,16 +357,16 @@ class Listing extends Template {
 					input = create_cell_style(i['column_id'][0], i['chuman'][0], i);
 					if (i['level'][0] == 0) {
 						c3.insertNodes(false, [input]);
-					} 
+					}
 					if (i['level'][0] == -1) {
 						c2.insertNodes(false, [input]);
-					} 
+					}
 					if (i['level'][0] == -2) {
 						c1.insertNodes(false, [input]);
-					} 
+					}
 					if (i['level'][0] == 1) {
 						c4.insertNodes(false, [input]);
-					} 
+					}
 					if (i['level'][0] == 2) {
 						c5.insertNodes(false, [input]);
 					}
@@ -364,6 +377,28 @@ class Listing extends Template {
 		";
 	}
 
+	/**
+	 * The Template hook function.
+	 * Is this module available within the Templates
+	 *
+	 * @return Returns an array describing the entry in the new template screen
+	 */
+	function hook_template_entry() {
+		return array(
+			"label"=>"List Report",
+			"module"=>"listing",
+			"description"=>"A list report takes an index column from the database, then additional columns. Each row of the report shows attributes from the columns, that are related to the index."
+		);
+	}
+	
+	/**
+	 * Called by Listing::execute. Given a template, generate the queries to get all the data for the report.
+	 *
+	 * @param $template The template id
+	 * @param $constraints Any constraints to apply
+	 * @param $demo Is this a demo (ie restrict to 10 results)
+	 * @return A SQL string
+	 */
 	function hook_query($template, $constraints, $demo=false) {
 		/* TODO: Change $$ to module specific */
 		$cols = array();
@@ -471,72 +506,225 @@ class Listing extends Template {
 		var_dump($cols);
 		var_dump($query);
 		var_dump($aliai);
-die;
 		return $query;
 	}
 	
-// 	function hook_output($results, $template=false, $demo=false, $now=false) {
-// 		if (!$template) {
-// 			$template = $this->get_columns($this->id);
-// 		}
-// 		$output = Listing_View::hook_output($results, $template, $demo, $now);
-// 		return $output;
-// 	}
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_output()
+	 */
+	function hook_output($results) {
+		$template = $results[1];
+		$demo = $results[2];
+		$now = $results[3];
+		$pdf = $results[4];
 
+		$results = $results[0];
+
+		$output = Listing_View::hook_output($results, $template, $demo, $now, $pdf);
+		return $output;
+	}
+
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::view_add_select_object()
+	 */
 	function view_add_select_object() {
 		$object_id = $this->id;
 
 		if (empty($object_id)) return;
-
-		//create the new template in the database
-		$temp =array();
-		$temp['name'] = "Unnamed Report - ".date("g:i A l jS F, Y");
-		$temp['module'] = "listing";
-		$temp['object_id'] = $object_id;
-		$temp['template_id'] = $this->dobj->nextval("templates");
-		$temp['header'] = $this->default_header();
-		$temp['footer'] = $this->default_footer();
-		$temp['owner'] = $_SESSION['user'];
-		$query = $this->dobj->insert($temp, "templates");
-		$this->dobj->db_query($query);
-
-		//update the user's report acl: a trigger will have granted them access in the database
-		$this->call_function("ALL", "set_session_report_acls", array());
-
+		parent::view_add_select_object($object_id, 'tabular');
 		$this->redirect("listing/add/".$temp['template_id']);
 	}
-	
+		
+	/**
+	 * First point of contact for almost every page, when createing a listing report.
+	 * Runs queries to gather data to display in Listing_View::view_add().
+	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
+	 *
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::view_add()
+	 */
 	function view_add() {
-// 		if (!$this->id) {
-// 			/* This will create the template record and redirect the page */
-// 			$output = parent::view_add('listing');
-// 		} else {
-// 			$template = $this->get_template($this->id);
-// 			$output = Listing_View::view_add($template);
-// 		}
+		//define default variables
+		$table_join_ajax = null;
+		$listing_template = null;
+		$listing_template_auto = null;
+		$blah = null; //TODO: bad variable name. Must change
+		$preview_table = null;
+		
+		switch ($this->subvar) {
+			case "columns":
+				switch ($this->subid) {
+					case "type":
+						break;
+					case "source":
+						if ((int)$this->id) {
+							$this->current = $this->get_template($this->id);
+							$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
 
+							$blah = array();
+							foreach ($tables['catalogue'] as $i => $column) {
+								foreach ($column as $j => $cell) {
+									$blah['options'][$cell['column_id']] = $cell['table_name'].".".$cell['column_name'];
+
+									switch ($cell['data_type']) {
+										default:
+											break;
+										case "text":
+											$blah['option_warnings'][$cell['column_id']] = "Warning: The data type of the selected Source Column is ".ucwords($cell['data_type']).". This may cause unexpected results when calculating the Sum, Minimum, Maximum or Average values.";
+											break;
+									}
+								}
+							}
+
+							$tabular_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='c' LIMIT 1;"));
+
+							if (!empty($tabular_templates_query)) {
+								$tabular_template_auto = $tabular_templates_query;
+							}
+						}
+						break;
+					default:
+						break;
+				}
+				break;
+			case "editsquidconstraint":
+				if ($this->subid) {
+					$blah = array();
+
+					list($blah, $table_join_ajax) = Tabular::view_editconstraint();
+				}
+				break;
+			case "preview":
+				if ((int)$this->id) {
+// 					$preview_table .= '<script>dojo.addOnLoad(function () { setTimeout("update_data_preview_first();", 7500); });</script>';
+					$preview_table .= '<div id="data_preview_first">';
+						$preview_table .= '<div id="data_preview_loading" style="display: none; text-align: center;">Loading Report...</div>';
+						$preview_table .= '<div id="data_preview_load" style="text-align: center;"><a href="javascript:update_data_preview_first();">Load Preview</a></div>';
+					$preview_table .= '</div>';
+
+					$template = $blah;
+				}
+				break;
+			case "constraints":
+				if ((int)$this->id) {
+					$blah = Tabular::view_constraints();
+				}
+				break;
+			case "editconstraint":
+				if ($this->subid) {
+					$blah = array();
+
+					list($blah, $table_join_ajax) = Tabular::view_editconstraint();
+				}
+				break;
+			case "publish":
+				break;
+			case "execution":
+				break;
+			case "access":
+				$users_query = $this->call_function("ALL", "hook_access_users", array());
+
+				foreach ($users_query as $module => $users_query_tmp) {
+					$users_tmp = array_merge((array)$users_tmp, (array)$users_query_tmp['users']);
+					$groups_tmp = array_merge((array)$groups_tmp, (array)$users_query_tmp['groups']);
+					$users_groups_tmp = array_merge((array)$users_groups_tmp, (array)$users_query_tmp['users_groups']);
+					$disabled_tmp = array_merge((array)$disabled_tmp, (array)$users_query_tmp['disabled']);
+				}
+
+				$acls_query = $this->call_function("ALL", "hook_access_report_acls", array($this->id));
+
+				foreach ($acls_query as $module => $acls_query_tmp) {
+					$acls_tmp = array_merge_recursive((array)$acls_tmp, (array)$acls_query_tmp['acls']);
+				}
+
+				$roles = array(
+					"histories" => array("Histories", ""),
+					"edit" => array("Edit", ""),
+					"execute" => array("Execute", "")
+					);
+
+				list($ids_r, $users, $groups, $user_groups, $disabled, $acls, $membership, $rows) = $this->acl_resort_users($users_tmp, $groups_tmp, $users_groups_tmp, $disabled_tmp, $acls_tmp);
+
+				$titles = array(
+					"User",
+					"&nbsp;",
+					"Memberships"
+					);
+
+				$blah['acl_markup'] = $this->render_acl($roles, $ids_r, $groups, $users, $acls, $user_groups, $disabled, $titles, $rows);
+
+				break;
+			default:
+				$this->view_add_next();
+				break;
+		}
+
+		//Steps: what steps have been competed, and what step are we at
+		$tabular_templates_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT tt.*, tta.tabular_templates_auto_id, ttt.tabular_templates_trend_id, tts.tabular_templates_single_id, ttm.tabular_templates_manual_id FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_trend ttt ON (ttt.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_single tts ON (tts.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_manual ttm ON (ttm.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND ((tt.axis_type = 'auto' AND tta.tabular_templates_auto_id IS NOT NULL) OR (tt.axis_type = 'trend' AND ttt.tabular_templates_trend_id IS NOT NULL) OR (tt.axis_type = 'single' AND tts.tabular_templates_single_id IS NOT NULL) OR (tt.axis_type = 'manual' AND ttm.tabular_templates_manual_id IS NOT NULL));"));
+
+		if (!empty($tabular_templates_query)) {
+			foreach ($tabular_templates_query as $tabular_template_tmp) {
+				$tabular_templates[$tabular_template_tmp['type']] = $tabular_template_tmp;
+			}
+		}
+
+		//put all step data in a usable array
+		//TODO: listing_templates
+		if (empty($listing_templates['columns'])) {
+			$steps[0][0] = "Add Columns";
+			$steps[0][2] = true;
+			$steps[0][3] = "disabled";
+		} else {
+			$steps[0][0] = "Edit Columns";
+			$steps[0][2] = false;
+		}
+		$steps[0][1] = $this->webroot()."listing/add/".$this->id."/columns/source";
+		if ($this->subvar == "columns") $steps[0][3] .= " current";
+
+		$steps[1][0] = "Preview";
+		$steps[1][1] = $this->webroot()."tabular/add/".$this->id."/preview";
+		$steps[1][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
+		$steps[1][3] = "";
+		if ($steps[1][2]) $steps[1][3] = "disabled";
+		if ($this->subvar == "preview") $steps[1][3] .= " current";
+
+		$steps[2][0] = "Constraints";
+		$steps[2][1] = $this->webroot()."tabular/add/".$this->id."/constraints";
+		$steps[2][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
+		$steps[2][3] = "";
+		if ($steps[2][2]) $steps[2][3] = "disabled";
+		if ($this->subvar == "constraints") $steps[2][3] .= " current";
+
+		$steps[3][0] = "Publishing";
+		$steps[3][1] = $this->webroot()."tabular/add/".$this->id."/publish";
+		$steps[3][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
+		if ($steps[3][2]) $steps[3][3] = "disabled";
+		if ($this->subvar == "publish") $steps[3][3] .= " current";
+
+		$steps[4][0] = "Execution";
+		$steps[4][1] = $this->webroot()."tabular/add/".$this->id."/execution";
+		$steps[4][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
+		if ($steps[4][2]) $steps[4][3] = "disabled";
+		if ($this->subvar == "execution") $steps[4][3] .= " current";
+
+		$steps[5][0] = "Access";
+		$steps[5][1] = $this->webroot()."tabular/add/".$this->id."/access";
+		$steps[5][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
+		if ($steps[5][2]) $steps[5][3] = "disabled";
+		if ($this->subvar == "access") $steps[5][3] .= " current";
+
+		$template = $this->get_template($this->id);
+		$output = Listing_View::view_add($template, $blah, $steps, $preview_table, $tabular_template_auto, $table_join_ajax, $tabular_template);
+
+		return $output;
+	}
+	
+	function view_addX() {
 		if (!(int)$this->id) return;
 
 		switch ($this->subvar) {
-			case "index":
-				$this->current = $this->get_template($this->id);
-				$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
-
-				$blah = array();
-				foreach ($tables['catalogue'] as $i => $column) {
-					foreach ($column as $j => $cell) {
-						$blah['options'][$cell['column_id']] = $cell['table_name'].".".$cell['column_name'];
-					}
-				}
-
-
-				$index_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM list_templates lt WHERE lt.template_id='".$this->id."' AND lt.index=true LIMIT 1;"));
-
-				if (!empty($index_query)) {
-					$blah['column_id'] = $index_query['column_id'];
-					$blah['label'] = $index_query['label'];
-				}
-				break;
 			case "columns":
 				$columns_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM list_templates lt WHERE lt.template_id='".$this->id."' AND lt.index=false;"));
 
@@ -576,22 +764,6 @@ die;
 				$this->view_add_next();
 				break;
 		}
-
-		$steps[0][0] = "Index";
-		$steps[0][1] = $this->webroot()."listing/add/".$this->id."/index";
-		if ($this->subvar == "index") $steps[0][3] .= " current";
-
-		$steps[1][0] = "Columns";
-		$steps[1][1] = $this->webroot()."listing/add/".$this->id."/columns";
-		if ($this->subvar == "columns") $steps[1][3] .= " current";
-
-		$steps[2][0] = "Preview";
-		$steps[2][1] = $this->webroot()."listing/add/".$this->id."/preview";
-		if ($this->subvar == "preview") $steps[2][3] .= " current";
-
-		$output = Listing_View::view_add($blah, $steps);
-
-		return $output;
 	}
 
 	function view_add_next() {
@@ -600,7 +772,7 @@ die;
 			return;
 		}
 
-		$this->redirect("listing/add/".$this->id."/index");
+		$this->redirect("listing/add/".$this->id."/columns");
 	}
 	
 // 	function view_display_table() {
@@ -611,13 +783,13 @@ die;
 // 		$output = Listing_View::view_display_table($tables, $template);
 // 		return $output;
 // 	}
-// 	
+//
 // 	function view_remove() {
 // 		$query = "DELETE FROM list_templates WHERE template_id=".$this->id." AND column_id='".$this->subvar."';";
 // 		$cur = $this->dobj->db_query($query);
 // 		die();
 // 	}
-// 	
+//
 // 	function view_remove_constraint() {
 // 		$query = "DELETE FROM list_constraints WHERE template_id=".$this->id." AND column_id='".$this->subvar."';";
 // 		$cur = $this->dobj->db_query($query);
@@ -757,7 +929,7 @@ die;
 // 		$output = Listing_View::view_tables_json($template);
 // 		return $output;
 // 	}
-// 	
+//
 // 	function view_style_dd_json() {
 // 		$values = array("none"=>"Default", "heading1"=>"Heading 1", "heading2"=>"Heading 2", "small1"=>"Small 1", "small2"=>"Small2");
 // 		$output = Listing_View::view_dd_json($values);
@@ -781,18 +953,18 @@ die;
 // 		$output = Listing_View::view_add_columns($columns);
 // 		return $output;
 // 	}
-// 	
+//
 // 	function view_add_style() {
 // 		$output = Listing_View::view_add_style();
 // 		return $output;
 // 	}
-// 	
+//
 // 	function view_add_group() {
 // 		$columns = $this->get_columns($this->id);
 // 		$output = Listing_View::view_add_group($columns);
 // 		return $output;
 // 	}
-// 	
+//
 // 	function view_clone() {
 // 		$template = "SELECT * FROM templates WHERE template_id='".$this->id."';";
 // 		$template = $this->dobj->db_fetch($this->dobj->db_query($template));
@@ -1042,7 +1214,7 @@ class Listing_View extends Template_View {
 // 		$output->data .= "<script type='javascript'>create_cells();</script>";
 // 		return $output;
 // 	}
-// 	
+//
 // 	function view_add_group($columns) {
 // 		$output->layout = 'ajax';
 // 		$output->title = "Group Results";
