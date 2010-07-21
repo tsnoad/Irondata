@@ -46,6 +46,56 @@ class Template extends Modules {
 		$this->tmp_path = $this->conf['paths']['tmp_path'];
 	}
 	
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//admin will automatically have access. No need to specify
+		switch ($data['function']) {
+			case "hook_admin_tools":
+			case "hook_roles":
+				if (isset($data['acls']['system']['admin'])) {
+					return true;
+				}
+				break;
+			case "hook_pagetitle":
+			case "hook_top_menu":
+			case "hook_javascript":
+			case "hook_workspace":
+			case "hook_menu":
+			case "view_home":
+				// these can be called by other modules
+				if (isset($data['acls']['system']['login'])) {
+					return true;
+				}
+				return false;
+				break;
+			case "view_delete":
+			case "hook_access_report_acls":
+			case "hook_access_report_submit":
+				// these permissions are based on the report id and the histories permission
+				if (isset($data['acls']['report'][$this->id]['edit'])) {
+					return true;
+				}
+				break;
+			case "view_add":
+			case "view_add_select_object":
+			default:
+				//only people with permission to create reports can access these functions
+				if (isset($data['acls']['system']['reportscreate'])) {
+					return true;
+				}
+				//or users with permission to edit a specific report
+				if (isset($data['acls']['report'][$this->id]['edit'])) {
+					return true;
+				}
+				return false;
+				break;
+		}
+		return false;
+	}
+	
 	function hook_pagetitle() {
 		return "Report";
 	}
@@ -63,7 +113,9 @@ class Template extends Modules {
 	 * @see inc/Modules::hook_roles()
 	 */
 	function hook_roles() {
-		return null;
+		return array(
+			"reportscreate" => array("Create Reports", "")
+			);
 	}
 
 	/**
@@ -84,7 +136,7 @@ class Template extends Modules {
 	 */
 	function hook_top_menu() {
 		return array(
-			"reports" => $this->l("template/home", "Reports")
+			"reports" => array($this->l("template/home", "Reports"), 1)
 			);
 	}
 
@@ -129,10 +181,9 @@ class Template extends Modules {
 	}
 
 	/**
-	 *
 	 * Called by view_add to fetch user and group acls for a given report
 	 *
-	 * @param $template_id
+	 * @param int $template_id
 	 * @return An array of access control requirements
 	 */
 	function hook_access_report_acls($template_id) {
@@ -152,8 +203,8 @@ class Template extends Modules {
 	/**
 	 * Called by view_save to save edited acl for a given report
 	 *
-	 * @param $acls The permissions to save
-	 * @param $template_id The template id
+	 * @param $acls array The permissions to save
+	 * @param $template_id int The template id
 	 */
 	function hook_access_report_submit($acls, $template_id) {
 		//get existing acls from the database
@@ -241,7 +292,6 @@ class Template extends Modules {
 
 		return;
 	}
-	
 	
 	/* The Constraint Options hook function.
 	 * Displays the list of possible contraints.
@@ -409,8 +459,8 @@ class Template extends Modules {
 	/**
 	 * Create the initial report object in the database
 	 *
-	 * @param $object_id The database id
-	 * @param $type The type of report. Defaults to tabular
+	 * @param $object_id int The database id
+	 * @param $type string The type of report. Defaults to tabular
 	 */
 	function view_add_select_object($object_id, $type='tabular') {
 		//create the new template in the database
@@ -433,7 +483,7 @@ class Template extends Modules {
 		$modules = $this->call_function("ALL", "hook_template_entry");
 		$objects = $this->call_function("catalogue", "get_databases");
 
-		$output = Template_View::view_add($module, $objects, $type, $modules);
+		$output = Template_View::view_add($objects, $type, $modules);
 		return $output;
 	}
 	
@@ -968,13 +1018,37 @@ class Template extends Modules {
 		return $output;
 	}
 	
+	/**
+	 * Can the current user see the given report. The user must have at least one
+	 * permission out of histories, edit and execute
+	 *
+	 * @param $report_id The report to check
+	 * @return true/false based on the users permissions
+	 */
+	function report_visible($report_id) {
+		$edit = isset($_SESSION['acls']['report'][$report_id]['edit']);
+		$history = isset($_SESSION['acls']['report'][$report_id]['histories']);
+		$execute = isset($_SESSION['acls']['report'][$report_id]['execute']);
+		if ($edit || $history || $execute) {
+			return true;
+		}
+		return false;
+	}
+	
+	/**
+	 * Displays the report home screen
+	 *
+	 * @return The HTML for the home screen
+	 */
 	function view_home() {
-// print_r($_SESSION);
 		$reports = $this->get_reports();
-		return Template_View::view_workspace_display($reports);
-
-// 		$modules = $this->call_function("ALL", "hook_workspace");
-// 		return Template_View::view_home($modules);
+		$my_reports = array();
+		foreach ($reports as $i => $report) {
+			if ($this->report_visible($report['template_id'])) {
+				$my_reports[] = $report;
+			}
+		}
+		return Template_View::view_workspace_display($my_reports);
 	}
 }
 
@@ -994,7 +1068,16 @@ class Template_View {
 // 		return $output;
 	}
 	
-	function view_add($module, $objects, $type='', $modules) {
+	/**
+	 * The generic view for adding templates. This is the initial view to select which
+	 * template module and database to use.
+	 * Each module should override this to their own view_add
+	 *
+	 * @param $objects array The catalogue objects (databases) to select from
+	 * @param $modules array An array of template modules
+	 * @return The HTML output string
+	 */
+	function view_add($objects, $modules) {
 		$module = $this->id;
 		$output->data = "";
 

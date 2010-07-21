@@ -113,7 +113,7 @@ class Modules extends Theme {
 	 * The Javascript hook function.
 	 * Send the following javascript to the browser.
 	 *
-	 * @param $type A generic parameter.
+	 * @param $type string A generic parameter.
 	 * @return The javascript string to include
 	 */
 	function hook_javascript($type=null) {
@@ -126,6 +126,16 @@ class Modules extends Theme {
 	 */
 	function hook_output() {
 		return null;
+	}
+
+	/**
+	 * Each module will check whether a user can access a given function
+	 *
+	 * @param array $data The function to check and the users roles
+	 * @return boolean - does the current user have permission
+	 */
+	function hook_permission_check($data) {
+		return false;
 	}
 	
 	function set_this($url) {
@@ -197,7 +207,19 @@ class Modules extends Theme {
 		return $dirs;
 	}
 
+	/**
+	 * This will call any function within any active module. It will automatically check
+	 * for priorities and permissions before calling.
+	 *
+	 * @param mixed $modules The module(s) to call the function within. Can be a string (for 1) or an array (for many). Can also be the special string "ALL"
+	 * @param string $function The function to call.
+	 * @param array $data Any data to pass to the function
+	 * @param boolean $check_priority Should we check the priority on other modules
+	 * @return An array of module results (usually HTML)
+	 */
 	function call_function($modules, $function, $data=array(), $check_priority=false) {
+		//setup ACL variable
+		$_SESSION['acls'] = isset($_SESSION['acls']) ? $_SESSION['acls'] : array();
 		if ($modules == "ALL") {
 			/* The special case */
 			$modules = $this->getActive();
@@ -259,94 +281,35 @@ class Modules extends Theme {
 			}
 			if (method_exists($this->mobs[$module], $function)) {
 				$allow = false;
-
-				$url = $module."/".$function;
-
-				if (array_key_exists('skip_auth', $_SESSION) && $_SESSION['skip_auth']) {
+				$always_allowed = array("hook_auth", "hook_login", "view_login", "view_logout");
+				// do not check permissions under the following conditions
+				if ($function == 'hook_permission_check' || isset($_SESSION['acls']['system']['admin'])) {
 					$allow = true;
+				} elseif (array_key_exists('skip_auth', $_SESSION) && $_SESSION['skip_auth']) {
+					$allow = true;
+				} elseif (in_array($function, $always_allowed)) {
+					$allow = true;
+				} else {
+					$acl_data = array("function"=>$function, "acls"=>$_SESSION['acls']);
+					$permission_check = $this->call_function($module, 'hook_permission_check', $acl_data);
+					// if the module has not specified a permission check, assume an authenticated function
+					$allow = isset($permission_check[$module]) ? $permission_check[$module] : false;
 				}
-
-				if (!$allow) $allow |= preg_match("/\/hook_auth/", $url);
-				if (!$allow) $allow |= preg_match("/\/hook_pagetitle/", $url);
-				if (!$allow) $allow |= preg_match("/\/hook_top_menu/", $url);
-				if (!$allow) $allow |= preg_match("/\/hook_style/", $url);
-				if (!$allow) $allow |= preg_match("/\/hook_header/", $url);
-				if (!$allow) $allow |= preg_match("/\/hook_login/", $url);
-				if (!$allow) $allow |= preg_match("/\/hook_javascript/", $url);
-				if (!$allow) $allow |= preg_match("/^user\/view_login/", $url);
-				if (!$allow) $allow |= preg_match("/^user\/view_logout/", $url);
-				if (!$allow) $allow |= preg_match("/\/set_session_report_acls/", $url);
-
-				if (isset($_SESSION['acls']['system']['login'])) {
-					if (!$allow) $allow |= preg_match("/^workspace\/view_home/", $url);
-					if (!$allow) $allow |= preg_match("/^template\/view_home/", $url);
-					if (!$allow) $allow |= preg_match("/^search/", $url);
-					if (!$allow) $allow |= preg_match("/^help/", $url);
-					if (!$allow) $allow |= preg_match("/^user\/view_logout/", $url);
-				}
-
-				if (isset($_SESSION['acls']['system']['reportscreate'])) {
-					if (!$allow) $allow |= preg_match("/^template\/view_add/", $url);
-					if (!$allow) $allow |= preg_match("/\/hook_template_entry/", $url);
-					if (!$allow) $allow |= preg_match("/^catalogue\/get_databases/", $url);
-					if (!$allow) $allow |= preg_match("/\/view_add_select_object/", $url);
-				}
-
-				if (isset($_SESSION['acls']['system']['admin'])) {
-					if (!$allow) $allow |= preg_match("/^admin/", $url);
-					if (!$allow) $allow |= preg_match("/^catalogue/", $url);
-					if (!$allow) $allow |= preg_match("/^user/", $url);
-					if (!$allow) $allow |= preg_match("/\/hook_admin_tools/", $url);
-					if (!$allow) $allow |= preg_match("/\/hook_access_users/", $url);
-					if (!$allow) $allow |= preg_match("/\/hook_access_acls/", $url);
-					if (!$allow) $allow |= preg_match("/\/hook_roles/", $url);
-					if (!$allow) $allow |= preg_match("/\/hook_access_submit/", $url);
-					if (!$allow) $allow |= preg_match("/\/hook_module_settings/", $url);
-					if (!$allow) $allow |= preg_match("/^pgsql\/test_connection/", $url);
-					if (!$allow) $allow |= preg_match("/^pgsql\/hook_regen_schema/", $url);
-				}
-
-				if (!empty($_SESSION['acls']['report'])) {
-					foreach ($_SESSION['acls']['report'] as $foo_id => $foo) {
-						if ($this->id == $foo_id) {
-							if ($foo['edit']) {
-								if (!$allow) $allow |= preg_match("/\/view_add/", $url);
-								if (!$allow) $allow |= preg_match("/^tabular\/view_save/", $url);
-								if (!$allow) $allow |= preg_match("/\/view_delete/", $url);
-								if (!$allow) $allow |= preg_match("/^catalogue\/get_structure/", $url);
-								if (!$allow) $allow |= preg_match("/^tabular\/view_table_join_ajax/", $url);
-								if (!$allow) $allow |= preg_match("/\/get_or_generate/", $url);
-								if (!$allow) $allow |= preg_match("/^tabular\/get_columns/", $url);
-								if (!$allow) $allow |= preg_match("/^tabular\/hook_output/", $url);
-								if (!$allow) $allow |= preg_match("/^tabular\/view_data_preview_ajax/", $url);
-								if (!$allow) $allow |= preg_match("/^tabular\/view_data_preview_first_ajax/", $url);
-								if (!$allow) $allow |= preg_match("/^tabular\/view_data_preview_slow_ajax/", $url);
-								if (!$allow) $allow |= preg_match("/^tabular\/view_constraint_column_options_ajax/", $url);
-								if (!$allow) $allow |= preg_match("/\/hook_recipient_selector/", $url);
-								if (!$allow) $allow |= preg_match("/\/view_recipient_selector/", $url);
-								if (!$allow) $allow |= preg_match("/\/hook_access_users/", $url);
-								if (!$allow) $allow |= preg_match("/\/hook_access_report_acls/", $url);
-								if (!$allow) $allow |= preg_match("/\/hook_access_report_submit/", $url);
-							}
-						}
-						if ($this->id == $foo_id) {
-							if ($foo['histories']) {
-								if (!$allow) $allow |= preg_match("/^tabular\/view_histories/", $url);
-								if (!$allow) $allow |= preg_match("/^tabular\/view_history/", $url);
-								if (!$allow) $allow |= preg_match("/^tabular\/view_processing_history_ajax/", $url);
-							}
-						}
-						if ($this->id == $foo_id) {
-							if ($foo['execute']) {
-								if (!$allow) $allow |= preg_match("/^tabular\/view_execute_manually/", $url);
-							}
-						}
+				
+				//if ($function != 'hook_permission_check' && $allow==false) {
+				//	echo " " . $allow . " " . $function . " " . $module . "<br />" ;
+				//}
+				if (!$allow) {
+					if (strpos($function, "view_") === 0) {
+						$output->data = $this->error("You do not have permission to access this function");
+						$modres = $output;
+						$res[$module] = $modres;
 					}
+					continue;
 				}
-
-				if (!$allow) die("$url not allowed.");
 
 				if (count($data)) {
+					// TODO: Why do we have this switch statement
 					switch ($function) {
 						case "hook_login":
 						case "hook_recipients":
@@ -366,15 +329,14 @@ class Modules extends Theme {
 				} else {
 					$modres = call_user_func(array($this->mobs[$module], $function));
 				}
-				if ($modres) {
+				if (isset($modres)) {
 					$res[$module] = $modres;
 				}
 			}
 		}
-
 		return $res;
 	}
-	
+		
 	function background_function($url) {
 		/* There can only be 1 background per URL at any given time */
 		$query = $this->dobj->db_query("DELETE FROM backgrounds WHERE url=$$".$url."$$");

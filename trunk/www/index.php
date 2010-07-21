@@ -27,7 +27,7 @@
  *
  * @author Evan Leybourn
  * @date 19-07-2006
- * 
+ *
  */
 
 session_start();
@@ -45,8 +45,9 @@ include("modules/template/template.php");
 $so = new Security();
 $so->sanitise();
 
-$url = explode("/", $_REQUEST['url']);
-if (!$url[0]) {
+if (isset($_REQUEST['url'])) {
+	$url = explode("/", $_REQUEST['url']);
+} else {
 	$url[0] = 'workspace';
 	$url[1] = 'home';
 }
@@ -85,7 +86,6 @@ if ($main[$url[0]]->layout != "ajax") {
 
 $bottom = '';
 $display->style = implode(" ", $mo->call_function("ALL", "hook_style"));
-$display->header = implode(" ", $mo->call_function("ALL", "hook_header"));
 $mo->render($display, $main[$url[0]]);
 
 exit();

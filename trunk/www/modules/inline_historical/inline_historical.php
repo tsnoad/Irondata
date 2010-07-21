@@ -32,44 +32,22 @@ class Inline_historical extends Catalogue {
 	var $name = "Inline Historical";
 	var $description = "Looks for, and updates the queries for an inline start_date and end_date field.";
 	var $module_group = "Templates";
-
-	/* The Top Menu hook function. 
-	 * Displays the module in the main menu. Or menu of primary functions. 
+	
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//TODO: This module is incomplete
+		return false;
+	}
+	
+	/* The Top Menu hook function.
+	 * Displays the module in the main menu. Or menu of primary functions.
 	 */
 	function hook_top_menu() {
 		return null;
 	}
-
-// 	function hook_alter_query($query) {
-// 		list($select, $from, $where, $group, $order, $limit) = $query;
-// 		/* Check if this is one of the databases allowed to check */
-// 		$settings = $this->get_settings('inline_historical');
-// 		$query = "SELECT d.name FROM databases d, templates t WHERE t.object_id=d.object_id AND t.template_id=".$this->id;
-// 		$db = $this->dobj->db_fetch($query);
-// 		$alter = false;
-// 		if ($settings) {
-// 			foreach ($settings as $i => $setting) {
-// 				if ($setting['key'] == $db['name']) {
-// 					$alter = true;
-// 				}
-// 			}
-// 		}
-// 		if ($alter) {
-// 			/* Precheck to see if it is using start_date already */
-// 			foreach ($from as $i => $q) {
-// 				if (is_numeric(strpos($i, "start_date")) || is_numeric(strpos($i, "date_"))) {
-// 					$skip = true;
-// 				}
-// 			}
-// 			if (!$skip) {
-// 				foreach ($from as $i => $q) {
-// 					$where[] = " ".$i.".end_date = 'infinity' ";
-// 				}
-// 			}
-// 	// 		print_r($query);
-// 		}
-// 		return array($select, $from, $where, $group, $order, $limit);
-// 	}
 
 	function hook_module_settings() {
 		return "inline_historical/settings";

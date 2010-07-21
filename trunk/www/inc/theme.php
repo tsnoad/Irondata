@@ -24,7 +24,7 @@
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 
 class Theme {
@@ -39,7 +39,7 @@ class Theme {
 	}
 	
 	function webroot() {
-		$url = $_REQUEST['url'];
+		$url = isset($_REQUEST['url']) ? $_REQUEST['url'] : "";
 		$count = strlen($url);
 		$webroot = substr(urldecode($_SERVER['REQUEST_URI']), 0, ($count*-1));
 
@@ -51,6 +51,17 @@ class Theme {
 		return $webroot;
 	}
 
+	/**
+	 * Out the HTML to display an error message
+	 *
+	 * @param string $msg The message to display
+	 * @return A HTML string
+	 */
+	function error($msg) {
+		$string = "<h2 class='error'>Warning: ".$msg."</h2>";
+		return $string;
+	}
+	
 	function render_menu($marray) {
 		if (!$marray) {
 			return false;
@@ -98,7 +109,7 @@ class Theme {
 	function render($display, $data) {
 		$theme = $this->get_theme();
 		$webroot = $this->webroot();
-		$themeroot = $webroot.'themes/'.$theme.'/';	
+		$themeroot = $webroot.'themes/'.$theme.'/';
 		$scriptroot = $webroot.'scripts/';
 		$main = "";
 		
@@ -145,50 +156,17 @@ class Theme {
 		return true;
 	}
 	
+	/**
+	 * Dynamically create a HTML link. Utilises the correct webroot for internal links
+	 *
+	 * @param string $url The main url of the link
+	 * @param string $title The visible title of link
+	 * @param string $misc Any additional parameters
+	 * @param boolean $internal Is it an internal or external link
+	 */
 	function l($url, $title, $misc=false, $internal=true) {
 		if ($internal) {
 			$path = $this->webroot();
-
-			$allow = false;
-
-			if (isset($_SESSION['acls']['system']['login'])) {
-				if (!$allow) $allow |= preg_match("/^template\/home/", $url);
-				if (!$allow) $allow |= preg_match("/^search/", $url);
-				if (!$allow) $allow |= preg_match("/^help/", $url);
-				if (!$allow) $allow |= preg_match("/^user\/logout/", $url);
-			}
-
-			if (isset($_SESSION['acls']['system']['reportscreate'])) {
-				if (!$allow) $allow |= preg_match("/^template\/add/", $url);
-			}
-
-			if (isset($_SESSION['acls']['system']['admin'])) {
-				if (!$allow) $allow |= preg_match("/^admin/", $url);
-				if (!$allow) $allow |= preg_match("/^catalogue/", $url);
-				if (!$allow) $allow |= preg_match("/^user/", $url);
-			}
-
-			if (preg_match("/^tabular/", $url) || preg_match("/^listing/", $url)) {
-				if (!empty($_SESSION['acls']['report'])) {
-					foreach ($_SESSION['acls']['report'] as $foo_id => $foo) {
-						if ($foo['edit']) {
-							if (!$allow) $allow |= preg_match("/\/+add\/+$foo_id(\/+|$)/", $url);
-							if (!$allow) $allow |= preg_match("/\/+delete\/+$foo_id(\/+|$)/", $url);
-						}
-
-						if ($foo['histories']) {
-							if (!$allow) $allow |= preg_match("/\/*tabular\/+histories\/+$foo_id(\/+|$)/", $url);
-							if (!$allow) $allow |= preg_match("/\/*tabular\/+history\/+$foo_id(\/+|$)/", $url);
-						}
-
-						if ($foo['execute']) {
-							if (!$allow) $allow |= preg_match("/\/*tabular\/+execute_manually\/+$foo_id(\/+|$)/", $url);
-						}
-					}
-				}
-			}
-
-			if (!$allow) return null;
 		} else {
 			$path = "";
 		}
@@ -283,6 +261,10 @@ class Theme {
 				case "div_id":
 					$div_id = "id='".$string."'";
 					break;
+				case "class":
+					$classes .= $string;
+					$attrs .= $i."='".$string."'";
+					break;
 				default:
 					$attrs .= $i."='".$string."'";
 					break;
@@ -311,7 +293,7 @@ class Theme {
 				$input .= "</select></div>";
 				break;
 			case 'checkbox':
-				if ($data['default'] == true) {
+				if ($data['default'] === true || $data['default'] === $name) {
 					$check = "checked";
 				} else {
 					$check = "";
@@ -327,10 +309,10 @@ class Theme {
 				$input = "<div $div_id class='input radio $classes'><input type='radio' $attrs name='$name' $check />$label</div>";
 				break;
 			case 'submit':
-				$input = "<div $div_id class='input $classes'><button type='submit' ".$attrs." name='".$name."' />".$label."</button></div>";
+				$input = "<div $div_id class='input $classes'><button type='submit' ".$attrs." name='".$name."' >".$label."</button></div>";
 				break;
 			case 'button':
-				$input = "<div $div_id class='input $classes'><button ".$type." ".$attrs." name='".$name."' />".$label."</button></div>";
+				$input = "<div $div_id class='input $classes'><button ".$type." ".$attrs." name='".$name."' >".$label."</button></div>";
 				break;
 			case 'hidden':
 				$input = "<input type='hidden' name='".$name."' value='".$data['default']."' ".$attrs." />";
@@ -551,40 +533,35 @@ class Theme {
 			Records returned: %size";
 	}
 
+	/**
+	 * Create the list of links for the top menu
+	 *
+	 * @param array $menu_items An array of arrays, 0=>the array link, 1=> which block to put it in
+	 * @return The menu HTML string
+	 */
 	function render_top_menu($menu_items) {
 		$output = "
 			<ul class='menu'>
 			";
-
-		$reports_item = isset($menu_items['template']['reports']) ? $menu_items['template']['reports'] : null;
-		$help_item = isset($menu_items['help']['help']) ? $menu_items['help']['help'] : null;
-		$search_item = isset($menu_items['search']['search']) ? $menu_items['search']['search'] : null;
-		$admin_item = isset($menu_items['admin']['admin']) ? $menu_items['admin']['admin'] : null;
-		$databases_item = isset($menu_items['catalogue']['databases']) ? $menu_items['catalogue']['databases'] : null;
-		$logout_item = isset($menu_items['user']['logout']) ? $menu_items['user']['logout'] : null;
-
-		if (!empty($reports_item)) {
-			$block1[] = "<li>$reports_item</li>";
-		}
-
-		if (!empty($help_item)) {
-			$block1[] = "<li>$help_item</li>";
-		}
-
-		if (!empty($search_item)) {
-			$block1[] = "<li>$search_item</li>";
-		}
-
-		if (!empty($admin_item)) {
-			$block2[] = "<li>$admin_item</li>";
-		}
-
-		if (!empty($databases_item)) {
-			$block2[] = "<li>$databases_item</li>";
-		}
-
-		if (!empty($logout_item)) {
-			$block4[] = "<li>$logout_item</li>";
+		
+		foreach ($menu_items as $i => $module) {
+			foreach($module as $j => $menu) {
+				switch ($menu[1]) {
+					case 2:
+						$block2[] = "<li>$menu[0]</li>";
+						break;
+					case 3:
+						$block3[] = "<li>$menu[0]</li>";
+						break;
+					case 4:
+						$block4[] = "<li>$menu[0]</li>";
+						break;
+					default:
+					case 1:
+						$block1[] = "<li>$menu[0]</li>";
+						break;
+				}
+			}
 		}
 
 		if (!empty($block1)) {

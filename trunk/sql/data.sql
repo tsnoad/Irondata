@@ -15,10 +15,12 @@ INSERT INTO users_groups (user_id, group_id) VALUES ('admin', 'admin');
 INSERT INTO system_acls_users (user_id, role, access) VALUES ('admin', 'login', true);
 INSERT INTO system_acls_users (user_id, role, access) VALUES ('admin', 'reportscreate', true);
 INSERT INTO system_acls_users (user_id, role, access) VALUES ('admin', 'admin', true);
+INSERT INTO system_acls_users (user_id, role, access) VALUES ('admin', 'catalogue', true);
 
 INSERT INTO system_acls_groups (group_id, role, access) VALUES ('admin', 'login', true);
 INSERT INTO system_acls_groups (group_id, role, access) VALUES ('admin', 'reportscreate', true);
 INSERT INTO system_acls_groups (group_id, role, access) VALUES ('admin', 'admin', true);
+INSERT INTO system_acls_groups (group_id, role, access) VALUES ('admin', 'catalogue', true);
 
 -- INSERT INTO system_acls_users (user_id, role, access) VALUES ('staff', 'admin', true);
 

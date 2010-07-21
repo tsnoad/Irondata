@@ -34,6 +34,84 @@ class Listing extends Template {
 	var $module_group = "Templates";
 	
 	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//admin will automatically have access. No need to specify
+		switch ($data['function']) {
+			case "hook_admin_tools":
+				if (isset($data['acls']['system']['admin'])) {
+					return true;
+				}
+				break;
+			case "hook_style":
+			case "hook_top_menu":
+			case "hook_javascript":
+			case "hook_menu":
+			case "hook_workspace":
+				// these can be called by other modules
+				if (isset($data['acls']['system']['login'])) {
+					return true;
+				}
+				return false;
+				break;
+			case "view_histories":
+			case "view_history":
+			case "view_processing_history_ajax":
+				//only people with permission to create reports can access these functions
+				if (isset($data['acls']['system']['reportscreate'])) {
+					return true;
+				}
+				//or users with permission to access a specific report
+				if (isset($data['acls']['report'][$this->id]['histories'])) {
+					return true;
+				}
+				return false;
+				break;
+			case "view_execute_manually":
+				//only people with permission to create reports can access these functions
+				if (isset($data['acls']['system']['reportscreate'])) {
+					return true;
+				}
+				//or users with permission to execute a specific report
+				if (isset($data['acls']['report'][$this->id]['execute'])) {
+					return true;
+				}
+				return false;
+				break;
+			case "hook_template_entry":
+			case "view_add_select_object":
+			case "view_add":
+			case "view_save":
+			case "hook_output":
+			case "get_columns":
+			default:
+				//only people with permission to create reports can access these functions
+				if (isset($data['acls']['system']['reportscreate'])) {
+					return true;
+				}
+				//or users with permission to edit a specific report
+				if (isset($data['acls']['report'][$this->id]['edit'])) {
+					return true;
+				}
+				return false;
+				break;
+		}
+		return false;
+/*
+	function execute_demo($template_id) {
+	function execute_manually($template_id) {
+	function execute_scheduled($template_id) {
+	function execute($template_id, $demo) {
+	function get_constraints($template_id) {
+	function hook_query($template, $constraints, $demo=false) {
+	function sortByColumn($results) {
+
+*/
+	}
+		
+	/**
 	 * Overwrite hook_top_menu in Template.php - this module should have no top menu
 	 *
 	 * (non-PHPdoc)
@@ -64,7 +142,9 @@ class Listing extends Template {
 		span.list-1 {font-size: 1.1em; font-weight: bold;}
 		span.list1 {font-size: 0.9em;}
 		span.list2 {font-size: 0.8em;}
-		#style td {display: block;}";
+		#style td {display: block;}
+		.label_first label {float: none;}
+		";
 	}
 
 	/**
@@ -86,16 +166,6 @@ class Listing extends Template {
 				$menu = parent::hook_menu($url);
 		}
 		return $menu;
-	}
-	
-	/**
-	 * (non-PHPdoc)
-	 * @see modules/template/Template::hook_roles()
-	 */
-	function hook_roles() {
-		return array(
-			"reportscreate" => array("Create Reports", "")
-			);
 	}
 	
 	/**
@@ -394,9 +464,9 @@ class Listing extends Template {
 	/**
 	 * Called by Listing::execute. Given a template, generate the queries to get all the data for the report.
 	 *
-	 * @param $template The template id
-	 * @param $constraints Any constraints to apply
-	 * @param $demo Is this a demo (ie restrict to 10 results)
+	 * @param $template int The template id
+	 * @param $constraints array Any constraints to apply
+	 * @param $demo boolean Is this a demo (ie restrict to 10 results)
 	 * @return A SQL string
 	 */
 	function hook_query($template, $constraints, $demo=false) {
@@ -533,7 +603,7 @@ class Listing extends Template {
 		$object_id = $this->id;
 
 		if (empty($object_id)) return;
-		parent::view_add_select_object($object_id, 'tabular');
+		parent::view_add_select_object($object_id, 'listing');
 		$this->redirect("listing/add/".$temp['template_id']);
 	}
 		
@@ -555,38 +625,22 @@ class Listing extends Template {
 		
 		switch ($this->subvar) {
 			case "columns":
-				switch ($this->subid) {
-					case "type":
-						break;
-					case "source":
-						if ((int)$this->id) {
-							$this->current = $this->get_template($this->id);
-							$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
+				if ((int)$this->id) {
+					$this->current = $this->get_template($this->id);
+					$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
 
-							$blah = array();
-							foreach ($tables['catalogue'] as $i => $column) {
-								foreach ($column as $j => $cell) {
-									$blah['options'][$cell['column_id']] = $cell['table_name'].".".$cell['column_name'];
-
-									switch ($cell['data_type']) {
-										default:
-											break;
-										case "text":
-											$blah['option_warnings'][$cell['column_id']] = "Warning: The data type of the selected Source Column is ".ucwords($cell['data_type']).". This may cause unexpected results when calculating the Sum, Minimum, Maximum or Average values.";
-											break;
-									}
-								}
-							}
-
-							$tabular_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='c' LIMIT 1;"));
-
-							if (!empty($tabular_templates_query)) {
-								$tabular_template_auto = $tabular_templates_query;
-							}
+					$blah = array();
+					foreach ($tables['catalogue'] as $i => $column) {
+						foreach ($column as $j => $cell) {
+							$blah['options'][$cell['column_id']] = $cell['table_name'].".".$cell['column_name'];
 						}
-						break;
-					default:
-						break;
+					}
+
+					$listing_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM list_templates ll INNER JOIN list_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='c' LIMIT 1;"));
+
+					if (!empty($listing_templates_query)) {
+						$tabular_template_auto = $listing_templates_query;
+					}
 				}
 				break;
 			case "editsquidconstraint":
@@ -684,33 +738,33 @@ class Listing extends Template {
 		if ($this->subvar == "columns") $steps[0][3] .= " current";
 
 		$steps[1][0] = "Preview";
-		$steps[1][1] = $this->webroot()."tabular/add/".$this->id."/preview";
+		$steps[1][1] = $this->webroot()."listing/add/".$this->id."/preview";
 		$steps[1][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
 		$steps[1][3] = "";
 		if ($steps[1][2]) $steps[1][3] = "disabled";
 		if ($this->subvar == "preview") $steps[1][3] .= " current";
 
 		$steps[2][0] = "Constraints";
-		$steps[2][1] = $this->webroot()."tabular/add/".$this->id."/constraints";
+		$steps[2][1] = $this->webroot()."listing/add/".$this->id."/constraints";
 		$steps[2][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
 		$steps[2][3] = "";
 		if ($steps[2][2]) $steps[2][3] = "disabled";
 		if ($this->subvar == "constraints") $steps[2][3] .= " current";
 
 		$steps[3][0] = "Publishing";
-		$steps[3][1] = $this->webroot()."tabular/add/".$this->id."/publish";
+		$steps[3][1] = $this->webroot()."listing/add/".$this->id."/publish";
 		$steps[3][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
 		if ($steps[3][2]) $steps[3][3] = "disabled";
 		if ($this->subvar == "publish") $steps[3][3] .= " current";
 
 		$steps[4][0] = "Execution";
-		$steps[4][1] = $this->webroot()."tabular/add/".$this->id."/execution";
+		$steps[4][1] = $this->webroot()."listing/add/".$this->id."/execution";
 		$steps[4][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
 		if ($steps[4][2]) $steps[4][3] = "disabled";
 		if ($this->subvar == "execution") $steps[4][3] .= " current";
 
 		$steps[5][0] = "Access";
-		$steps[5][1] = $this->webroot()."tabular/add/".$this->id."/access";
+		$steps[5][1] = $this->webroot()."listing/add/".$this->id."/access";
 		$steps[5][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
 		if ($steps[5][2]) $steps[5][3] = "disabled";
 		if ($this->subvar == "access") $steps[5][3] .= " current";
@@ -719,51 +773,6 @@ class Listing extends Template {
 		$output = Listing_View::view_add($template, $blah, $steps, $preview_table, $tabular_template_auto, $table_join_ajax, $tabular_template);
 
 		return $output;
-	}
-	
-	function view_addX() {
-		if (!(int)$this->id) return;
-
-		switch ($this->subvar) {
-			case "columns":
-				$columns_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM list_templates lt WHERE lt.template_id='".$this->id."' AND lt.index=false;"));
-
-				$blah = $columns_query;
-				break;
-			case "editcolumn":
-				if (!(int)$this->subid) return;
-
-				$this->current = $this->get_template($this->id);
-				$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
-
-				$blah = array();
-				foreach ($tables['catalogue'] as $i => $column) {
-					foreach ($column as $j => $cell) {
-						$blah['options'][$cell['column_id']] = $cell['table_name'].".".$cell['column_name'];
-					}
-				}
-
-				$column_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM list_templates lt WHERE lt.template_id='".$this->id."' AND lt.list_template_id='".$this->subid."' AND lt.index=false LIMIT 1;"));
-
-				if (!empty($column_query)) {
-					$blah['column_id'] = $column_query['column_id'];
-					$blah['aggregate'] = $column_query['aggregate'];
-					$blah['label'] = $column_query['label'];
-				}
-				break;
-			case "preview":
-					$saved_report_id = $this->execute_demo($this->id);
-
-// // 					if ($template['publish_table'] == "t") {
-// 						$blah .= "<h3>Tabular Data</h3>";
-// 						$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, true, true));
-// 						$blah .= $table['pdf']['object'];
-// // 					}
-				break;
-			default:
-				$this->view_add_next();
-				break;
-		}
 	}
 
 	function view_add_next() {
@@ -775,28 +784,209 @@ class Listing extends Template {
 		$this->redirect("listing/add/".$this->id."/columns");
 	}
 	
-// 	function view_display_table() {
-// 		/* Get all the tables and create the wrapped columns */
-// 		$template = $this->get_columns($this->id);
-// 		$object = $this->dobj->db_fetch($this->dobj->db_query("SELECT object_id FROM templates WHERE template_id='".$this->id."'"));
-// 		$tables = $this->call_function("catalogue", "get_structure", array($object['object_id'], $constraints));
-// 		$output = Listing_View::view_display_table($tables, $template);
-// 		return $output;
-// 	}
-//
-// 	function view_remove() {
-// 		$query = "DELETE FROM list_templates WHERE template_id=".$this->id." AND column_id='".$this->subvar."';";
-// 		$cur = $this->dobj->db_query($query);
-// 		die();
-// 	}
-//
-// 	function view_remove_constraint() {
-// 		$query = "DELETE FROM list_constraints WHERE template_id=".$this->id." AND column_id='".$this->subvar."';";
-// 		$cur = $this->dobj->db_query($query);
-// 		die();
-// 	}
+	private function sortByColumn($results) {
+		$new_results = array();
+		foreach ($results as $i => $result) {
+			$new_results[$result['column_id']] = $result;
+		}
+		return $new_results;
+	}
 	
+	/**
+	 * Called as the action on forms on almost every page when creating a listing report.
+	 * Once complete, calls Listing::view_add_next() to go to the next page.
+	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
+	 *
+	 * @return null
+	 */
 	function view_save() {
+		switch ($this->subvar) {
+			case "cancel":
+				break;
+			case "columns":
+				$update_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM listing_templates lt WHERE lt.template_id='".$this->id."';"));
+				$update_query = sortByColumn($update_query);
+				print_r($_REQUEST);
+				die();
+				/*
+				if ($update_query['tabular_template_id']) {
+				} else {
+					$this->dobj->db_query($this->dobj->insert(array("template_id"=>$this->id, "type"=>$this->subvar, "axis_type"=>"auto"), "tabular_templates"));
+				}
+
+				if ($update_query['tabular_templates_auto_id']) {
+					$tabular_template_id = $update_query['tabular_template_id'];
+
+					$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_template_id", $tabular_template_id, "tabular_templates_auto"));
+				} else {
+					$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
+
+					$tabular_template_id = $tabular_template_query['tabular_template_id'];
+					$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
+
+					$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_auto"));
+				}
+				*/
+				break;
+			case "editsquidconstraintsubmit":
+				if ($this->aux1) {
+					Tabular::view_editconstraintsubmit();
+				}
+				break;
+			case "constraintlogicsubmit":
+				Tabular::view_constraintlogicsubmit();
+				break;
+			case "editconstraintsubmit":
+				if ($this->subid) {
+					Tabular::view_editconstraintsubmit();
+				}
+				break;
+			case "removeconstraintsubmit":
+				$template_id = $this->id;
+				$constraint_id = $this->subid;
+
+				if (empty($template_id)) return;
+				if (empty($constraint_id)) return;
+
+				$constraint_logic = $this->get_constraint_logic($template_id);
+
+				//if the constraint to be removed is the only constraint in the logic: simply set logic to ''
+				if (preg_match("/^ ?($constraint_id) ?$/", $constraint_logic, &$matches)) {
+					$constraint_logic = "";
+
+// 				} else if (preg_match("/^ ?($constraint_id) ?\)/", $constraint_logic, &$matches)) {
+// 					var_dump($matches);
+// 					var_dump("INVALID");
+
+				//if the constrain to be be removed is at the start and is followed by an and/or, then remove the constraint and the and/or
+				} else if (preg_match("/^ ?($constraint_id) ?(AND|OR) ?/", $constraint_logic, &$matches)) {
+					$constraint_logic = preg_replace("/^ ?($constraint_id) ?(AND|OR) ?/", "", $constraint_logic);
+
+// 				} else if (preg_match("/\( ?($constraint_id) ?$/", $constraint_logic, &$matches)) {
+// 					var_dump($matches);
+// 					var_dump("INVALID");
+
+				//if the constraint to be removed is on it's own in a set of brackets, then remove the constraint only. This will make the logic invailid...
+				} else if (preg_match("/\( ?($constraint_id) ?\)/", $constraint_logic, &$matches)) {
+					$constraint_logic = preg_replace("/\( ?($constraint_id) ?\)/", "", $constraint_logic);
+
+				//if the constraint to be removed comes after a bracket and is followed by an and/or, then remove the constraint and the and/or
+				} else if (preg_match("/ ?\( ?($constraint_id) ?(AND|OR) ?/", $constraint_logic, &$matches)) {
+					$constraint_logic = preg_replace("/\( ?($constraint_id) ?(AND|OR) ?/", "(", $constraint_logic);
+
+				//if the constraint to be removed comes after an and/or and is at the end of the logic, then remove the and/or and the constraint
+				} else if (preg_match("/ ?(AND|OR) ?($constraint_id) ?$/", $constraint_logic, &$matches)) {
+					$constraint_logic = preg_replace("/ ?(AND|OR) ?($constraint_id) ?$/", "", $constraint_logic);
+
+				//if the constraint to be removed comes after an and/or and is followed by a bracket, then remove the and/or and the constraint
+				} else if (preg_match("/ ?(AND|OR) ?($constraint_id) ?\)/", $constraint_logic, &$matches)) {
+					$constraint_logic = preg_replace("/ ?(AND|OR) ?($constraint_id) ?\)/", ")", $constraint_logic);
+
+				//if the constraint to be removed comes after an and/or and is followed by another and/or, then remove the constraint and the second and/or
+				} else if (preg_match("/ ?(AND|OR) ?($constraint_id) ?(AND|OR) ?/", $constraint_logic, &$matches)) {
+					$constraint_logic = preg_replace("/ ?($constraint_id) ?(AND|OR) ?/", " ", $constraint_logic);
+
+				} else {
+				}
+
+				$this->dobj->db_query($this->dobj->update(array("logic"=>$constraint_logic), "template_id", $this->id, "tabular_constraint_logic"));
+
+				$this->dobj->db_query("DELETE FROM tabular_constraints WHERE tabular_constraints_id='$constraint_id';");
+				break;
+			case "publishsubmit":
+				if ($_REQUEST['data']['publish_table'] == "on") {
+					$_REQUEST['data']['publish_table'] = "t";
+				} else {
+					$_REQUEST['data']['publish_table'] = "f";
+				}
+
+				if ($_REQUEST['data']['publish_graph'] == "on") {
+					$_REQUEST['data']['publish_graph'] = "t";
+				} else {
+					$_REQUEST['data']['publish_graph'] = "f";
+				}
+
+				$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "templates"));
+				break;
+			case "executionsubmit":
+				$_REQUEST['data']['execute'] = "f";
+				$_REQUEST['data']['execute_hourly'] = "f";
+				$_REQUEST['data']['execute_daily'] = "f";
+				$_REQUEST['data']['execute_weekly'] = "f";
+				$_REQUEST['data']['execute_monthly'] = "f";
+
+				switch ($_REQUEST['data']['execution_interval']) {
+					case "manually":
+						break;
+					case "hourly":
+						$_REQUEST['data']['execute'] = "t";
+						$_REQUEST['data']['execute_hourly'] = "t";
+						break;
+					case "daily":
+						$_REQUEST['data']['execute'] = "t";
+						$_REQUEST['data']['execute_daily'] = "t";
+						break;
+					case "weekly":
+						$_REQUEST['data']['execute'] = "t";
+						$_REQUEST['data']['execute_weekly'] = "t";
+						break;
+					case "monthly":
+						$_REQUEST['data']['execute'] = "t";
+						$_REQUEST['data']['execute_monthly'] = "t";
+						break;
+				}
+
+				unset($_REQUEST['data']['execution_interval']);
+
+				if ($_REQUEST['data']['email_dissemination'] == "on") {
+					$_REQUEST['data']['email_dissemination'] = "t";
+				} else {
+					$_REQUEST['data']['email_dissemination'] = "f";
+				}
+
+				//TODO: I do not believe this is required. If I am wrong it should be moved to the LDAP module.
+				//$ldap_recipient_selector = ($_REQUEST['data']['ldap'] == "ldap");
+				//unset($_REQUEST['data']['ldap']);
+
+				$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "templates"));
+
+				//if ($ldap_recipient_selector) {
+				//	$this->redirect("ldap/recipient_selector/".$this->id);
+				//	die();
+				//}
+				break;
+			case "accesssubmit":
+				if (empty($_REQUEST['data'])) return;
+
+				$ids_r = json_decode(stripslashes($_REQUEST['data']['ids_r']), true);
+
+				$acls_tmp = $_REQUEST['data'];
+
+				foreach ($acls_tmp as $acl_key_tmp => $acl_tmp) {
+					if (substr($acl_key_tmp, 0, 7) != "access_") continue;
+
+					$acl_key = substr($acl_key_tmp, 7);
+					$break_pos = strrpos($acl_key, "_");
+					$role = substr($acl_key, 0, $break_pos);
+					$user_id_tmp = substr($acl_key, $break_pos + 1);
+					$user_id = $ids_r[$user_id_tmp][0];
+					$user_meta = $ids_r[$user_id_tmp][1];
+
+					$acls[$user_meta][$user_id][$role] = true;
+				}
+
+				$this->call_function("ALL", "hook_access_report_submit", array($acls, $this->id));
+
+				break;
+			default:
+				break;
+		}
+
+		$this->view_add_next();
+		return;
+	}
+	
+	function view_saveX() {
 // 		/* Submitted information */
 // 		$order = 1;
 // 		foreach ($_REQUEST['data'] as $i => $post) {
@@ -924,18 +1114,6 @@ class Listing extends Template {
 // 		return $output;
 // 	}
 	
-// 	function view_tables_json() {
-// 		$template = $this->get_columns($this->id);
-// 		$output = Listing_View::view_tables_json($template);
-// 		return $output;
-// 	}
-//
-// 	function view_style_dd_json() {
-// 		$values = array("none"=>"Default", "heading1"=>"Heading 1", "heading2"=>"Heading 2", "small1"=>"Small 1", "small2"=>"Small2");
-// 		$output = Listing_View::view_dd_json($values);
-// 		return $output;
-// 	}
-	
 	function get_columns($template_id) {
 		$query = "SELECT l.*, t.*, c.column_id, tb.table_id, c.human_name as chuman, tb.human_name as thuman, c.name as column, tb.name as table FROM list_templates l, templates t, columns c, tables tb WHERE tb.table_id=c.table_id AND c.column_id=l.column_id AND t.template_id=l.template_id AND t.template_id=".$template_id." ORDER BY l.level, l.col_order;";
 		$data = $this->dobj->db_fetch_all($this->dobj->db_query($query));
@@ -948,63 +1126,6 @@ class Listing extends Template {
 		return $data;
 	}
 	
-// 	function view_add_columns() {
-// 		$columns = $this->get_columns($this->id);
-// 		$output = Listing_View::view_add_columns($columns);
-// 		return $output;
-// 	}
-//
-// 	function view_add_style() {
-// 		$output = Listing_View::view_add_style();
-// 		return $output;
-// 	}
-//
-// 	function view_add_group() {
-// 		$columns = $this->get_columns($this->id);
-// 		$output = Listing_View::view_add_group($columns);
-// 		return $output;
-// 	}
-//
-// 	function view_clone() {
-// 		$template = "SELECT * FROM templates WHERE template_id='".$this->id."';";
-// 		$template = $this->dobj->db_fetch($this->dobj->db_query($template));
-// 		unset($template['template_id']);
-// 		$template['name'] = $template['name'] ." (Clone)";
-// 		$template['database'] = $template['object_id'];
-// 		$template_id = $this->add_template($template);
-// 		$list_templates = "SELECT * FROM list_templates WHERE template_id='".$this->id."';";
-// 		$list_templates = $this->dobj->db_fetch_all($this->dobj->db_query($list_templates));
-// 		foreach ($list_templates as $i => $temp) {
-// 			unset($temp['list_template_id']);
-// 			$temp['template_id'] = $template_id;
-// 			$this->dobj->db_query($this->dobj->insert($temp, "list_templates"));
-// 		}
-// 		$list_constraints = "SELECT * FROM list_constraints WHERE template_id='".$this->id."';";
-// 		$list_constraints = $this->dobj->db_fetch_all($this->dobj->db_query($list_constraints));
-// 		foreach ($list_constraints as $i => $temp) {
-// 			unset($temp['list_constraints_id']);
-// 			$temp['template_id'] = $template_id;
-// 			$this->dobj->db_query($this->dobj->insert($temp, "list_constraints"));
-// 		}
-// 		$this->redirect('listing/add/'.$template_id);
-// 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 	function execute_manually($template_id) {
 		return $this->execute($template_id, false);
 	}
@@ -1036,12 +1157,22 @@ print_r($data);
 	}
 }
 
+
 class Listing_View extends Template_View {
-// 	function view_add($template) {
-	function view_add($blah, $steps) {
+	
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template_View::view_add()
+	 */
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template_View::view_add()
+	 */
+	function view_add($template, $blah=null, $steps=null, $preview_table=null, $listing_template_columns=null, $table_join_ajax=null, $listing_template=null) {
 		if (!empty($steps)) {
 			$output->submenu .= "<ol>";
 			foreach ($steps as $i => $step) {
+				$step[3] = isset($step[3]) ? $step[3] : null;
 				$output->submenu .= "<li>";
 				$output->submenu .= ($i + 1 === 1 ? "Step " : "").($i + 1).". ";
 				$output->submenu .= "<a href=\"".$step[1]."\" class=\"".$step[3]."\" ".($step[2] ? "onClick=\"void(0); return false;\"" : "").">";
@@ -1053,254 +1184,313 @@ class Listing_View extends Template_View {
 		}
 
 		switch ($this->subvar) {
-			case "index":
-				$output->title = "Index";
-				$output->title_desc = "Lorem ipsum dolor sit amet.";
-
-				$output->data .= $this->f("listing/save/".$this->id."/".$this->subvar."", "dojoType='dijit.form.Form'");
-				$output->data .= $this->i("data[column_id]", array("label"=>"Source Column", "type"=>"select", "default"=>$blah['column_id'], "options"=>$blah['options'], "dojoType"=>"dijit.form.FilteringSelect"));
-
-				$output->data .= $this->i("data[label]", array("label"=>"Index Name", "type"=>"text", "default"=>$blah['label'], "dojoType"=>"dijit.form.ValidationTextBox"));
-				$output->data .= "<hr />";
-
-				$output->data .= $this->i("submit", array("label"=>"Next", "type"=>"submit", "value"=>"Next", "dojoType"=>"dijit.form.Button"));
-				$output->data .= $this->f_close();
-				break;
+			default:
 			case "columns":
-				$output->title = "Columns";
-				$output->title_desc = "Lorem ipsum dolor sit amet.";
+				$output->title = "Select Columns";
+				$output->title_desc = "Select the output columns for the List report. Each row will be made up of the values from each of these columns";
 
-				$output->data .= "<a href='".$this->webroot()."listing/add/".$this->id."/editcolumn/new'>Create Column</a>";
-
-				$output->data .= "
-					<div class='reports'>
-						<table cellpadding='0' cellspacing='0'>
-							<tr>
-								<th>Column</th>
-								<th>Label</th>
-								<th>Aggreggate</th>
-								<th>&nbsp;</th>
-							</tr>
-							";
-
-
-				foreach ($blah as $column_tmp) {
-					$list_template_id = $column_tmp['list_template_id'];
-
-					$output->data .= "<tr>";
-					$output->data .= "<td>&nbsp;</td>";
-					$output->data .= "<td>".$column_tmp['label']."</td>";
-					$output->data .= "<td>&nbsp;</td>";
-					$output->data .= "<td>";
-					$output->data .= "<ul>";
-
-					$output->data .= "<li><a href='".$this->webroot()."listing/add/".$this->id."/editcolumn/".$list_template_id."'>Edit</a></li>";
-					$output->data .= "<li><a href='".$this->webroot()."listing/save/".$this->id."/removecolumn/".$list_template_id."' onclick='if (confirm(\"Remove column?\")) {return true;} else {return false;}'>Remove</a></li>";
-
-					$output->data .= "</ul>";
-					$output->data .= "</td>";
-					$output->data .= "</tr>";
+				$output->data .= $this->f("listing/save/".$this->id."/".$this->subvar, "dojoType='dijit.form.Form'");
+				foreach ($blah['options'] as $i => $column) {
+					//TODO: DEFAULT
+					//TODO: "dojoType"=>"dijit.form.CheckBox",
+					$output->data .= $this->i("data[columns][".$i."]", array("label"=>$column, "type"=>"checkbox", "default"=>$listing_template_columns[$column]['column_id'], "class"=>"label_first"));
 				}
-				$output->data .= "
-						</table>
-					</div>
-					";
-				break;
-			case "editcolumn":
-				$output->title = "Edit Column";
-				$output->title_desc = "Lorem ipsum dolor sit amet.";
-
-				$output->data .= $this->f("listing/save/".$this->id."/".$this->subvar."", "dojoType='dijit.form.Form'");
-				$output->data .= $this->i("data[column_id]", array("label"=>"Source Column", "type"=>"select", "default"=>$blah['column_id'], "options"=>$blah['options'], "dojoType"=>"dijit.form.FilteringSelect"));
-				$output->data .= "<hr />";
-
-				$output->data .= $this->i("data[aggregate]", array("label"=>"None", "type"=>"radio", "value"=>"", "default"=>($blah['aggregate'] == "")));
-				$output->data .= "<p>Qui bono?</p>";
-
-				$output->data .= $this->i("data[aggregate]", array("label"=>"Count", "type"=>"radio", "value"=>"count", "default"=>($blah['aggregate'] == "count")));
-				$output->data .= "<p>The number of records that match the given X axis and Y Axis.</p>";
-
-				$output->data .= $this->i("data[aggregate]", array("label"=>"Count Distinct Values", "type"=>"radio", "value"=>"count distinct", "default"=>($blah['aggregate'] == "count distinct")));
-				$output->data .= "<p>The number of records, with a distinct value in the selected column, that match the given X axis and Y Axis.</p>";
-
-				$output->data .= $this->i("data[aggregate]", array("label"=>"Sum", "type"=>"radio", "value"=>"sum", "default"=>($blah['aggregate'] == "sum")));
-				$output->data .= "<p>The total sum of all values that match the given X axis and Y Axis.</p>";
-
-				$output->data .= $this->i("data[aggregate]", array("label"=>"Minimum", "type"=>"radio", "value"=>"min", "default"=>($blah['aggregate'] == "min")));
-				$output->data .= "<p>The smallest value of all values that match the given X axis and Y Axis.</p>";
-
-				$output->data .= $this->i("data[aggregate]", array("label"=>"Maximum", "type"=>"radio", "value"=>"max", "default"=>($blah['aggregate'] == "max")));
-				$output->data .= "<p>The largest value of all values that match the given X axis and Y Axis.</p>";
-
-				$output->data .= $this->i("data[aggregate]", array("label"=>"Average", "type"=>"radio", "value"=>"average", "default"=>($blah['aggregate'] == "average")));
-				$output->data .= "<p>The average of all values that match the given X axis and Y Axis.</p>";
-				$output->data .= "<hr />";
-
-				$output->data .= $this->i("data[label]", array("label"=>"Index Name", "type"=>"text", "default"=>$blah['label'], "dojoType"=>"dijit.form.ValidationTextBox"));
-				$output->data .= "<hr />";
 
 				$output->data .= $this->i("submit", array("label"=>"Next", "type"=>"submit", "value"=>"Next", "dojoType"=>"dijit.form.Button"));
 				$output->data .= $this->f_close();
+				break;
+			case "editsquidconstraint":
+				$output->title = "Edit Constraint";
+				$output->title_desc = "";
+
+				$output->data .= Tabular_view::view_editconstraint($blah);
 				break;
 			case "preview":
 				$output->title = "Preview";
-				$output->title_desc = "Lorem ipsum dolor sit amet.";
+				$output->title_desc = "";
+
+				$output->data .= $preview_table;
 
 				break;
-		}
+			case "constraints":
+				$output->title = "Constraints";
+				$output->title_desc = "";
 
-// 		$output->title = "".$template['name']." - Listing Report";
-// 		$output->data .= "<div dojoType='dojox.layout.ContentPane' layoutAlign='top'>";
-// 		$output->data .= "<div dojoType='dojo.data.ItemFileReadStore' url='".$this->webroot()."listing/tables_json/".$this->id."' jsId='template'></div>";
-// 		$output->data .= "<div dojoType='dojo.data.ItemFileReadStore' url='".$this->webroot()."listing/constraint_options_json' jsId='constraint_options'></div>";
-// 		$output->data .= "<p class='description'>".$template['description']."</p>";
-// 		$output->data .= "<button class='small_nav' dojoType='dijit.form.Button' id='previous' onClick='dijit.byId(\"mainTabContainer\").back();'>&larr;</button>";
-// 		$output->data .= "<span dojoType='dijit.layout.StackController' containerId='mainTabContainer'></span>";
-// 		$output->data .= "<button class='small_nav' dojoType='dijit.form.Button' id='next' onClick='dijit.byId(\"mainTabContainer\").forward();'>&rarr;</button>";
-// 		$output->data .= "</div>";
-// 		$output->data .= "<div dojoType='dojox.layout.ContentPane' layoutAlign='bottom'>";
-// 		$output->data .= "<button dojoType='dijit.form.Button' onClick='window.location=\"".$this->webroot()."workspace/home\";'>Save & Close</button>";
-// 		$output->data .= "<button dojoType='dijit.form.Button' onClick='window.location=\"".$this->webroot()."listing/clone/".$this->id."\";'>Clone Report</button>";
-// 		$output->data .= "<button dojoType='dijit.form.Button' onClick='if (confirm(\"Are you sure you want to delete this report\")) { window.location=\"".$this->webroot()."listing/delete/".$this->id."\"} ;'>Delete Report</button>";
-// 		$output->data .= "</div>";
-// 		$output->data .= "<div layoutAlign='client' id='mainTabContainer' dojoType='dijit.layout.StackContainer' style='width: 100%; height: 100%;'>";
-// 		$output->data .= "<div class='wizarddiv' executeScripts='true' parseContent='true' refreshOnShow='false' scriptSeparation='false' extractContent='false' href='".$this->webroot()."listing/add_columns/".$this->id."' dojoType='dojox.layout.ContentPane' style='width: 100%; height: 100%;' id='page_columns' title='Columns' label='Columns'></div>";
-// 		$output->data .= "<div class='wizarddiv' executeScripts='true' parseContent='true' refreshOnShow='false' scriptSeparation='false' extractContent='false' href='".$this->webroot()."listing/add_style/".$this->id."' dojoType='dojox.layout.ContentPane' style='width: 100%; height: 100%;' id='page_style' title='Style' label='Style'></div>";
-// 		$output->data .= "<div class='wizarddiv' executeScripts='true' parseContent='true' refreshOnShow='false' scriptSeparation='false' extractContent='false' href='".$this->webroot()."listing/add_group/".$this->id."' dojoType='dojox.layout.ContentPane' style='width: 100%; height: 100%;' id='page_group' title='Group' label='Group'></div>";
-// 		$output->data .= "<div class='wizarddiv' executeScripts='true' parseContent='true' refreshOnShow='false' scriptSeparation='false' extractContent='false' href='".$this->webroot()."listing/display_constraints/".$this->id."' dojoType='dojox.layout.ContentPane' style='width: 100%; height: 100%;' id='page_constraints' title='Constraints' label='Constraints'></div>";
-// 		$output->data .= "<div class='wizarddiv' executeScripts='true' parseContent='true' refreshOnShow='true' scriptSeparation='false' extractContent='false' href='".$this->webroot()."listing/demo/".$this->id."' dojoType='dijit.layout.ContentPane' style='width: 100%; height: 100%;' id='page_demo' title='Preview' label='Preview'></div>";
-// 		$output->data .= "<div class='wizarddiv' executeScripts='true' parseContent='true' refreshOnShow='false' scriptSeparation='false' extractContent='false' href='".$this->webroot()."tabular/add_details/".$this->id."' dojoType='dijit.layout.ContentPane' style='width: 100%; height: 100%;' id='page_details' title='Details' label='Details'></div>";
-// 		$output->data .= "</div>";
-// 		//$output->data .= "<script>create_cells();</script>";
+				$output->data .= Tabular_view::view_constraints($blah);
+
+				break;
+			case "editconstraint":
+				$output->title = "Edit Constraint";
+				$output->title_desc = "";
+
+				$output->data .= Tabular_view::view_editconstraint($blah);
+
+				break;
+			case "publish":
+				//prevent the editor from adding more escapes than neccessary
+				$template['header'] = stripslashes($template['header']);
+				$template['footer'] = stripslashes($template['footer']);
+
+				$output->title = "Publishing";
+				$output->title_desc = "";
+
+				$output->data .= $this->f("tabular/save/".$this->id."/publishsubmit", "id='publishing_form' dojoType='dijit.form.Form'");
+				$output->data .= $this->i("data[name]", array("label"=>"Report Name", "default"=>$template['name'], "dojo"=>"dijit.form.TextBox"));
+				$output->data .= $this->i("data[description]", array("label"=>"Description", "default"=>$template['description'], "dojo"=>"dijit.form.Textarea"));
+				$output->data .= "<hr />";
+
+				$output->data .= "<h3>Publishing</h3>";
+
+				$output->data .= $this->i("data[publish_table]", array("label"=>"Publish Tabular Data", "type"=>"checkbox", "default"=>$template['publish_table']));
+				$output->data .= $this->i("data[publish_graph]", array("label"=>"Publish Graphic Data", "type"=>"checkbox", "default"=>$template['publish_graph']));
+				$output->data .= $this->i("data[publish_csv]", array("label"=>"Publish CSV Data", "type"=>"checkbox", "default"=>true, "disabled"=>true));
+				$output->data .= "<hr />";
+
+				$output->data .= "<h3>Graph</h3>";
+				$output->data .= $this->i("data[graph_type]", array("label"=>"Scatter Graph", "type"=>"radio", "value"=>"Scatter", "default"=>($template['graph_type'] == "Scatter"), "disabled"=>true));
+				$output->data .= $this->i("data[graph_type]", array("label"=>"Line Graph", "type"=>"radio", "value"=>"Lines", "default"=>($template['graph_type'] == "Lines")));
+				$output->data .= $this->i("data[graph_type]", array("label"=>"Line Graph - Stacked", "type"=>"radio", "value"=>"StackedLines", "default"=>($template['graph_type'] == "StackedLines"), "disabled"=>true));
+				$output->data .= $this->i("data[graph_type]", array("label"=>"Area Graph", "type"=>"radio", "value"=>"Areas", "default"=>($template['graph_type'] == "Areas"), "disabled"=>true));
+				$output->data .= $this->i("data[graph_type]", array("label"=>"Area Graph - Stacked", "type"=>"radio", "value"=>"StackedAreas", "default"=>($template['graph_type'] == "StackedAreas")));
+				$output->data .= $this->i("data[graph_type]", array("label"=>"Bar Graph - Vertical", "type"=>"radio", "value"=>"Columns", "default"=>($template['graph_type'] == "Columns"), "disabled"=>true));
+				$output->data .= $this->i("data[graph_type]", array("label"=>"Bar Graph - Vertical, Stacked", "type"=>"radio", "value"=>"StackedColumns", "default"=>($template['graph_type'] == "StackedColumns")));
+				$output->data .= $this->i("data[graph_type]", array("label"=>"Bar Graph - Vertical, Clustered", "type"=>"radio", "value"=>"ClusteredColumns", "default"=>($template['graph_type'] == "ClusteredColumns"), "disabled"=>true));
+				$output->data .= "<hr />";
+
+				$output->data .= "<h3>Page Addenda</h3>";
+				$output->data .= $this->i("data[header]", array("type"=>"wysiwyg", "label"=>"Report Header", "default"=>$template['header'], "parent_form"=>"publishing_form"));
+				$output->data .= "<p>The following placeholders can be used to dynamically update the header and footer at runtime. %logo, %name, %desc, %run, %by, %size</p>";
+				$output->data .= $this->i("data[footer]", array("type"=>"wysiwyg", "label"=>"Report Footer", "default"=>$template['footer'], "parent_form"=>"publishing_form"));
+				$output->data .= "<p>The following placeholders can be used to dynamically update the header and footer at runtime. %logo, %name, %desc, %run, %by, %size</p>";
+				$output->data .= "<hr />";
+
+				$output->data .= $this->i("submit", array("label"=>"Edit", "type"=>"submit", "value"=>"Edit", "dojoType"=>"dijit.form.Button"));
+				$output->data .= $this->f_close();
+				break;
+			case "execution":
+				//prevent the editor from adding more escapes than neccessary
+				$template['email_body'] = stripslashes($template['email_body']);
+
+				$output->title = "Execution";
+				$output->title_desc = "";
+
+				$output->data .= $this->f("tabular/save/".$this->id."/executionsubmit", "id='execution_form'", "dojoType='dijit.form.Form'");
+				$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_manually]", "label"=>"Execute Manually", "type"=>"radio", "value"=>"manually"/*, "onchange"=>'console.log("skoo");'*/));
+				$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_hourly]", "label"=>"Execute Hourly", "type"=>"radio", "value"=>"hourly", "default"=>($template['execute_hourly'] == "t")));
+				$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_daily]", "label"=>"Execute Daily", "type"=>"radio", "value"=>"daily", "default"=>($template['execute_daily'] == "t")));
+				$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_weekly]", "label"=>"Execute Weekly", "type"=>"radio", "value"=>"weekly", "default"=>($template['execute_weekly'] == "t")));
+				$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_monthly]", "label"=>"Execute Monthly", "type"=>"radio", "value"=>"monthly", "default"=>($template['execute_monthly'] == "t")));
+				$output->data .= "<hr />";
+
+				$output->data .= $this->i("data[execute_hour]", array("id"=>"data[execute_hour]", "div_id"=>"execute_hour_div", "label"=>"Hour of Execution", "type"=>"select", "dojoType"=>"dijit.form.FilteringSelect", "default"=>$template['execute_hour'], "options"=>array(
+					"0"=>"0 AM",
+					"1"=>"1 AM",
+					"2"=>"2 AM",
+					"3"=>"3 AM",
+					"4"=>"4 AM",
+					"5"=>"5 AM",
+					"6"=>"6 AM",
+					"7"=>"7 AM",
+					"8"=>"8 AM",
+					"9"=>"9 AM",
+					"10"=>"10 AM",
+					"11"=>"11 AM",
+					"12"=>"12 PM",
+					"13"=>"1 PM",
+					"14"=>"2 PM",
+					"15"=>"3 PM",
+					"16"=>"4 PM",
+					"17"=>"5 PM",
+					"18"=>"6 PM",
+					"19"=>"7 PM",
+					"20"=>"8 PM",
+					"21"=>"9 PM",
+					"22"=>"10 PM",
+					"23"=>"11 PM"
+					)));
+				$output->data .= "<p>Hour of the day to execute the report.</p>";
+
+				$output->data .= $this->i("data[execute_dayofweek]", array("id"=>"data[execute_dayofweek]", "div_id"=>"execute_dayofweek_div", "label"=>"Day of Execution", "type"=>"select", "dojoType"=>"dijit.form.FilteringSelect", "default"=>$template['execute_dayofweek'], "options"=>array(
+					"1"=>"Monday",
+					"2"=>"Tuesday",
+					"3"=>"Wednesday",
+					"4"=>"Thursday",
+					"5"=>"Friday",
+					"6"=>"Saturday",
+					"7"=>"Sunday"
+					)));
+				$output->data .= "<p>Day of the week to execute the report.</p>";
+
+				$output->data .= $this->i("data[execute_day]", array("id"=>"data[execute_day]", "div_id"=>"execute_day_div", "label"=>"Date of Execution", "type"=>"select", "dojoType" =>"dijit.form.FilteringSelect", "default"=>$template['execute_day'], "options"=>array(
+					"1"=>"1st",
+					"2"=>"2nd",
+					"3"=>"3rd",
+					"4"=>"4th",
+					"5"=>"5th",
+					"6"=>"6th",
+					"7"=>"7th",
+					"8"=>"8th",
+					"9"=>"9th",
+					"10"=>"10th",
+					"11"=>"11th",
+					"12"=>"12th",
+					"13"=>"13th",
+					"14"=>"14th",
+					"15"=>"15th",
+					"16"=>"16th",
+					"17"=>"17th",
+					"18"=>"18th",
+					"19"=>"19th",
+					"20"=>"20th",
+					"21"=>"21st",
+					"22"=>"22nd",
+					"23"=>"23rd",
+					"24"=>"24th",
+					"25"=>"25th",
+					"26"=>"26th",
+					"27"=>"27th",
+					"28"=>"28th",
+					"29"=>"29th",
+					"30"=>"30th",
+					"31"=>"31st (or last day of month)"
+					)));
+				$output->data .= "<p>Day of the month to execute the report.</p>";
+
+				$output->data .= "
+					<script>
+						dojo.addOnLoad(execution_interval_input_toggle_init);
+
+						function execution_interval_input_toggle_init() {
+							dojo.connect(dojo.byId('data[execution_interval_manually]'), 'onclick', 'execution_interval_input_toggle');
+							dojo.connect(dojo.byId('data[execution_interval_hourly]'), 'onclick', 'execution_interval_input_toggle');
+							dojo.connect(dojo.byId('data[execution_interval_daily]'), 'onclick', 'execution_interval_input_toggle');
+							dojo.connect(dojo.byId('data[execution_interval_weekly]'), 'onclick', 'execution_interval_input_toggle');
+							dojo.connect(dojo.byId('data[execution_interval_monthly]'), 'onclick', 'execution_interval_input_toggle');
+
+							execution_interval_input_toggle();
+						}
+
+						function execution_interval_input_toggle() {
+							var execution_interval_daily = dojo.byId('data[execution_interval_daily]').checked;
+							var execution_interval_weekly = dojo.byId('data[execution_interval_weekly]').checked;
+							var execution_interval_monthly = dojo.byId('data[execution_interval_monthly]').checked;
+
+							var execute_hour_div = dojo.byId('execute_hour_div');
+							var execute_dayofweek_div = dojo.byId('execute_dayofweek_div');
+							var execute_day_div = dojo.byId('execute_day_div');
+
+							//enable all the execution inputs
+							dijit.byId('data[execute_hour]').setDisabled(false);
+							dijit.byId('data[execute_dayofweek]').setDisabled(false);
+							dijit.byId('data[execute_day]').setDisabled(false);
+
+							//make all labels look enabled
+							execute_hour_div.className = execute_hour_div.className.replace('disabled', '');
+							execute_dayofweek_div.className = execute_dayofweek_div.className.replace('disabled', '');
+							execute_day_div.className = execute_day_div.className.replace('disabled', '');
+
+							//if no appropriate interval is selected, disable the hour input
+							if (!execution_interval_daily && !execution_interval_weekly && !execution_interval_monthly) {
+								dijit.byId('data[execute_hour]').setDisabled(true);
+								execute_hour_div.className = execute_hour_div.className+' disabled';
+							}
+
+							//as above, but for the day of week input
+							if (!execution_interval_weekly) {
+								dijit.byId('data[execute_dayofweek]').setDisabled(true);
+								execute_dayofweek_div.className = execute_dayofweek_div.className+' disabled';
+							}
+
+							//as above, but for the day of month input
+							if (!execution_interval_monthly) {
+								dijit.byId('data[execute_day]').setDisabled(true);
+								execute_day_div.className = execute_day_div.className+' disabled';
+							}
+						}
+					</script>
+					";
+
+				$output->data .= "<hr />";
+
+				$output->data .= "<h3>Email Dissemination</h3>";
+				$output->data .= $this->i("data[email_dissemination]", array("label"=>"Disseminate Via Email", "type"=>"checkbox", "default"=>($template['email_dissemination'] == "t")));
+				$output->data .= "<hr />";
+
+				$recipient_selectors = $this->call_function("ALL", "hook_recipient_selector", array($template['email_recipients']));
+
+				$output->data .= "
+					<div style=''>Recipients:</div>
+					<script>
+						dojo.addOnLoad(recipients_count_init);
+
+						var recipient_selectors = ".json_encode(array_keys($recipient_selectors)).";
+
+						function recipients_count_init() {
+							for (var i in recipient_selectors) {
+								recipients_count(null, dojo.byId(recipient_selectors[i]+'_recipients'));
+								dojo.byId(recipient_selectors[i]+'_recipients').onchange = recipients_count;
+							}
+						}
+
+						function recipients_count(e, o) {
+							if (e) {
+								var object = e.currentTarget;
+							} else if (o) {
+								var object = o;
+							}
+
+							if (object.id == 'tabular_recipients') {
+								var emails = object.value;
+								emails = emails.replace(' ', '');
+
+								if (emails.length > 0) {
+									emails = emails.split(',');
+								}
+
+								if (emails.length === 1) {
+									var count_text = '1 recipient';
+								} else {
+									var count_text = (emails.length)+' recipients';
+								}
+
+								dojo.byId(object.id+'_count').innerHTML = count_text;
+							} else {
+							}
+						}
+					</script>
+					";
+
+				$output->data .= implode("\n", $recipient_selectors);
+				$output->data .= "<p>This should be a comma seperated list of email addresses.</p>";
+
+				$output->data .= $this->i("data[email_subject]", array("label"=>"Message Subject", "type"=>"text", "default"=>$template['email_subject'], "dojo"=>"dijit.form.TextBox"));
+
+				$output->data .= $this->i("data[email_body]", array("label"=>"Message Body", "type"=>"wysiwyg", "default"=>$template['email_body'], "parent_form"=>"execution_form"));
+				$output->data .= "<p>The following placeholders can be used to dynamically update the header and footer at runtime. %name, %desc, %run, %by, %size</p>";
+				$output->data .= "<hr />";
+
+				$output->data .= $this->i("submit", array("label"=>"Edit", "type"=>"submit", "value"=>"Edit", "dojoType"=>"dijit.form.Button"));
+
+				$output->data .= $this->f_close();
+				break;
+			case "access":
+				$output->title = "Access";
+				$output->title_desc = "";
+
+				$output->data .= $this->f("tabular/save/".$this->id."/accesssubmit");
+				$output->data .=  $blah['acl_markup'];
+				$output->data .= $this->i("submit", array("label"=>"Save", "type"=>"submit", "value"=>"Save", "dojoType"=>"dijit.form.Button"));
+				$output->data .= $this->f_close();
+				break;
+		}
 		return $output;
 	}
-	
-// 	function view_add_columns($columns) {
-// 		$output->layout = 'ajax';
-// 		$output->title = "Select Report Columns";
-// 		$output->data .= "<div dojoType='dojo.data.ItemFileReadStore' url='".$this->webroot()."listing/sort_dd_json' jsId='sort_store'></div>";
-// 		$output->data .= "<p class='description'>Select the fields that will make up the report by dragging the appropriate columns from the list of tables on the left to the space below. </p>";
-// 		$output->data .= "<p class='description'>Once dropped you can click on the field to change the sort order or make that field optional in the output (i.e. if it does not exist in the database it will output an empty field)</p>";
-// 		$output->data .= "<table id='columns' class='columns template'>";
-// 		$output->data .= "<tr><th>Column</th>
-// 		<th>Sort By</th>
-// 		<th>Optional Value</th>
-// 		<th></th>
-// 		</tr>";
-// 		$output->data .= "<tr style='height: 25px;'><td colspan='5' class='columns' dojoType='dojo.dnd.Target'>
-// 		<p class='description drop'>Drop the columns here.</p></td></tr>";
-// 		if (is_array($columns)) {
-// 			foreach ($columns as $i => $column) {
-// 				$opt = $column['optional'] == "t" ? true : false;
-// 				$output->data .= "<tr id='row_".$column['column_id']."' style='height: 25px;'>
-// 				<td class='column'>".$column['chuman']."</td>
-// 				<td class='sort'>".$this->i("sort", array("id"=>"sort_".$column['column_id'], "type"=>"text", "dojoType"=>"dijit.form.FilteringSelect", "label"=>false, "store"=>"sort_store", "default"=>$column['sort'], "onChange"=>"save_template()"))."</td>
-// 				<td class='optional'>".$this->i("optional", array("id"=>"optional_".$column['column_id'], "type"=>"checkbox", "dojoType"=>"dijit.form.CheckBox", "label"=>false, "default"=>$column['value'], "onChange"=>"save_template()"))."</td>
-// 				<td class='remove'>".$this->i("remove", array("id"=>"remove_".$column['column_id'], "type"=>"button", "dojoType"=>"dijit.form.Button", "label"=>"Remove", "onClick"=>"remove_column(this)"))."</td>
-// 				</tr>";
-// 			}
-// 		}
-// 		$output->data .= "</table>\n";
-// // 		$output->data .= "<script type='javascript'>create_cells();</script>";
-// 		return $output;
-// 	}
-	
-// 	function view_add_style() {
-// 		$output->layout = 'ajax';
-// 		$output->title = "Style Output";
-// 		$output->data .= "<p class='description'>You can click on the field to change the label, choose whether to display the label or not, hide duplicated values in following rows, display a subtotal when the value in a row changes, and finally select the size and style to display the text with.</p>";
-// 		$output->data .= "<div id='style' class='style template'>
-// 		</div>\n";
-// 		$output->data .= "<script type='javascript'>create_cells();</script>";
-// 		return $output;
-// 	}
-//
-// 	function view_add_group($columns) {
-// 		$output->layout = 'ajax';
-// 		$output->title = "Group Results";
-// 		$output->data .= "<div dojoType='dojo.data.ItemFileReadStore' url='".$this->webroot()."listing/aggregate_dd_json' jsId='agg_store'></div>";
-// 		$output->data .= "<p class='description'>Group the results of any column together. This will replace the field in the output with either the number of values, the sum of all the values, or the maximum/minimum of the values.</p>";
-// 		$output->data .= "<table id='group' class='group template'>";
-// 		$output->data .= "<tr><th>Column</th>
-// 		<th>Aggregate</th>
-// 		</tr>";
-// 		if (is_array($columns)) {
-// 			foreach ($columns as $i => $column) {
-// 				$output->data .= "<tr><td>".$column['chuman']."</td>";
-// 				$output->data .= "<td class='type'>".$this->i("aggregate", array("id"=>"aggregate_".$column['column_id'], "type"=>"text", "dojoType"=>"dijit.form.FilteringSelect", "label"=>false, "store"=>'agg_store', "default"=>$column['aggregate'], "onChange"=>"save_template()"))."</td></tr>";
-// 			}
-// 		}
-// 		$output->data .= "</table>\n";
-// // 		$output->data .= "<script type='javascript'>create_cells();</script>";
-// 		return $output;
-// 	}
-	
-// 	function view_display_table($tables, $template) {
-// 		$output->layout = 'ajax';
-// 		$output->data .= "<div dojoType='dojo.data.ItemFileReadStore' url='".$this->webroot()."listing/tables_json/".$this->id."' jsId='template'></div>";
-// 		#$output->data = "<div style='display:none;' id='holding_cellA'>";
-// 		#foreach ($tables['catalogue'] as $i => $columns) {
-// 		#	foreach ($columns as $i => $column) {
-// 		#		$output->data .= "".$this->wrap_table_column($column['column_id'], $column['column_name'])."";
-// 		#	}
-// 		#}
-// 		#$output->data .= "</div>";
-// 		$output->data .= "<table id='demo' style='width: 150px;'>
-// 		<thead>
-// 		<tr>
-// 		";
-// 		#if (is_array($template)) {
-// 		#	foreach ($template as $i => $temp) {
-// 		#		$output->data .= "<th class='columns' dojoType='dojo.dnd.Target' id='th_".$i."' ><li class='dojoDndItem'>".$this->wrap_table_column($temp['column_id'], $temp['chuman'], $temp)."</li></th>";
-// 		#	}
-// 		#}
-// 		$output->data .= "<th class='columns' dojoType='dojo.dnd.Source' id='th_".($i+1)."' ></th>
-// 		</tr>
-// 		</thead>
-// 		<tbody id='demo_body' >
-// 		</tbody>
-// 		</table>
-// 		<script>create_cells();save_template();</script>";
-// 		$output->data .= $this->f_close();
-// 		return $output;
-// 	}
 	
 	function view_save($data, $template) {
 		$output->layout = "ajax";
 		$output->data = "";
 		return $output;
 	}
-	
-// 	function view_run($template, $constraints) {
-// 		$skip = true;
-// 		$output->data .= $this->f('listing/run/'.$this->id);
-// 		if (is_array($constraints)) {
-// 			/* Iterate through all the constraints in the report */
-// 			foreach ($constraints as $i => $constraint) {
-// 				/* If the constraint can be modifified by the user at run time */
-// 				if ($constraint['choose'] == "t") {
-// 					/* Ignore pre populated constraints - see $_REQUEST variable */
-// 					if ($_REQUEST["data"][$constraint['list_constraints_id']]) {
-// 						$constraints[$i]['value'] = $_REQUEST["data"][$constraint['list_constraints_id']];
-// 					} else {
-// 						$skip = false;
-// 						$output->title = "Report Parameters";
-// 						/* Automatically build the form with all the constraint options */
-// 						$output->data .= $this->i("data[constraint][".$constraint['list_constraints_id']."]", array("dojoType"=>"dijit.form.TextBox", "type"=>"text", "label"=>$constraint['chuman']." ".$constraint['type'], "default"=>$constraint['value']));
-// 					}
-// 				}
-// 			}
-// 		}
-// 		$output->data .= $this->submit("Next");
-// 		$output->data .= $this->f_close();
-// 		$output->data = "<div style='overflow:auto;' layoutAlign='client' dojoType='dojox.layout.ContentPane'>".$output->data."</div>";
-// 		/* Only return the HTML if there is a form to fill out, otherwise return false */
-// 		if ($skip == false) {
-// 			return $output;
-// 		} else {
-// 			return $skip;
-// 		}
-// 	}
 	
 	function hook_output($results, $template, $demo=false, $now=false, $show_header_footer=true) {
 		$odd = "";
@@ -1451,22 +1641,6 @@ class Listing_View extends Template_View {
 		}
 		return $output;
 	}
-	
-// 	function view_tables_json($tables) {
-// 		$output->layout = 'ajax';
-// 		$output->data = "{
-// 	identifier:'list_template_id',
-// 	items: [";
-// 	$opt = array();
-// 	foreach ($tables as $i => $option) {
-// 		$opt[] = "{list_template_id: '".$option['list_template_id']."', column_id: '".$option['column_id']."', level: '".$option['level']."', duplicates: '".$option['duplicates']."', style: '".$option['style']."', display_label: '".$option['display_label']."', indent_cells: '".$option['indent_cells']."', subtotal: '".$option['subtotal']."', sort: '".$option['sort']."', aggregate: '".$option['aggregate']."', label: '".$option['label']."', optional: '".$option['optional']."', col_order: '".$option['col_order']."', chuman: '".$option['chuman']."', column: '".$option['column']."'}";
-// 	}
-// 	$output->data .= implode(",", $opt);
-// 	$output->data .= "]
-// }
-// 		";
-// 		return $output;
-// 	}
 }
 
 

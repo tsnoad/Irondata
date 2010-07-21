@@ -34,59 +34,93 @@ class Graphing extends Template {
 	var $description = "Generate graphs from tabular and list data.";
 
 	var $line_colors = array(
-		array("#3465a4", "#3465a4", "8,8"), 
-		array("#73d216", "#73d216", "8,8"), 
-		array("#cc0000", "#cc0000", "8,8"), 
-		array("#f57900", "#f57900", "8,8"), 
-		array("#75507b", "#75507b", "8,8"), 
+		array("#3465a4", "#3465a4", "8,8"),
+		array("#73d216", "#73d216", "8,8"),
+		array("#cc0000", "#cc0000", "8,8"),
+		array("#f57900", "#f57900", "8,8"),
+		array("#75507b", "#75507b", "8,8"),
 
-		array("#204a87", "#729fcf", "8,8"), 
-		array("#8ae234", "#4e9a06", "8,8"), 
-		array("#ef2929", "#a40000", "8,8"), 
-		array("#fcaf3e", "#ce5c00", "8,8"), 
-		array("#ad7fa8", "#5c3566", "8,8"), 
+		array("#204a87", "#729fcf", "8,8"),
+		array("#8ae234", "#4e9a06", "8,8"),
+		array("#ef2929", "#a40000", "8,8"),
+		array("#fcaf3e", "#ce5c00", "8,8"),
+		array("#ad7fa8", "#5c3566", "8,8"),
 
-		array("#204a87", "#729fcf", "4,16"), 
-		array("#8ae234", "#4e9a06", "4,16"), 
-		array("#ef2929", "#a40000", "4,16"), 
-		array("#fcaf3e", "#ce5c00", "4,16"), 
-		array("#ad7fa8", "#5c3566", "4,16"), 
+		array("#204a87", "#729fcf", "4,16"),
+		array("#8ae234", "#4e9a06", "4,16"),
+		array("#ef2929", "#a40000", "4,16"),
+		array("#fcaf3e", "#ce5c00", "4,16"),
+		array("#ad7fa8", "#5c3566", "4,16"),
 
-		array("#204a87", "#729fcf", "16,4"), 
-		array("#8ae234", "#4e9a06", "16,4"), 
+		array("#204a87", "#729fcf", "16,4"),
+		array("#8ae234", "#4e9a06", "16,4"),
 		array("#ef2929", "#a40000", "16,4"),
-		array("#fcaf3e", "#ce5c00", "16,4"), 
+		array("#fcaf3e", "#ce5c00", "16,4"),
 		array("#ad7fa8", "#5c3566", "16,4")
 		);
 
 	var $bar_colors = array(
-		array("#204a87", "#3465a4", ""), 
-		array("#4e9a06", "#73d216", ""), 
-		array("#a40000", "#cc0000", ""), 
-		array("#ce5c00", "#f57900", ""), 
-		array("#5c3566", "#75507b", ""), 
+		array("#204a87", "#3465a4", ""),
+		array("#4e9a06", "#73d216", ""),
+		array("#a40000", "#cc0000", ""),
+		array("#ce5c00", "#f57900", ""),
+		array("#5c3566", "#75507b", ""),
 
-		array("#204a87", "#3465a4", "8,8"), 
-		array("#4e9a06", "#73d216", "8,8"), 
-		array("#a40000", "#cc0000", "8,8"), 
-		array("#ce5c00", "#f57900", "8,8"), 
-		array("#5c3566", "#75507b", "8,8"), 
+		array("#204a87", "#3465a4", "8,8"),
+		array("#4e9a06", "#73d216", "8,8"),
+		array("#a40000", "#cc0000", "8,8"),
+		array("#ce5c00", "#f57900", "8,8"),
+		array("#5c3566", "#75507b", "8,8"),
 
-		array("#204a87", "#3465a4", "4,16"), 
-		array("#4e9a06", "#73d216", "4,16"), 
-		array("#a40000", "#cc0000", "4,16"), 
-		array("#ce5c00", "#f57900", "4,16"), 
-		array("#5c3566", "#75507b", "4,16"), 
+		array("#204a87", "#3465a4", "4,16"),
+		array("#4e9a06", "#73d216", "4,16"),
+		array("#a40000", "#cc0000", "4,16"),
+		array("#ce5c00", "#f57900", "4,16"),
+		array("#5c3566", "#75507b", "4,16"),
 
-		array("#204a87", "#3465a4", "16,4"), 
-		array("#4e9a06", "#73d216", "16,4"), 
-		array("#a40000", "#cc0000", "16,4"), 
-		array("#ce5c00", "#f57900", "16,4"), 
+		array("#204a87", "#3465a4", "16,4"),
+		array("#4e9a06", "#73d216", "16,4"),
+		array("#a40000", "#cc0000", "16,4"),
+		array("#ce5c00", "#f57900", "16,4"),
 		array("#5c3566", "#75507b", "16,4")
 		);
 
 	var $show_layout = false;
-
+	
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//admin will automatically have access. No need to specify
+		switch ($data['function']) {
+			case "hook_admin_tools":
+			case "hook_roles":
+				if (isset($data['acls']['system']['admin'])) {
+					return true;
+				}
+				break;
+			default:
+				//only people with permission to create reports can access these functions
+				if (isset($data['acls']['system']['login'])) {
+					return true;
+				}
+				return false;
+				break;
+		}
+		return false;
+	}
+	
+	/**
+	 * Overwrite hook_top_menu in Template.php - this module should have no top menu
+	 *
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::hook_top_menu()
+	 */
+	function hook_top_menu() {
+		return null;
+	}
+	
 	function hook_admin_tools() {
 		return null;
 	}
@@ -441,13 +475,13 @@ class Graphing extends Template {
 				$max_c = 0;
 			}
 
-			//create a index for the intersection - this will appear as the y axis on the graph. 
+			//create a index for the intersection - this will appear as the y axis on the graph.
 			//there are only three visual indices. the minimum, maximum and mid-point.
 			$c_index[] = $min_c;
 			$c_index[] = $min_c + (($max_c - $min_c) / 2);
 			$c_index[] = $max_c;
 		} else {
-			//create a index for the intersection - this will appear as the y axis on the graph. 
+			//create a index for the intersection - this will appear as the y axis on the graph.
 			//there are only three visual indices. the minimum, maximum and mid-point.
 			$c_index[] = 0;
 			$c_index[] = 5;
@@ -1161,69 +1195,69 @@ class Graphing extends Template {
 // 			<br />
 // 			<span>Skoo</span><br />
 // 			";
-// 
+//
 // 		$header = str_replace("\n", "", $header);
 // 		$header = str_replace("\t", "", $header);
-// 
+//
 // 		$header_tmp = explode("<br />", $header);
-// 
+//
 // 		$row_index = 0;
-// 
+//
 // 		foreach ($header_tmp as $header_row) {
 // 			preg_match_all("/font\-size: ([0-9]+)pt;/", $header_row, &$matches);
-// 
+//
 // 			if (!empty($matches[1])) {
 // 				$font_height_pt = max($matches[1]);
 // 			} else {
 // 				$font_height_pt = 10;
 // 			}
-// 
+//
 // 			$font_height_px = $font_height_pt * 1.7 / 2;
-// 
+//
 // 			$line_height_px = $font_height_px * 1.8;
-// 
+//
 // 			if (preg_match("/\%logo/", $header_row, &$matches)) {
 // 				$logo_path = "/tmp/graphs/logo.png";
 // 				list($image_width, $image_height) = getimagesize($logo_path);
-// 
+//
 // 				if ($image_height > $line_height_px) {
 // 					$line_height_px = $image_height + 10;
 // 				}
-// 
+//
 // 				$header_row_images[$row_index] = $logo_path;
 // 			}
-// 
+//
 // 			$header_rows[$row_index] = $header_row;
 // 			$header_font_heights[$row_index] = $font_height_px;
 // 			$header_line_heights[$row_index] = $line_height_px;
-// 
+//
 // 			$row_index ++;
 // 		}
-// 
+//
 // 		unset($header);
-// 
+//
 // 		foreach ($header_rows as $i => $header_row) {
 // 			$header_row_tmp = $header_row;
 // 			$header_row_tmp = preg_replace("/\<span\>(.*?)\<\/span\>/", "<tspan>$1</tspan>", $header_row_tmp);
 // 			$header_row_tmp = preg_replace("/\<span style\=\'(.*?)\'\>(.*?)\<\/span\>/", "<tspan style='$1'>$2</tspan>", $header_row_tmp);
-// 
+//
 // 			$font_height = array_sum($header_heights);
 // 			$header_heights[] = $header_line_heights[$i];
-// 
+//
 // 			$header .= "<rect x='0' y='$font_height' width='100' height='".$header_line_heights[$i]."' style='fill: red; opacity: 0.5;' />";
-// 
+//
 // 			if (!empty($header_row_images[$i])) {
 // 				$header .= "<image x='0' y='$font_height' width='48' height='48' xlink:href='".$header_row_images[$i]."' />";
 // 			} else {
 // 				$font_height += $header_line_heights[$i];
 // 				$font_height -= $header_font_heights[$i];
-// 
+//
 // 				$header .= "<text x='0' y='$font_height'>$header_row_tmp</text>";
 // 			}
 // 		}
-// 
+//
 // 		$header_height = array_sum($header_heights);
-// 
+//
 // 		$header = "
 // 			<g style='font-family: Georgia; font-size: 10pt;'>
 // 				$header

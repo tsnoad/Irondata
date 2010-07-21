@@ -24,7 +24,7 @@
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 
 class Search extends Modules {
@@ -38,6 +38,18 @@ class Search extends Modules {
 	var $name = "Search";
 	var $description = "Basic report search functionality.";
 	var $module_group = "Other";
+
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//any logged in user may access the help
+		if (isset($data['acls']['system']['login'])) {
+			return true;
+		}
+		return false;
+	}
 	
 	function hook_pagetitle() {
 		return "Seach";
@@ -96,17 +108,6 @@ class Search extends Modules {
 				}";
 	}
 
-	function hook_header() {
-		return
-			"<span class=\"search_span\">".
-				"<span class=\"search_text\">search: </span>".
-				"<form class=\"search_form\" onSubmit='window.document.location=\"".$this->webroot()."search/home/\"+window.document.getElementById(\"search\").value; return false;'>".
-					"<input class=\"search_input\" id='search' type='text' value='' />".
-					"<input class=\"search_submit\" type='submit' value='search' />".
-				"</form>".
-			"</span>";
-	}
-
 	function hook_workspace() {
 		return array("title"=>"Search Workspace", "path"=>"".$this->webroot()."search/workspace_display/".$this->id);
 	}
@@ -128,13 +129,24 @@ class Search extends Modules {
 		$this->action = $url[1];
 	}
 	
-	/* The Top Menu hook function. 
-	 * Displays the module in the main menu. Or menu of primary functions. 
+	/* The Top Menu hook function.
+	 * Displays the module in the main menu. Or menu of primary functions.
 	 */
 	function hook_top_menu() {
 		return array(
-			"search" => $this->l("search/home", "Search", "class='disabled'")
+			"search" => array($this->l("search/home", "Search", "class='disabled'"), 1)
 			);
+		/*
+		 * 		return
+			"<span class=\"search_span\">".
+				"<span class=\"search_text\">search: </span>".
+				"<form class=\"search_form\" onSubmit='window.document.location=\"".$this->webroot()."search/home/\"+window.document.getElementById(\"search\").value; return false;'>".
+					"<input class=\"search_input\" id='search' type='text' value='' />".
+					"<input class=\"search_submit\" type='submit' value='search' />".
+				"</form>".
+			"</span>";
+
+		 */
 	}
 
 	function view_home() {

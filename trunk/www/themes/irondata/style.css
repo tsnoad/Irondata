@@ -101,6 +101,12 @@ h1 {
 		font-style: italic;
 		text-align: center;
 	}
+
+.error {
+	color: darkred;
+	text-align: center;
+}
+
 h2 {
 	margin: 20px 0px;
 	font-size: 18pt;

@@ -20,17 +20,50 @@
 /**
  * Catalogue.php
  *
- * The Catalogue module. 
+ * The Catalogue module.
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 class Catalogue extends Modules {
 	var $dobj;
 	var $name = "Metabase";
 	var $description = "The catalogue or metabase. This controls Irondata and describes the databases that are available to it.";
 	var $module_group = "Core";
+	
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//admin will automatically have access. No need to specify
+		switch ($data['function']) {
+			case "hook_roles":
+				if (isset($data['acls']['system']['admin'])) {
+					return true;
+				}
+				return false;
+				break;
+			case "hook_query_source":
+			case "get_database":
+			case "get_databases":
+			case "get_tables":
+			case "get_structure":
+			case "get_columns":
+				// these can be called by other modules
+				return true;
+				break;
+			default:
+				//only people with permission to manage the catalogue can access these functions
+				if (isset($data['acls']['system']['managecatalogue'])) {
+					return true;
+				}
+				return false;
+				break;
+		}
+		return false;
+	}
 	
 	function hook_pagetitle() {
 		return "Metabase";
@@ -40,7 +73,17 @@ class Catalogue extends Modules {
 		return array("title"=>"Metabase Workspace", "path"=>"".$this->webroot()."catalogue/display");
 	}
 	
-	/* The Query Source hook function. 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_roles()
+	 */
+	function hook_roles() {
+		return array(
+			"managecatalogue" => array("Manage the Catalogue", "")
+		);
+	}
+	
+	/* The Query Source hook function.
 	 * Sends the query from the report generator to the source database.
 	 */
 	function hook_query_source($object_id, $query) {
@@ -58,12 +101,12 @@ class Catalogue extends Modules {
 		return $res;
 	}
 
-	/* The Top Menu hook function. 
-	 * Displays the module in the main menu. Or menu of primary functions. 
+	/* The Top Menu hook function.
+	 * Displays the module in the main menu. Or menu of primary functions.
 	 */
 	function hook_top_menu() {
 		return array(
-			"databases" => $this->l("catalogue/home", "Databases")
+			"databases" => array($this->l("catalogue/home", "Databases"), 2)
 			);
 	}
 
@@ -120,15 +163,15 @@ class Catalogue extends Modules {
 
 // 		if ($method_reorg[0] != $selected_column_id) {
 // 			$column = $columns[$selected_column_id];
-// 
+//
 // 			$foobar .= "<span style='font-weight: bold;'>";
 // 			$foobar .= ucwords($column['table_name']);
 // 			$foobar .= ".";
 // 			$foobar .= ucwords($column['column_name']);
 // 			$foobar .= "</span>";
-// 
+//
 // 			$foobar .= " &#x21C4; ";
-// 
+//
 // // 			$explaination_tmp .= "via a self referential join, ";
 // // 			$explaination_count += 1;
 // // 			$explaination_sr_count += 1;
@@ -169,15 +212,15 @@ class Catalogue extends Modules {
 
 // 		if (end($method_reorg) != $intersection_column_id) {
 // 			$foobar .= " &#x21C4; ";
-// 
+//
 // 			$column = $columns[$intersection_column_id];
-// 
+//
 // 			$foobar .= "<span style='font-weight: bold;'>";
 // 			$foobar .= ucwords($column['table_name']);
 // 			$foobar .= ".";
 // 			$foobar .= ucwords($column['column_name']);
 // 			$foobar .= "</span>";
-// 
+//
 // // 			$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_sr_count > 0 ? "another" : "a")." self referential join, ";
 // // 			$explaination_count += 1;
 // // 			$explaination_sr_count += 1;
@@ -192,7 +235,7 @@ class Catalogue extends Modules {
 		return $foobar;
 	}
 
-	/* View Display 
+	/* View Display
 	 * Displays the list of available databases in the catalogue.
 	 */
 	function view_display() {
@@ -208,6 +251,7 @@ class Catalogue extends Modules {
 	}
 
 	function edit_database_validate($db, $obj) {
+		$error = array();
 		if (empty($db['name'])) {
 			$error['name'] = "Please enter a database name.";
 		}
@@ -217,12 +261,6 @@ class Catalogue extends Modules {
 		if (empty($db['host'])) {
 			$error['host'] = "Please enter the database host location.";
 		}
-// 		if (empty($db['username'])) {
-// 			$error['username'] = "Please enter the database username.";
-// 		}
-// 		if (empty($db['password'])) {
-// 			$error['password'] = "Please enter the database password.";
-// 		}
 
 		if (empty($error)) {
 			$test_connection = $this->call_function($obj['type'], "test_connection", array($db));
@@ -235,11 +273,11 @@ class Catalogue extends Modules {
 		return $error;
 	}
 	
-	/* View Add 
+	/* View Add
 	 * Displays the basic add database form. Most modules will provide their own version of this form.
 	 */
 	function view_add($type="pgsql") {
-		if ($_REQUEST['data']) {
+		if (isset($_REQUEST['data'])) {
 			$obj = array();
 			$obj['name'] = $_REQUEST['data']['name'];
 			$obj['type'] = "pgsql";
@@ -351,7 +389,7 @@ class Catalogue extends Modules {
 		}
 	}
 	
-	/** View Database 
+	/** View Database
 	 * Displays the list of tables within the database
 	 */
 	function view_edit_columns() {
@@ -529,6 +567,7 @@ class Catalogue extends Modules {
 		$this->dobj->db_query($query);
 		return $id;
 	}
+
 	function get_columns($table_id) {
 		$query = "SELECT * FROM columns c WHERE table_id='".$table_id."';";
 		$columns = $this->dobj->db_fetch_all($this->dobj->db_query($query));
@@ -549,12 +588,8 @@ class Catalogue extends Modules {
 			$id = $this->id;
 		}
 
-		if (!empty($data['available'])) {
-			$data['available'] = ($data['available'] == "on" ? "t" : "f");
-		}
-		if (!empty($data['dropdown'])) {
-			$data['dropdown'] = ($data['dropdown'] == "on" ? "t" : "f");
-		}
+		$data['available'] = isset($data['available']) ? "t" : "f";
+		$data['dropdown'] = isset($data['dropdown']) ? "t" : "f";
 
 		$query = $this->dobj->update($data, "column_id", $id, "columns");
 		$this->dobj->db_query($query);
@@ -583,7 +618,7 @@ class Catalogue extends Modules {
 // 		if ($this->id) {
 // 			$this->dobj->db_query("UPDATE columns SET available=true WHERE table_id IN (SELECT table_id FROM tables WHERE database_id='".$this->id."');");
 // 		}
-// 
+//
 // 		$this->redirect("catalogue/edit/".$this->id);
 	}
 	
@@ -607,7 +642,7 @@ class Catalogue extends Modules {
 
 Class Catalogue_View {
 	
-	/* View Display 
+	/* View Display
 	 * Displays the list of available databases in the catalogue.
 	 */
 	function view_display($dbs) {
@@ -641,7 +676,7 @@ Class Catalogue_View {
 		return $output;
 	}
 
-	/* View Add 
+	/* View Add
 	 * Displays the basic add database form. Most modules will provide their own version of this form.
 	 */
 	function view_add_edit($dbs, $error=null) {
@@ -723,7 +758,7 @@ Class Catalogue_View {
 	function view_edit() {
 	}
 	
-	/* View Database 
+	/* View Database
 	 * Displays the list of tables within the database
 	 */
 	function view_edit_columns($dbs, $tables, $columns, $joins, $type) {

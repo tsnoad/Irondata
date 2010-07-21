@@ -33,12 +33,43 @@ class User extends Modules {
 	var $description = "User and group management";
 	var $module_group = "Core";
 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		switch ($data['function']) {
+			case "hook_top_menu":
+			case "hook_pagetitle":
+			case "hook_auth":
+			case "hook_login":
+			case "hook_login_priority":
+			case "view_login":
+			case "view_logout":
+			case "set_session_report_acls":
+			case "hook_access_users":
+				// The login / logout pages and links always available
+				if (isset($data['acls']['system']['login'])) {
+					return true;
+				}
+				return false;
+				break;
+			default:
+				if (isset($data['acls']['system']['admin'])) {
+					return true;
+				}
+				return false;
+				break;
+		}
+		return false;
+	}
+	
 	/* The Top Menu hook function.
 	 * Displays the module in the main menu. Or menu of primary functions.
 	 */
 	function hook_top_menu() {
 		return array(
-			"logout" => $this->l("user/logout", "Logout")
+			"logout" => array($this->l("user/logout", "Logout"), 4)
 			);
 	}
 
@@ -52,10 +83,6 @@ class User extends Modules {
 		$admin_tools[] = array("user/access", "Access");
 // 		$admin_tools[] = array("user/default_access", "Default Access - New User");
 		return $admin_tools;
-	}
-
-	function hook_header() {
-		return $this->l("user/logout", "Logout");
 	}
 
 	function hook_roles() {
@@ -80,12 +107,232 @@ class User extends Modules {
 		return null;
 	}
 
-// 	function view_permissions() {
-// 		$permissions = $this->call_function("ALL", "hook_roles");
-// 		$output = User_View::view_permissions($permissions);
-// 		return $output;
-// 	}
+	function hook_auth() {
+		if (session_id() == "") {
+			session_start();
+		}
+		/* Skip login views */
+		if (
+			($this->module == 'user' && $this->action == 'login') ||
+			($this->module == 'admin' && $this->action == 'run_background') ||
+			($this->module == 'cron')
+		) {
+			return true;
+		}
+		if (!$_SESSION['user']) {
+			$_SESSION['premodule'] = $this->module;
+			$_SESSION['preaction'] = $this->action;
+			$this->redirect('user/login');
+			die();
+			return false;
+		} else {
+			return true;
+		}
+	}
 
+	/**
+	 * Called by User::view_login. Attempts to check the provided login details against users stored in the database. If successful, saves the user's details and acl to the session variable and redirects to the appropriate page.
+	 */
+	function hook_login($usr=null, $pwd=null) {
+		$user = "SELECT * FROM users WHERE user_id='".$usr."'";
+		$user = $this->dobj->db_fetch($this->dobj->db_query($user));
+
+		//if the provided password matches the one in the database
+		if ($user['password'] == md5($pwd)) {
+			//get permissions for the user and their groups
+			$sys_acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM system_acls_users WHERE user_id='".$usr."' AND access=true;"));
+			$sys_acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT g.* FROM users_groups ug INNER JOIN system_acls_groups g ON (g.group_id=ug.group_id) WHERE ug.user_id='".$usr."' AND g.access=true;"));
+
+			//convert the user's and user's groups acls into a single array telling if the user has permission or not for each role.
+			$sys_acls_query = array_merge((array)$sys_acls_users_query, (array)$sys_acls_groups_query);
+			foreach ($sys_acls_query as $acl_tmp) {
+				if (empty($acl_tmp)) continue;
+
+				$role_id = $acl_tmp['role'];
+
+				$acls['system'][$role_id] = true;
+			}
+
+			//save in the session
+			$_SESSION['user'] = "user_".$user['user_id'];
+			$_SESSION['acls']['system'] = $acls['system'];
+
+			//set the report acl
+			$this->call_function("user", "set_session_report_acls", array());
+
+			//redirect to front page or last page
+			if (isset($_SESSION['premodule']) && isset($_SESSION['preaction'])) {
+				$this->redirect($_SESSION['premodule'].'/'.$_SESSION['preaction']);
+			} else {
+				$this->redirect('/');
+			}
+		}
+	}
+
+	/**
+	 * Always try to log in with the user module first: The database is faster than ldap.
+	 */
+	function hook_login_priority() {
+		return array(1, false);
+	}
+
+	/**
+	 * Called by User::view_access to fetch users, groups, group memberships by user - then translate them to usable arrays for the acl.
+	 */
+	function hook_access_users() {
+		//get data from the database
+		$users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM users;"));
+		$groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM groups;"));
+		$users_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM users_groups;"));
+
+		//rekey by group id
+		foreach ($groups_query as $group) {
+			$group_name = $group['group_id'];
+			$group_id = "user_".$group_name;
+			
+			$groups[$group_id] = $group_name;
+
+			//no one should be able to revoke the admin user's permissions
+			if ($group_id == "user_admin") {
+				$disabled['groups'][$group_id] = true;
+			}
+		}
+
+		//rekey by user id
+		foreach ($users_query as $user) {
+			$user_id = "user_".$user['user_id'];
+			$user_name = $user['given_names']." ".$user['family_name'];
+
+			$users[$user_id] = $user_name;
+
+			//no one should be able to revoke the admin group's permissions
+			if ($user_id == "user_admin") {
+				$disabled['users'][$user_id] = true;
+			}
+		}
+
+		//create an array of group memberships by user_id
+		foreach ($users_groups_query as $user_group) {
+			$user_id = "user_".$user_group['user_id'];
+			$group_id = "user_".$user_group['group_id'];
+
+			$users_groups[$user_id][] = $group_id;
+		}
+
+		return array(
+			"users" => $users,
+			"groups" => $groups,
+			"users_groups" => $users_groups,
+			"disabled" => $disabled
+			);
+	}
+
+	/**
+	 * Called by User::view_access to fetch user and group acls
+	 */
+	function hook_access_acls() {
+		//get data from the database
+		$acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT 'user_'||user_id as user_id, role, access FROM system_acls_users WHERE access=true;"));
+		$acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT 'user_'||group_id as group_id, role, access FROM system_acls_groups WHERE access=true;"));
+
+		return array(
+			"acls" => array(
+				"users" => $acls_users_query,
+				"groups" => $acls_groups_query
+				)
+			);
+	}
+
+	/**
+	 * Called by User::view_access_submit to save edited acl
+	 */
+	function hook_access_submit($acls) {
+		//get existing aces from the database
+		$acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT user_id as user_id, role, access FROM system_acls_users WHERE access=true;"));
+		$acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT group_id as group_id, role, access FROM system_acls_groups WHERE access=true;"));
+
+		//convert acl into a readable array. from this we remove the aces that are unchanged. then we can delete the aces that are no longer selected
+		foreach (array("users" => $acls_users_query, "groups" => $acls_groups_query) as $users_meta_key => $acls_delete_tmp) {
+			if (!empty($acls_delete_tmp)) {
+				foreach ($acls_delete_tmp as $acl_delete_tmp) {
+					if ($users_meta_key == "users") {
+						$user_id = $acl_delete_tmp['user_id'];
+					} else if ($users_meta_key == "groups") {
+						$user_id = $acl_delete_tmp['group_id'];
+					}
+
+					if ($user_id == "admin") continue;
+
+					$role_id = $acl_delete_tmp['role'];
+
+					$acls_delete[$users_meta_key][$user_id][$role_id] = true;
+				}
+			}
+		}
+
+		//loop through data we got back from the form
+		if (!empty($acls)) {
+			foreach ($acls as $users_meta_key => $users) {
+				foreach ($users as $user_id => $roles) {
+					//if this user isn't a database user, ignore
+					if (substr($user_id, 0, 5) != "user_") continue;
+
+					$user_id = substr($user_id, 5);
+
+					foreach ($roles as $role_id => $access) {
+						//if the current ace does not exist in the old acl, then add it to the list of new aces
+						if (empty($acls_delete[$users_meta_key][$user_id][$role_id])) {
+							$acls_insert[$users_meta_key][$user_id][$role_id] = true;
+						//otherwise the ace has not been changed: remove it from the list of aces to delete
+						} else {
+							unset($acls_delete[$users_meta_key][$user_id][$role_id]);
+						}
+					}
+				}
+			}
+		}
+
+		//loop through the list of aces to remove
+		if (!empty($acls_delete)) {
+			foreach ($acls_delete as $users_meta_key => $users) {
+				foreach ($users as $user_id => $roles) {
+					foreach ($roles as $role_id => $access) {
+						if (empty($access)) continue;
+
+						if ($users_meta_key == "users") {
+							//remove ace from the database
+							$this->dobj->db_query("DELETE FROM system_acls_users WHERE user_id='$user_id' AND role='$role_id';");
+						} else if ($users_meta_key == "groups") {
+							//remove ace from the database
+							$this->dobj->db_query("DELETE FROM system_acls_groups WHERE group_id='$user_id' AND role='$role_id';");
+						}
+					}
+				}
+			}
+		}
+
+		//loop through the list of aces to add
+		if (!empty($acls_insert)) {
+			foreach ($acls_insert as $users_meta_key => $users) {
+				foreach ($users as $user_id => $roles) {
+					foreach ($roles as $role_id => $access) {
+						if (empty($access)) continue;
+
+						if ($users_meta_key == "users") {
+							//add the ace to the database
+							$this->dobj->db_query($this->dobj->insert(array("user_id"=>$user_id, "role"=>$role_id), "system_acls_users"));
+						} else if ($users_meta_key == "groups") {
+							//add the ace to the database
+							$this->dobj->db_query($this->dobj->insert(array("group_id"=>$user_id, "role"=>$role_id), "system_acls_groups"));
+						}
+					}
+				}
+			}
+		}
+
+		return;
+	}
+	
 	function view_users() {
 		$list = $this->dobj->db_fetch_all("SELECT user_id, group_id, given_names, family_name FROM users");
 		$output = User_View::view_users($list);
@@ -247,71 +494,6 @@ class User extends Modules {
 		$this->redirect("user/groups");
 	}
 
-	function hook_auth() {
-		if (session_id() == "") {
-			session_start();
-		}
-		/* Skip login views */
-		if (
-			($this->module == 'user' && $this->action == 'login') || 
-			($this->module == 'admin' && $this->action == 'run_background') || 
-			($this->module == 'cron')
-		) {
-			return true;
-		}
-		if (!$_SESSION['user']) {
-			$_SESSION['premodule'] = $this->module;
-			$_SESSION['preaction'] = $this->action;
-			$this->redirect('user/login');
-			die();
-			return false;
-		} else {
-			return true;
-		}
-	}
-
-	/**
-	 * Called by User::view_login. Attempts to check the provided login details against users stored in the database. If successful, saves the user's details and acl to the session variable and redirects to the appropriate page.
-	 */
-	function hook_login($usr=null, $pwd=null) {
-		$user = "SELECT * FROM users WHERE user_id='".$usr."'";
-		$user = $this->dobj->db_fetch($this->dobj->db_query($user));
-
-		//if the provided password matches the one in the database 
-		if ($user['password'] == md5($pwd)) {
-			//get permissions for the user and their groups
-			$sys_acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM system_acls_users WHERE user_id='".$usr."' AND access=true;"));
-			$sys_acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT g.* FROM users_groups ug INNER JOIN system_acls_groups g ON (g.group_id=ug.group_id) WHERE ug.user_id='".$usr."' AND g.access=true;"));
-
-			//convert the user's and user's groups acls into a single array telling if the user has permission or not for each role.
-			$sys_acls_query = array_merge((array)$sys_acls_users_query, (array)$sys_acls_groups_query);
-			foreach ($sys_acls_query as $acl_tmp) {
-				if (empty($acl_tmp)) continue;
-
-				$role_id = $acl_tmp['role'];
-
-				$acls['system'][$role_id] = true;
-			}
-
-			//save in the session
-			$_SESSION['user'] = "user_".$user['user_id'];
-			$_SESSION['acls']['system'] = $acls['system'];
-
-			//set the report acl
-			$this->call_function("user", "set_session_report_acls", array());
-
-			//redirect to front page or last page
-			$this->redirect($_SESSION['premodule'].'/'.$_SESSION['preaction']);
-		}
-	}
-
-	/**
-	 * Always try to log in with the user module first: The database is faster than ldap.
-	 */
-	function hook_login_priority() {
-		return array(1, false);
-	}
-
 	/**
 	 * Login page. Calls hook_login() to do actual authentication.
 	 */
@@ -368,73 +550,6 @@ class User extends Modules {
 
 		//save the report acl in $_SESSION
 		$_SESSION['acls']['report'] = $acls['report'];
-	}
-
-	/**
-	 * Called by User::view_access to fetch users, groups, group memberships by user - then translate them to usable arrays for the acl.
-	 */
-	function hook_access_users() {
-		//get data from the database
-		$users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM users;"));
-		$groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM groups;"));
-		$users_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM users_groups;"));
-
-		//rekey by group id
-		foreach ($groups_query as $group) {
-			$group_name = $group['group_id'];
-			$group_id = "user_".$group_name;
-			
-			$groups[$group_id] = $group_name;
-
-			//no one should be able to revoke the admin user's permissions
-			if ($group_id == "user_admin") {
-				$disabled['groups'][$group_id] = true;
-			}
-		}
-
-		//rekey by user id
-		foreach ($users_query as $user) {
-			$user_id = "user_".$user['user_id'];
-			$user_name = $user['given_names']." ".$user['family_name'];
-
-			$users[$user_id] = $user_name;
-
-			//no one should be able to revoke the admin group's permissions
-			if ($user_id == "user_admin") {
-				$disabled['users'][$user_id] = true;
-			}
-		}
-
-		//create an array of group memberships by user_id
-		foreach ($users_groups_query as $user_group) {
-			$user_id = "user_".$user_group['user_id'];
-			$group_id = "user_".$user_group['group_id'];
-
-			$users_groups[$user_id][] = $group_id;
-		}
-
-		return array(
-			"users" => $users,
-			"groups" => $groups,
-			"users_groups" => $users_groups,
-			"disabled" => $disabled
-			);
-	}
-
-	/**
-	 * Called by User::view_access to fetch user and group acls
-	 */
-	function hook_access_acls() {
-		//get data from the database
-		$acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT 'user_'||user_id as user_id, role, access FROM system_acls_users WHERE access=true;"));
-		$acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT 'user_'||group_id as group_id, role, access FROM system_acls_groups WHERE access=true;"));
-
-		return array(
-			"acls" => array(
-				"users" => $acls_users_query,
-				"groups" => $acls_groups_query
-				)
-			);
 	}
 
 	/**
@@ -526,96 +641,6 @@ class User extends Modules {
 
 		//redirect back to acl page
 		$this->redirect("user/access");
-	}
-
-	/**
-	 * Called by User::view_access_submit to save edited acl
-	 */
-	function hook_access_submit($acls) {
-		//get existing aces from the database
-		$acls_users_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT user_id as user_id, role, access FROM system_acls_users WHERE access=true;"));
-		$acls_groups_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT group_id as group_id, role, access FROM system_acls_groups WHERE access=true;"));
-
-		//convert acl into a readable array. from this we remove the aces that are unchanged. then we can delete the aces that are no longer selected
-		foreach (array("users" => $acls_users_query, "groups" => $acls_groups_query) as $users_meta_key => $acls_delete_tmp) {
-			if (!empty($acls_delete_tmp)) {
-				foreach ($acls_delete_tmp as $acl_delete_tmp) {
-					if ($users_meta_key == "users") {
-						$user_id = $acl_delete_tmp['user_id'];
-					} else if ($users_meta_key == "groups") {
-						$user_id = $acl_delete_tmp['group_id'];
-					}
-
-					if ($user_id == "admin") continue;
-
-					$role_id = $acl_delete_tmp['role'];
-
-					$acls_delete[$users_meta_key][$user_id][$role_id] = true;
-				}
-			}
-		}
-
-		//loop through data we got back from the form
-		if (!empty($acls)) {
-			foreach ($acls as $users_meta_key => $users) {
-				foreach ($users as $user_id => $roles) {
-					//if this user isn't a database user, ignore
-					if (substr($user_id, 0, 5) != "user_") continue;
-
-					$user_id = substr($user_id, 5);
-
-					foreach ($roles as $role_id => $access) {
-						//if the current ace does not exist in the old acl, then add it to the list of new aces
-						if (empty($acls_delete[$users_meta_key][$user_id][$role_id])) {
-							$acls_insert[$users_meta_key][$user_id][$role_id] = true;
-						//otherwise the ace has not been changed: remove it from the list of aces to delete
-						} else {
-							unset($acls_delete[$users_meta_key][$user_id][$role_id]);
-						}
-					}
-				}
-			}
-		}
-
-		//loop through the list of aces to remove
-		if (!empty($acls_delete)) {
-			foreach ($acls_delete as $users_meta_key => $users) {
-				foreach ($users as $user_id => $roles) {
-					foreach ($roles as $role_id => $access) {
-						if (empty($access)) continue;
-
-						if ($users_meta_key == "users") {
-							//remove ace from the database
-							$this->dobj->db_query("DELETE FROM system_acls_users WHERE user_id='$user_id' AND role='$role_id';");
-						} else if ($users_meta_key == "groups") {
-							//remove ace from the database
-							$this->dobj->db_query("DELETE FROM system_acls_groups WHERE group_id='$user_id' AND role='$role_id';");
-						}
-					}
-				}
-			}
-		}
-
-		//loop through the list of aces to add
-		if (!empty($acls_insert)) {
-			foreach ($acls_insert as $users_meta_key => $users) {
-				foreach ($users as $user_id => $roles) {
-					foreach ($roles as $role_id => $access) {
-						if (empty($access)) continue;
-
-						if ($users_meta_key == "users") {
-							//add the ace to the database
-							$this->dobj->db_query($this->dobj->insert(array("user_id"=>$user_id, "role"=>$role_id), "system_acls_users"));
-						} else if ($users_meta_key == "groups") {
-							//add the ace to the database
-							$this->dobj->db_query($this->dobj->insert(array("group_id"=>$user_id, "role"=>$role_id), "system_acls_groups"));
-						}
-					}
-				}
-			}
-		}
-
-		return;
 	}
 }
 

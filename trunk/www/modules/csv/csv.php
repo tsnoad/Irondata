@@ -24,7 +24,7 @@
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 
 class Csv extends Template {
@@ -32,8 +32,32 @@ class Csv extends Template {
 	var $name = "CSV";
 	var $description = "Export a report in Comma Seperated Value (CSV) format.";
 	
-	/* The Top Menu hook function. 
-	 * Displays the module in the main menu. Or menu of primary functions. 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//admin will automatically have access. No need to specify
+		switch ($data['function']) {
+			case "hook_admin_tools":
+			case "hook_roles":
+				if (isset($data['acls']['system']['admin'])) {
+					return true;
+				}
+				break;
+			default:
+				//only people logged in can access these functions
+				if (isset($data['acls']['system']['login'])) {
+					return true;
+				}
+				return false;
+				break;
+		}
+		return false;
+	}
+	
+	/* The Top Menu hook function.
+	 * Displays the module in the main menu. Or menu of primary functions.
 	 */
 	function hook_top_menu() {
 		return null;
@@ -43,8 +67,8 @@ class Csv extends Template {
 		return null;
 	}
 	
-	/* The Menu hook function. 
-	 * Displays items in the side bar. This can be dependant on the actual URL used. 
+	/* The Menu hook function.
+	 * Displays items in the side bar. This can be dependant on the actual URL used.
 	 */
 	function hook_menu() {
 		return null;
@@ -54,7 +78,7 @@ class Csv extends Template {
 		return null;
 	}
 
-	/* The Template hook function. 
+	/* The Template hook function.
 	 * Is this module available within the Templates
 	 */
 	function hook_export_entry() {

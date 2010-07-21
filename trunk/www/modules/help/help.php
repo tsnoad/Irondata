@@ -24,7 +24,7 @@
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 
 class Help extends Modules {
@@ -33,6 +33,18 @@ class Help extends Modules {
 	var $description = "Help topics";
 	var $module_group = "Other";
 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//any logged in user may access the help
+		if (isset($data['acls']['system']['login'])) {
+			return true;
+		}
+		return false;
+	}
+	
 	var $topics = array(
 		"reports.html" => array("Generating & Running Reports", "Guide to using reports.", "help_files/reports.html"),
 		"tabular.html" => array("Tabular Reports", "Tabular reports primer.", "help_files/tabular.html"),
@@ -51,7 +63,7 @@ class Help extends Modules {
 	
 	function hook_top_menu() {
 		return array(
-			"help" => $this->l("help/topics", "Help")
+			"help" => array($this->l("help/topics", "Help"), 1)
 			);
 	}
 

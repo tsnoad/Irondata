@@ -33,6 +33,38 @@ class Ldap extends User {
 	var $description = "LDAP";
 	var $module_group = "Users / Security";
 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		switch (($data['function'])) {
+			case "hook_auth":
+			case "hook_login":
+			case "hook_login_priority":
+			case "set_session_report_acls":
+			case "hook_recipient_selector":
+			case "hook_recipients":
+			case "hook_access_users":
+			case "hook_access_report_acls":
+			case "hook_access_report_submit":
+			case "view_recipient_selector":
+				// The login / logout pages and links always available
+				if (isset($data['acls']['system']['login'])) {
+					return true;
+				}
+				return false;
+				break;
+			default:
+				if (isset($data['acls']['system']['admin'])) {
+					return true;
+				}
+				break;
+				return false;
+		}
+		return false;
+	}
+	
 	function hook_admin_tools() {
 		return null;
 	}
@@ -101,12 +133,12 @@ class Ldap extends User {
 		#Connect to the ldap server
 		$ds=ldap_connect($this->conf['ldap']['host']);
 		if ($ds) {
-			#Bind anonymously. Used to find the dn of the user. 
+			#Bind anonymously. Used to find the dn of the user.
 			$r = ldap_bind($ds);
-			#Search for the user. 
+			#Search for the user.
 			$sr = ldap_search($ds, $this->conf['ldap']['base_dn'], "cn=$usr");
 
-			#Get all results. 
+			#Get all results.
 			$ldap_entries = ldap_get_entries($ds, $sr);
 
 			foreach ($ldap_entries as $entry) {
@@ -116,7 +148,7 @@ class Ldap extends User {
 				}
 				$fulldn = $entry['dn'];
 
-				#Check that the supplied user can bind/login with the supplied password. 
+				#Check that the supplied user can bind/login with the supplied password.
 				if (@ldap_bind($ds, $fulldn, $pwd)) {
 					ldap_close($ds);
 
@@ -336,7 +368,6 @@ class Ldap extends User {
 
 		return;
 	}
-
 
 	/**
 	 * Called by User::view_access to fetch user and group acls

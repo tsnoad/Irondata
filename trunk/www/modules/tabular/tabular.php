@@ -32,7 +32,126 @@ class Tabular extends Template {
 	var $name = "Tabular";
 	var $description = "A tabular report type. Multiple axis' with a numeric intersection between them.";
 	var $module_group = "Core";
-
+	
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//admin will automatically have access. No need to specify
+		switch ($data['function']) {
+			case "hook_admin_tools":
+				if (isset($data['acls']['system']['admin'])) {
+					return true;
+				}
+				break;
+			case "hook_pagetitle":
+			case "hook_top_menu":
+			case "hook_javascript":
+			case "hook_workspace":
+				// these can be called by other modules
+				if (isset($data['acls']['system']['login'])) {
+					return true;
+				}
+				return false;
+				break;
+			case "view_histories":
+			case "view_history":
+			case "view_processing_history_ajax":
+				//only people with permission to create reports can access these functions
+				if (isset($data['acls']['system']['reportscreate'])) {
+					return true;
+				}
+				//or users with permission to access a specific report
+				if (isset($data['acls']['report'][$this->id]['histories'])) {
+					return true;
+				}
+				return false;
+				break;
+			case "view_execute_manually":
+				//only people with permission to create reports can access these functions
+				if (isset($data['acls']['system']['reportscreate'])) {
+					return true;
+				}
+				//or users with permission to execute a specific report
+				if (isset($data['acls']['report'][$this->id]['execute'])) {
+					return true;
+				}
+				return false;
+				break;
+			case "view_add":
+			case "view_save":
+			case "view_table_join_ajax":
+			case "get_columns":
+			case "hook_output":
+			case "view_data_preview_ajax":
+			case "view_data_preview_first_ajax":
+			case "view_data_preview_slow_ajax":
+			case "view_constraint_column_options_ajax":
+			case "hook_recipient_selector":
+			default:
+				//only people with permission to create reports can access these functions
+				if (isset($data['acls']['system']['reportscreate'])) {
+					return true;
+				}
+				//or users with permission to edit a specific report
+				if (isset($data['acls']['report'][$this->id]['edit'])) {
+					return true;
+				}
+				return false;
+				break;
+		}
+		return false;
+/*
+	function view_add_select_object() {
+	
+	function add_axis_automatic($type, $columns) {
+	function add_axis_manual($type, $columns) {
+	function add_axis_trend($type, $columns) {
+	function execute_demo_cellwise($template_id) {
+	function execute_demo_quick($template_id) {
+	function execute_demo($template_id) {
+	function execute_manually($template_id) {
+	function execute_scheduled($template_id) {
+	function execute($template_id, $demo, $quick=false, $cellwise=false) {
+	function get_constraint_logic($template_id) {
+	function get_constraints($template_id) {
+	function hook_menu() {
+	function hook_permission_check($data) {
+	function hook_query($template, $constraints, $constraint_logic=null, $demo=false, $axis_limits=null) {
+	function hook_recipients($template_id, $template_recipients=null) {
+	function hook_run($demo=false, $data_only=false, $draft=true, $template_id=null) {
+	function view_add_axis() {
+	function view_add_axis($type, $columns) {
+	function view_add_intersection() {
+	function view_add_intersection($columns) {
+	function view_add_next() {
+	function view_clone() {
+	function view_constraintlogicsubmit() {
+	function view_constraints() {
+	function view_constraints($blah) {
+	function view_display_table() {
+	function view_display_table($tables, $template) {
+	function view_editconstraint() {
+	function view_editconstraint($blah) {
+	function view_editconstraintsubmit() {
+	function view_execute_manually() {
+	function view_execute_scheduled() {
+	function view_execute_scheduled($data=array()) {
+	function view_interval_dd_json() {
+	function view_remove() {
+	function view_remove_constraint() {
+	function view_run() {
+	function view_run($template, $constraints) {
+	function view_tables_json() {
+	function view_tables_json($tables) {
+*/
+	}
+	
+	function hook_pagetitle() {
+		return "Report";
+	}
+		
 	/**
 	 * Overwrite hook_top_menu in Template.php - this module should have no top menu
 	 *
@@ -70,16 +189,6 @@ class Tabular extends Template {
 				$menu = parent::hook_menu($url);
 		}
 		return $menu;
-	}
-
-	/**
-	 * (non-PHPdoc)
-	 * @see modules/template/Template::hook_roles()
-	 */
-	function hook_roles() {
-		return array(
-			"reportscreate" => array("Create Reports", "")
-			);
 	}
 
 	/**
@@ -176,11 +285,11 @@ class Tabular extends Template {
 	/**
 	 * Called by Tabular::execute. Given a template, generate the queries to get all the data for the report.
 	 *
-	 * @param $template The template id
-	 * @param $constraints Any constraints to apply
-	 * @param $constraint_logic The constraint logic
-	 * @param $demo Is this a demo (ie restrict to 10 results)
-	 * @param $axis_limits Are there any limits to the axes
+	 * @param $template int The template id
+	 * @param $constraints array Any constraints to apply
+	 * @param $constraint_logic string The constraint logic
+	 * @param $demo boolean Is this a demo (ie restrict to 10 results)
+	 * @param $axis_limits array Are there any limits to the axes
 	 * @return A SQL string
 	 */
 	function hook_query($template, $constraints, $constraint_logic=null, $demo=false, $axis_limits=null) {
@@ -843,7 +952,7 @@ class Tabular extends Template {
 		return $output;
 	}
 
-	/**
+	/*
 	 * View Remove
 	 *
 	 * Used to delete a column from automatic fields.
@@ -868,10 +977,11 @@ class Tabular extends Template {
 	}
 
 	/**
-	 * View Save
+	 * Called as the action on forms on almost every page when creating a tabular report.
+	 * Once complete, calls Tabular::view_add_next() to go to the next page.
+	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
 	 *
-	 * Called as the action on forms on almost every page when creating a tabular report. Once complete, calls Tabular::view_add_next() to go to the next page. Takes aguments about which page from the url in the id, subvar, subid, etc variables
-	 *
+	 *@return null
 	 */
 	function view_save() {
 		switch ($this->subvar) {
@@ -2487,6 +2597,11 @@ WHERE
 }
 
 class Tabular_View extends Template_View {
+	
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template_View::view_add()
+	 */
 	function view_add($template, $blah=null, $steps=null, $preview_table=null, $tabular_template_auto=null, $table_join_ajax=null, $tabular_template=null) {
 		if (!empty($steps)) {
 			$output->submenu .= "<ol>";

@@ -24,7 +24,7 @@
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 
 class Pdf extends Template {
@@ -32,8 +32,32 @@ class Pdf extends Template {
 	var $name = "PDF";
 	var $description = "Outputs a report to PDF. ";
 	
-	/* The Top Menu hook function. 
-	 * Displays the module in the main menu. Or menu of primary functions. 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//admin will automatically have access. No need to specify
+		switch ($data['function']) {
+			case "hook_admin_tools":
+			case "hook_roles":
+				if (isset($data['acls']['system']['admin'])) {
+					return true;
+				}
+				break;
+			default:
+				//only people logged in can access these functions
+				if (isset($data['acls']['system']['login'])) {
+					return true;
+				}
+				return false;
+				break;
+		}
+		return false;
+	}
+	
+	/* The Top Menu hook function.
+	 * Displays the module in the main menu. Or menu of primary functions.
 	 */
 	function hook_top_menu() {
 		return null;
@@ -43,8 +67,8 @@ class Pdf extends Template {
 		return null;
 	}
 	
-	/* The Menu hook function. 
-	 * Displays items in the side bar. This can be dependant on the actual URL used. 
+	/* The Menu hook function.
+	 * Displays items in the side bar. This can be dependant on the actual URL used.
 	 */
 	function hook_menu() {
 		return null;
@@ -54,7 +78,7 @@ class Pdf extends Template {
 		return null;
 	}
 
-	/* The Template hook function. 
+	/* The Template hook function.
 	 * Is this module available within the Templates
 	 */
 	function hook_export_entry() {
@@ -192,7 +216,7 @@ class Pdf_View {
 	/*$pdf = Common_Functions::makePdf($main, $report_name.$suffix, array(), $autovalues); /* The ./tmp/ directory is automatically added, as is the .pdf extension. */
 	function view_export($data, $table_document_id, $pdf_path, $html_path, $reportname, $align="", $module_css="", $report=false) {
 // 		$data = file_get_contents($html_path);
-// 
+//
 // // 		if ($align == "landscape") {
 // // 			$landscape = true;
 // // 			$pixels = 1024;
@@ -209,14 +233,14 @@ class Pdf_View {
 // // 				$pixels = 724;
 // // 			}
 // // 		}
-// 
+//
 // 		/* PDF Headers */
 // 		set_include_path(get_include_path() . PATH_SEPARATOR . "./html2ps/");
 // 		require_once('config.inc.php');
 // 		require_once('pipeline.factory.class.php');
 // 		require_once('fetcher.url.class.php');
 // 		parse_config_file(HTML2PS_DIR.'html2ps.config');
-// 
+//
 // 		global $g_config;
 // 		$g_config = array(
 // 		                  'cssmedia' => 'screen',
@@ -232,7 +256,7 @@ class Pdf_View {
 // 				  'renderfields' => true,
 // 				  'output' => 2
 // 		                  );
-// 
+//
 // 		$media = Media::predefined('A4');
 // 		$media->set_landscape($landscape);
 // 		$media->set_margins(array('left' => 15,
@@ -240,30 +264,30 @@ class Pdf_View {
 // 		                          'top' => 15,
 // 		                          'bottom' => 15));
 // 		$media->set_pixels($pixels);
-// 
+//
 // 		global $g_px_scale;
 // 		$g_px_scale = mm2pt($media->width() - $media->margins['left'] - $media->margins['right']) / $media->pixels;
 // 		global $g_pt_scale;
 // 		$g_pt_scale = $g_px_scale * 1.43;
-// 
+//
 // 		$pipeline = new Pipeline;
 // 		$pipeline->configure($g_config);
-// 
+//
 // 		$pipeline->fetchers[] = new MyFetcherContent($data);
 // 		$pipeline->fetchers[] = new FetcherURL();
-// 
+//
 // 		$pipeline->data_filters[] = new DataFilterHTML2XHTML;
 // 		$pipeline->parser = new ParserXHTML;
 // 		$pipeline->layout_engine = new LayoutEngineDefault;
 // 		$pipeline->output_driver = new OutputDriverFPDF($media);
 // 		$pipeline->pre_tree_filters[] = new PreTreeFilterHTML2PSFields();
-// 
+//
 // 		$pdf_name = "table_$table_document_id";
-// 
-// 		$pipeline->destination = new DestinationFile($pdf_name, ''); 
-// 
+//
+// 		$pipeline->destination = new DestinationFile($pdf_name, '');
+//
 // 		$status = $pipeline->process($pdf_name, $media);
-// 
+//
 // 		copy(HTML2PS_DIR."out/$pdf_name.pdf", $pdf_path);
 // 		unlink(HTML2PS_DIR."out/$pdf_name.pdf");
 
@@ -291,7 +315,7 @@ class Pdf_View {
 // 	require_once('config.inc.php');
 // // 	require_once(HTML2PS_DIR.'pipeline.factory.class.php');
 // 	require_once('pipeline.factory.class.php');
-// 
+//
 // 	error_reporting(E_ALL);
 // 	ini_set("display_errors","1");
 // 	@set_time_limit(10000);
@@ -324,7 +348,7 @@ class Pdf_View {
 
 		$pipeline = PipelineFactory::create_default_pipeline("", // Attempt to auto-detect encoding
 								"");
-		// Override HTML source 
+		// Override HTML source
 		$pipeline->fetchers[] = new MyFetcherLocalFile($path_to_html);
 
 // 		$filter = new PreTreeFilterHeaderFooter("HEADER", "FOOTER");
@@ -341,8 +365,8 @@ class Pdf_View {
 		                          'right' => 15,
 		                          'top' => 15,
 		                          'bottom' => 15));
-// 		$media->set_pixels(1024); 
-		$media->set_pixels(724); 
+// 		$media->set_pixels(1024);
+		$media->set_pixels(724);
 
 		global $g_px_scale;
 		$g_px_scale = mm2pt($media->width() - $media->margins['left'] - $media->margins['right']) / $media->pixels;
@@ -384,11 +408,11 @@ class Pdf_View {
 // require_once('pipeline.factory.class.php');
 // require_once('fetcher.url.class.php');
 // parse_config_file(HTML2PS_DIR.'html2ps.config');
-// 
+//
 // class MyFetcherContent extends Fetcher {
 // 	var $base_path;
 // 	var $content;
-// 
+//
 // 	function MyFetcherContent($content) {
 // 		$this->content = $content;
 // 	}

@@ -20,11 +20,11 @@
 /**
  * Mysql.php
  *
- * The MySQL module. 
+ * The MySQL module.
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 
 class Mysql extends Catalogue {
@@ -33,6 +33,15 @@ class Mysql extends Catalogue {
 	var $name = "MySQL";
 	var $description = "A MySQL data source type. OBSOLETE";
 	var $module_group = "Data Sources";
+		
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//TODO: This module is incomplete
+		return false;
+	}
 	
 	function hook_top_menu() {
 		return null;
@@ -82,7 +91,7 @@ class Mysql extends Catalogue {
 			/* Connect to the database and get the schema */
 			$conn = $this->hook_connect($_REQUEST['data']['host'], $_REQUEST['data']['name'], $_REQUEST['data']['username'], $_REQUEST['data']['password']);
 			$tables = $this->hook_query("select * from information_schema.tables where table_schema='".$_REQUEST['data']['name']."' order by table_name");
-			/* We save the id's to make the references lookup faster. i.e. we don't need to 
+			/* We save the id's to make the references lookup faster. i.e. we don't need to
 			 * query the database each time */
 			$id_array = array();
 			$total = 0;

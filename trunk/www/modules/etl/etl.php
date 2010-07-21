@@ -20,11 +20,11 @@
 /**
  * Pgsql.php
  *
- * The PostgreSQL module. 
+ * The PostgreSQL module.
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 require_once("modules/listing/listing.php");
 
@@ -34,16 +34,26 @@ class Etl extends Listing {
 	var $name = "ETL";
 	var $description = "Provide Extration, Transformation and Load (ETL) functionality.";
 	var $module_group = "Other";
-
-	/* The Template hook function. 
-	 * Is this module available within the Templates
+	
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
 	 */
-	function hook_template_entry() {
+	function hook_permission_check($data) {
+		//TODO: This module is incomplete
 		return false;
 	}
 	
-	/* The Top Menu hook function. 
-	 * Displays the module in the main menu. Or menu of primary functions. 
+	/* The Template hook function.
+	 * Is this module available within the Templates
+	 */
+	function hook_template_entry() {
+		//TODO: This module is broken
+		return false;
+	}
+	
+	/* The Top Menu hook function.
+	 * Displays the module in the main menu. Or menu of primary functions.
 	 */
 	function hook_top_menu() {
 // 		return array(
@@ -52,7 +62,7 @@ class Etl extends Listing {
 // 			"module"=>"etl"
 // 		);
 		return array(
-			"etl" => "<a href='".$this->webroot()."etl/display'>ETL</a>"
+			"etl" => array("<a href='".$this->webroot()."etl/display'>ETL</a>", 2)
 			);
 	}
 
@@ -60,8 +70,8 @@ class Etl extends Listing {
 		return null;
 	}
 	
-	/* The Menu hook function. 
-	 * Displays items in the side bar. This can be dependant on the actual URL used. 
+	/* The Menu hook function.
+	 * Displays items in the side bar. This can be dependant on the actual URL used.
 	 */
 	function hook_menu() {
 		$menu = array();
@@ -80,7 +90,7 @@ class Etl extends Listing {
 		return $menu;
 	}
 	
-	/* The Javascript hook function. 
+	/* The Javascript hook function.
 	 * Send the following javascript to the browser.
 	 */
 	function hook_javascript() {
@@ -101,7 +111,7 @@ class Etl extends Listing {
 		
 		function update_column(id) {
 			// FIX CATALOGUE JSON CALL (OVERLOADED FUNCTION)
-			targetStore = new dojo.data.ItemFileReadStore({id:'targetStore',url: '".$this->webroot()."catalogue/columns_json/'+id}); 
+			targetStore = new dojo.data.ItemFileReadStore({id:'targetStore',url: '".$this->webroot()."catalogue/columns_json/'+id});
 			create_cells();
 		}
 

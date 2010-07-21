@@ -20,11 +20,11 @@
 /**
  * Pgsql.php
  *
- * The PostgreSQL module. 
+ * The PostgreSQL module.
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 
 class Pgsql extends Catalogue {
@@ -34,14 +34,39 @@ class Pgsql extends Catalogue {
 	var $description = "Store and manipulate PostgreSQL data sources.";
 	var $module_group = "Core";
 	
-	/* The Top Menu hook function. 
-	 * Displays the module in the main menu. Or menu of primary functions. 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//admin will automatically have access. No need to specify
+		switch ($data['function']) {
+			case "test_connection":
+			case "hook_regen_schema":
+				if (isset($data['acls']['system']['managecatalogue'])) {
+					return true;
+				}
+				return false;
+				break;
+			default:
+				//only people with permission to manage the catalogue can access these functions
+				if (isset($data['acls']['system']['login'])) {
+					return true;
+				}
+				return false;
+				break;
+		}
+		return false;
+	}
+	
+	/* The Top Menu hook function.
+	 * Displays the module in the main menu. Or menu of primary functions.
 	 */
 	function hook_top_menu() {
 		return null;
 	}
 
-	/* The Catalogue hook function. 
+	/* The Catalogue hook function.
 	 * Is this module available within the Catalogue.
 	 */
 	function hook_catalogue_entry() {
@@ -57,7 +82,7 @@ class Pgsql extends Catalogue {
 		return null;
 	}
 	
-	/* The Connect hook function. 
+	/* The Connect hook function.
 	 * How to connect to this modules database. Returns a PHP connection object if appropriate
 	 */
 	function hook_connect($hostname, $database, $username, $password) {
@@ -75,8 +100,8 @@ class Pgsql extends Catalogue {
 		return true;
 	}
 	
-	/* The Query hook function. 
-	 * How to query this modules database. Returns an array of all results. 
+	/* The Query hook function.
+	 * How to query this modules database. Returns an array of all results.
 	 */
 	function hook_query($query) {
 		//echo $query;
@@ -89,7 +114,7 @@ class Pgsql extends Catalogue {
 		return $vals;
 	}
 	
-	/* The Query Source hook function. 
+	/* The Query Source hook function.
 	 * This allows the templates modules to connect to the source database to run a query.
 	 */
 	function hook_query_source($object_id, $query) {
@@ -148,15 +173,18 @@ class Pgsql extends Catalogue {
 	 * Goes through the information_schema tables in order to find all the metadata and relationships for each table and column.
 	 */
 	function hook_regen_schema($data) {
+		$ignore = array();
 		$database_id = $data[0];
 		$autojoin = $data[1];
 
 		/* Connect to the database and get the schema */
 		$conn = $this->hook_connect($_REQUEST['data']['host'], $_REQUEST['data']['name'], $_REQUEST['data']['username'], $_REQUEST['data']['password']);
-		$ignore = explode("\n", $_REQUEST['data']['ignore']);
-		$ignore = array_map("trim", $ignore);
+		if (isset($_REQUEST['data']['ignore'])) {
+			$ignore = explode("\n", $_REQUEST['data']['ignore']);
+			$ignore = array_map("trim", $ignore);
+		}
 		$tables = $this->hook_query("select * from information_schema.tables where table_schema='public' order by table_name");
-		/* We save the id's to make the references lookup faster. i.e. we don't need to 
+		/* We save the id's to make the references lookup faster. i.e. we don't need to
 		 * query the database each time */
 		$id_array = array();
 		$tb_array = array();
@@ -257,7 +285,7 @@ class Pgsql extends Catalogue {
 		foreach ($joins as $a => $t1) {
 			foreach ($t1 as $b => $path) {
 				foreach ($joins[$b] as $x => $px) {
-					if ($a == $x || $b == $x || is_array($joins[$a][$x])) {
+					if ($a == $x || $b == $x || (isset($joins[$a][$x]) && is_array($joins[$a][$x]))) {
 						/* Avoid Infinite Loop */
 						continue;
 					}
@@ -275,10 +303,14 @@ class Pgsql extends Catalogue {
 	}
 
 
-	/* Test Connection
-	 * Tries to connect to the database, returns error text 
+	/**
+	 * Tries to connect to the database, otherwise returns error text
+	 *
+	 * @param $data The database connection parameters
+	 * @return An error string or null if successfull
 	 */
 	function test_connection($data) {
+		$error = null;
 		$db = $data[0];
 
 		$conn_string = "host=".$db['host']." dbname=".$db['name'];

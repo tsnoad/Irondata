@@ -30,18 +30,28 @@ class Cron extends Template {
 	var $description = "Scheduling";
 
 	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		if (isset($data['acls']['system']['admin'])) {
+			return true;
+		}
+		return false;
+	}
+	
+	/**
 	 * The Top Menu hook function.
-	 * 
+	 *
 	 * Displays the module in the main menu.
 	 */
 	function hook_top_menu() {
 		return null;
 	}
 
-
 	/**
 	 * The Admin Menu hook function.
-	 * 
+	 *
 	 * Displays links to administrative functions on the admin page.
 	 */
 	function hook_admin_tools() {

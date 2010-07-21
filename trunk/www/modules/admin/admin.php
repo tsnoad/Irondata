@@ -24,7 +24,7 @@
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 
 class Admin extends Modules {
@@ -38,23 +38,27 @@ class Admin extends Modules {
 		$this->dobj = new DB();
 	}
 
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		// Only people in the admin group should have access to this module
+		if (isset($data['acls']['system']['admin'])) {
+			return true;
+		}
+		return false;
+	}
+	
 	function hook_top_menu() {
 		return array(
-			"admin" => $this->l("admin/home", "Admin")
+			"admin" => array($this->l("admin/home", "Admin"), 2)
 			);
 	}
 	
 	function hook_pagetitle() {
 		return "Administration";
 	}
-
-// 	function hook_workspace() {
-// 		return array("title"=>"Administration Tools", "path"=>"".$this->webroot()."admin/tools");
-// 	}
-
-// 	function hook_module_settings() {
-// 		return "admin/settings";
-// 	}
 
 	function hook_admin_tools() {
 // 		$admin_tools[] = array("admin/settings", "Settings");
@@ -68,21 +72,6 @@ class Admin extends Modules {
 
 	function view_home () {
 		return $this->view_tools();
-	}
-
-	function view_tools() {
-		//find any tools to show for other modules
-		$admin_tools_query = $this->call_function("ALL", "hook_admin_tools");
-
-		//setup for groovy array merging
-		$admin_tools = array();
-
-		//because each module will return an array of tools, call_func will return an array of arrays. make useable.
-		foreach ($admin_tools_query as $admin_tool_tmp) {
-			$admin_tools = array_merge((array)$admin_tools, (array)$admin_tool_tmp);
-		}
-
-		return Admin_View::view_tools($admin_tools);
 	}
 
 	function view_settings() {
@@ -126,6 +115,21 @@ class Admin extends Modules {
 		ksort($sorted);
 		$output = Admin_View::view_modules($sorted, $settings);
 		return $output;
+	}
+
+	function view_tools() {
+		//find any tools to show for other modules
+		$admin_tools_query = $this->call_function("ALL", "hook_admin_tools");
+
+		//setup for groovy array merging
+		$admin_tools = array();
+
+		//because each module will return an array of tools, call_func will return an array of arrays. make useable.
+		foreach ($admin_tools_query as $admin_tool_tmp) {
+			$admin_tools = array_merge((array)$admin_tools, (array)$admin_tool_tmp);
+		}
+
+		return Admin_View::view_tools($admin_tools);
 	}
 	
 }
@@ -176,7 +180,7 @@ class Admin_View {
 			}
 			$output->data .= "</table>";
 		}
-		$output->data .= "				
+		$output->data .= "
 			</div>
 			";
 

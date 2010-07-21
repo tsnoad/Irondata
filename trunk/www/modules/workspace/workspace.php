@@ -24,7 +24,7 @@
  *
  * @author Evan Leybourn
  * @date 26-07-2008
- * 
+ *
  */
 
 class Workspace extends Modules {
@@ -33,6 +33,18 @@ class Workspace extends Modules {
 	var $description = "The users personal workspace";
 	var $current;
 	var $module_group = "Core";
+
+	/**
+	 * (non-PHPdoc)
+	 * @see inc/Modules::hook_permission_check()
+	 */
+	function hook_permission_check($data) {
+		//any logged in user may access the help
+		if (isset($data['acls']['system']['login'])) {
+			return true;
+		}
+		return false;
+			}
 	
 	function __construct() {
 		include_once("inc/db.php");
@@ -139,14 +151,6 @@ class Workspace extends Modules {
 }
 
 class Workspace_View {
-// 	function view_home($modules) {
-// 		$output->data = "<div id='workspace_container' dojoType='dijit.layout.TabContainer' style='height: 100%;'>";
-// 		foreach ($modules as $i => $module) {
-// 			$output->data .= "<div href='".$module['path']."' dojoType='dijit.layout.ContentPane' title='".$module['title']."' style='height:100%;'></div>";
-// 		}
-// 		$output->data .= "</div>";
-// 		return $output;
-// 	}
 }
 
 ?>
