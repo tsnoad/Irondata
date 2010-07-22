@@ -49,8 +49,16 @@ class Tabular extends Template {
 			case "hook_top_menu":
 			case "hook_javascript":
 			case "hook_workspace":
+			case "hook_template_entry":
 				// these can be called by other modules
 				if (isset($data['acls']['system']['login'])) {
+					return true;
+				}
+				return false;
+				break;
+			case "view_add_select_object":
+				//only people with permission to create reports can access these functions
+				if (isset($data['acls']['system']['reportscreate'])) {
 					return true;
 				}
 				return false;
@@ -59,9 +67,9 @@ class Tabular extends Template {
 			case "view_history":
 			case "view_processing_history_ajax":
 				//only people with permission to create reports can access these functions
-				if (isset($data['acls']['system']['reportscreate'])) {
-					return true;
-				}
+				//if (isset($data['acls']['system']['reportscreate'])) {
+				//	return true;
+				//}
 				//or users with permission to access a specific report
 				if (isset($data['acls']['report'][$this->id]['histories'])) {
 					return true;
@@ -70,9 +78,9 @@ class Tabular extends Template {
 				break;
 			case "view_execute_manually":
 				//only people with permission to create reports can access these functions
-				if (isset($data['acls']['system']['reportscreate'])) {
-					return true;
-				}
+				//if (isset($data['acls']['system']['reportscreate'])) {
+				//	return true;
+				//}
 				//or users with permission to execute a specific report
 				if (isset($data['acls']['report'][$this->id]['execute'])) {
 					return true;
@@ -91,9 +99,9 @@ class Tabular extends Template {
 			case "hook_recipient_selector":
 			default:
 				//only people with permission to create reports can access these functions
-				if (isset($data['acls']['system']['reportscreate'])) {
-					return true;
-				}
+				//if (isset($data['acls']['system']['reportscreate'])) {
+				//	return true;
+				//}
 				//or users with permission to edit a specific report
 				if (isset($data['acls']['report'][$this->id]['edit'])) {
 					return true;
@@ -103,8 +111,7 @@ class Tabular extends Template {
 		}
 		return false;
 /*
-	function view_add_select_object() {
-	
+
 	function add_axis_automatic($type, $columns) {
 	function add_axis_manual($type, $columns) {
 	function add_axis_trend($type, $columns) {
@@ -274,7 +281,7 @@ class Tabular extends Template {
 	 *
 	 * @return Returns an array describing the entry in the new template screen
 	 */
-		function hook_template_entry() {
+	function hook_template_entry() {
 		return array(
 			"label"=>"Tabular Report",
 			"module"=>"tabular",
@@ -662,7 +669,7 @@ class Tabular extends Template {
 		$object_id = $this->id;
 
 		if (empty($object_id)) return;
-		parent::view_add_select_object($object_id, 'tabular');
+		$temp = parent::view_add_select_object($object_id, 'tabular');
 		$this->redirect("tabular/add/".$temp['template_id']);
 	}
 
@@ -721,8 +728,12 @@ class Tabular extends Template {
 								$tabular_template_auto = $tabular_templates_query;
 
 								//edit times from "2009-06-01 00:00:00" to "2009-06-01": dojo doesn't understand times in datetextbox
-								$tabular_template_auto['start_date'] = substr($tabular_template_auto['start_date'], 0, strpos($tabular_template_auto['start_date'], " "));
-								$tabular_template_auto['end_date'] = substr($tabular_template_auto['end_date'], 0, strpos($tabular_template_auto['end_date'], " "));
+								if (isset($tabular_template_auto['start_date'])) {
+									$tabular_template_auto['start_date'] = substr($tabular_template_auto['start_date'], 0, strpos($tabular_template_auto['start_date'], " "));
+								}
+								if (isset($tabular_template_auto['end_date'])) {
+									$tabular_template_auto['end_date'] = substr($tabular_template_auto['end_date'], 0, strpos($tabular_template_auto['end_date'], " "));
+								}
 
 								$_REQUEST['data']['column_id'] = $tabular_template_auto['column_id'];
 							} else {
@@ -827,6 +838,10 @@ class Tabular extends Template {
 			case "access":
 				$users_query = $this->call_function("ALL", "hook_access_users", array());
 
+				$users_tmp = array();
+				$groups_tmp = array();
+				$users_groups_tmp = array();
+				$disabled_tmp = array();
 				foreach ($users_query as $module => $users_query_tmp) {
 					$users_tmp = array_merge((array)$users_tmp, (array)$users_query_tmp['users']);
 					$groups_tmp = array_merge((array)$groups_tmp, (array)$users_query_tmp['groups']);
@@ -836,6 +851,7 @@ class Tabular extends Template {
 
 				$acls_query = $this->call_function("ALL", "hook_access_report_acls", array($this->id));
 
+				$acls_tmp = array();
 				foreach ($acls_query as $module => $acls_query_tmp) {
 					$acls_tmp = array_merge_recursive((array)$acls_tmp, (array)$acls_query_tmp['acls']);
 				}
@@ -872,6 +888,14 @@ class Tabular extends Template {
 		}
 
 		//put all step data in a usable array
+		$steps[0][3] = "";
+		$steps[1][3] = "";
+		$steps[2][3] = "";
+		$steps[3][3] = "";
+		$steps[4][3] = "";
+		$steps[5][3] = "";
+		$steps[6][3] = "";
+		$steps[7][3] = "";
 		if (empty($tabular_templates['c'])) {
 			$steps[0][0] = "Add Intersection";
 			$steps[0][2] = true;
@@ -1445,7 +1469,7 @@ class Tabular extends Template {
 
 			unset($method_reorg);
 
-			while ($method_tmp[$this_pair_start_id]) {
+			while (isset($method_tmp[$this_pair_start_id])) {
 				$this_pair_start_table = $columns[$method_tmp[$this_pair_start_id]]['table_id'];
 
 				if ($this_pair_start_id !== 0) $method_reorg[] = "internal join";
@@ -1460,7 +1484,7 @@ class Tabular extends Template {
 					$method_reorg[] = $method_tmp[$this_pair_end_id];
 				}
 
-				$last_pair_start_table = $columns[$method_reorg[$this_pair_end_id]]['table_id'];
+				$last_pair_start_table = isset($columns[$method_reorg[$this_pair_end_id]]['table_id']) ? $columns[$method_reorg[$this_pair_end_id]]['table_id'] : null;
 
 				$this_pair_start_id += 2;
 				$this_pair_end_id = $this_pair_start_id + 1;
@@ -1473,11 +1497,10 @@ class Tabular extends Template {
 
 			$foobar .= "<input type='radio' name='data[table_join_id]' value='".$table_join_id."' ".($join_selected ? "checked=\"checked\"" : "")." /><label>";
 
-			unset($explaination_tmp);
-			unset($explaination_count);
-			unset($explaination_sr_count);
-			unset($explaination_in_count);
-			$explaination_tmp .= "The selected column is linked, ";
+			$explaination_count = 0;
+			$explaination_sr_count = 0;;
+			$explaination_in_count = 0;
+			$explaination_tmp = "The selected column is linked, ";
 
 			if ($method_reorg[0] != $selected_column_id) {
 				$column = $columns[$selected_column_id];
@@ -2298,6 +2321,7 @@ WHERE
 	 */
 	function view_editconstraint() {
 		$constraint_query = null;
+		$squid = false;
 		switch ($this->subvar) {
 			case "editconstraint":
 				$constraint_id = $this->subid;

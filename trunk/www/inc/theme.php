@@ -588,14 +588,13 @@ class Theme {
 	}
 
 	function render_acl($things, $ids_r, $groups, $users, $permissions, $user_groups, $disabled, $titles, $rows) {
-// 	function render_acl($roles, $ids_r, $groups, $users, $acls, $user_groups, $disabled, $titles, $rows) {
 		$inherit_permission_keys = array_keys($users);
 		$inherit_permission_vals = array_pad(array(), count($inherit_permission_keys), array(false, false, false));
 		$inherit_permissions = array_combine($inherit_permission_keys, $inherit_permission_vals);
 
 		$things_json = array_combine(array_keys($things), array_keys($things));
 		
-		$output .= "
+		$output = "
 			<input type='hidden' name='data[ids_r]' value='".json_encode($ids_r)."' />
 			";
 
@@ -675,9 +674,7 @@ class Theme {
 				}
 
 				foreach ($things as $thing_id => $thing) {
-					unset($checkbox);
-
-					$checkbox .= "<input id='access_".$thing_id."_$user_id' name='data[access_".$thing_id."_$user_id]' type='checkbox' ".($permissions[$user_id][$thing_id] ? "checked='true'" : "")." ".($disabled[$user_id] ? "disabled='true'" : "")." onchange='update_inherited();' title='".ucwords($thing[0])."' />";
+					$checkbox = "<input id='access_".$thing_id."_$user_id' name='data[access_".$thing_id."_$user_id]' type='checkbox' ".(isset($permissions[$user_id][$thing_id]) ? "checked='true'" : "")." ".(isset($disabled[$user_id]) ? "disabled='true'" : "")." onchange='update_inherited();' title='".ucwords($thing[0])."' />";
 					$checkbox .= "<span style='visibility: hidden; padding-left: 10px;'>&#x21b3;<input id='access_".$thing_id."_inherit_$user_id' type='checkbox' disabled='true' /></span>";
 
 					$output .= "

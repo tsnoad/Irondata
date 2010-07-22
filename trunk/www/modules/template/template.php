@@ -461,6 +461,7 @@ class Template extends Modules {
 	 *
 	 * @param $object_id int The database id
 	 * @param $type string The type of report. Defaults to tabular
+	 * @return The report template array
 	 */
 	function view_add_select_object($object_id, $type='tabular') {
 		//create the new template in the database
@@ -477,13 +478,14 @@ class Template extends Modules {
 
 		//update the user's report acl: a trigger will have granted them access in the database
 		$this->call_function("ALL", "set_session_report_acls", array());
+		return $temp;
 	}
 	
 	function view_add($module='', $type='') {
 		$modules = $this->call_function("ALL", "hook_template_entry");
 		$objects = $this->call_function("catalogue", "get_databases");
 
-		$output = Template_View::view_add($objects, $type, $modules);
+		$output = Template_View::view_add($objects, $modules);
 		return $output;
 	}
 	
@@ -1025,7 +1027,7 @@ class Template extends Modules {
 	 * @param $report_id The report to check
 	 * @return true/false based on the users permissions
 	 */
-	function report_visible($report_id) {
+	public function report_visible($report_id) {
 		$edit = isset($_SESSION['acls']['report'][$report_id]['edit']);
 		$history = isset($_SESSION['acls']['report'][$report_id]['histories']);
 		$execute = isset($_SESSION['acls']['report'][$report_id]['execute']);
@@ -1036,7 +1038,8 @@ class Template extends Modules {
 	}
 	
 	/**
-	 * Displays the report home screen
+	 * Displays the report home screen. This will also restrict to only those reports the user has either edit, execute or
+	 * histories permission on. Similarly functions will be visible with the appropriate permission.
 	 *
 	 * @return The HTML for the home screen
 	 */
@@ -1044,7 +1047,13 @@ class Template extends Modules {
 		$reports = $this->get_reports();
 		$my_reports = array();
 		foreach ($reports as $i => $report) {
-			if ($this->report_visible($report['template_id'])) {
+			$edit = isset($_SESSION['acls']['report'][$report['template_id']]['edit']);
+			$histories = isset($_SESSION['acls']['report'][$report['template_id']]['histories']);
+			$execute = isset($_SESSION['acls']['report'][$report['template_id']]['execute']);
+			if ($edit || $histories || $execute) {
+				$report['permission_edit'] = $edit;
+				$report['permission_histories'] = $histories;
+				$report['permission_execute'] = $execute;
 				$my_reports[] = $report;
 			}
 		}
@@ -1054,18 +1063,7 @@ class Template extends Modules {
 
 class Template_View {
 	function view_home($modules) {
-// 		$output->data = "<div id='workspace_container' dojoType='dijit.layout.TabContainer' style='height: 100%;'>";
-
-// 		//place the report workspace first
-// 		$template_module = $modules['template'];
-// 		unset($modules['template']);
-// 		array_unshift($modules, $template_module);
-
-// 		foreach ($modules as $i => $module) {
-// 			$output->data .= "<div href='".$module['path']."' dojoType='dijit.layout.ContentPane' title='".$module['title']."' style='width:100%; height:100%;'></div>";
-// 		}
-// 		$output->data .= "</div>";
-// 		return $output;
+		return $this->view_workspace_display($modules);
 	}
 	
 	/**
@@ -1238,6 +1236,12 @@ class Template_View {
 		return $output;
 	}
 
+	/**
+	 * This will display a single report line. Function links are only available to users with the appropriate permission.
+	 *
+	 * @param array $report A list of reports
+	 * @param int $view_id The id of the report
+	 */
 	function theme_reports($report, $view_id) {
 		$theme = $this->get_theme();
 		$webroot = $this->webroot();
@@ -1287,44 +1291,23 @@ class Template_View {
 					<ul>
 					";
 
-		$output .= "
-						<li>".$this->l($report['module']."/histories/".$report['template_id'], "Histories")."</li>
-						<li>".$this->l($report['module']."/execute_manually/".$report['template_id'], "Execute", "onclick='if (confirm(\"Execute report?\")) {return true;} else {return false;}'")."</li>
-						<li>".$this->l($report['module']."/add/".$report['template_id'], "Edit")."</li>
-						"./*<li><a href=''>Duplicate</a></li>.*/"
-						<li>".$this->l($report['module']."/delete/".$report['template_id'], "Remove", "onclick='if (confirm(\"Remove report?\")) {return true;} else {return false;}'")."</li>
-					</ul>
+		if ($report['permission_histories'] == true) {
+			$output .= "<li>".$this->l($report['module']."/histories/".$report['template_id'], "Histories")."</li>";
+		}
+		if ($report['permission_execute'] == true) {
+			$output .= "<li>".$this->l($report['module']."/execute_manually/".$report['template_id'], "Execute", "onclick='if (confirm(\"Execute report?\")) {return true;} else {return false;}'")."</li>";
+		}
+		if ($report['permission_edit'] == true) {
+			$output .= "<li>".$this->l($report['module']."/add/".$report['template_id'], "Edit")."</li>";
+			//$output .= "<li><a href=''>Duplicate</a></li>";
+			$output .= "<li>".$this->l($report['module']."/delete/".$report['template_id'], "Remove", "onclick='if (confirm(\"Remove report?\")) {return true;} else {return false;}'")."</li>";
+		}
+		$output .= "</ul>
 				</td>
 			</tr>
 			";
 		return $output;
 	}
-
-// 	function theme_saved_reports($report) {
-// 		$theme = $this->get_theme();
-// 		$webroot = $this->webroot();
-// 		$themeroot = $webroot.'themes/'.$theme.'/';
-// 		$output = "";
-// 		$output .= "<div class='report_div'>";
-// 			$output .= "<div class='title' style='position: relative;'>";
-// 				$output .= "<div class='filename' >".$report['name']."</div>";
-// 			$output .= "</div>";
-// 		$output .= "<div class='icon'><a href='".$webroot."".$report['module']."/add/".$report['template_id']."'>";
-// 			$output .= "<img src='".$themeroot."images/".$report['module'].".png ' />";
-// 			$output .= "<div class='links'>".$this->l($report['module']."/saved_report/".$report['template_id']."/".$report['created'], "View") ." </div>";
-// 		$output .= "</a></div>";
-// 		$output .= "<div class='report_info'>";
-// 			$run = $report['created'] ? date("Y-m-d H:i:s", strtotime($report['created'])) : 'never run';
-// 			$output .= "<div class='details'><span class='label'>Last Run: </span>".$run."</div>";
-// 			$output .= "<div class='details'><span class='label'>Run Time: </span>".$report['run_time']." seconds</div>";
-// 			$output .= "<div class='details'><span class='label'>Run By: </span>".$report['run_by']."</div>";
-// 			$output .= "<div class='details'><span class='label'>Result Size: </span>".$report['run_size']."</div>";
-// 			$details = $report['description'] ? $report['description'] : "No description available.";
-// 			$output .= "<div class='details'><span class='label'>Description: </span>".$details."</div>";
-// 		$output .= "</div>";
-// 		$output .= "</div>";
-// 		return $output;
-// 	}
 
 	function view_constraint_options_json($options) {
 		$output->layout = 'ajax';

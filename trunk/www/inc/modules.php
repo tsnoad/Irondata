@@ -456,7 +456,7 @@ class Modules extends Theme {
 			foreach ($users_meta as $user_id => $user) {
 				unset($membership);
 
-				if (count($users_groups[$user_id])) {
+				if (isset($users_groups[$user_id]) && count($users_groups[$user_id]) > 0) {
 					foreach ($users_groups[$user_id] as $group_id) {
 						$membership[] = $groups[$group_id];
 					}

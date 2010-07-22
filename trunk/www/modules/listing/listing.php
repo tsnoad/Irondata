@@ -50,6 +50,7 @@ class Listing extends Template {
 			case "hook_javascript":
 			case "hook_menu":
 			case "hook_workspace":
+			case "hook_template_entry":
 				// these can be called by other modules
 				if (isset($data['acls']['system']['login'])) {
 					return true;
@@ -60,9 +61,9 @@ class Listing extends Template {
 			case "view_history":
 			case "view_processing_history_ajax":
 				//only people with permission to create reports can access these functions
-				if (isset($data['acls']['system']['reportscreate'])) {
-					return true;
-				}
+				//if (isset($data['acls']['system']['reportscreate'])) {
+				//	return true;
+				//}
 				//or users with permission to access a specific report
 				if (isset($data['acls']['report'][$this->id]['histories'])) {
 					return true;
@@ -71,16 +72,15 @@ class Listing extends Template {
 				break;
 			case "view_execute_manually":
 				//only people with permission to create reports can access these functions
-				if (isset($data['acls']['system']['reportscreate'])) {
-					return true;
-				}
+				//if (isset($data['acls']['system']['reportscreate'])) {
+				//	return true;
+				//}
 				//or users with permission to execute a specific report
 				if (isset($data['acls']['report'][$this->id]['execute'])) {
 					return true;
 				}
 				return false;
 				break;
-			case "hook_template_entry":
 			case "view_add_select_object":
 			case "view_add":
 			case "view_save":
@@ -88,9 +88,9 @@ class Listing extends Template {
 			case "get_columns":
 			default:
 				//only people with permission to create reports can access these functions
-				if (isset($data['acls']['system']['reportscreate'])) {
-					return true;
-				}
+				//if (isset($data['acls']['system']['reportscreate'])) {
+				//	return true;
+				//}
 				//or users with permission to edit a specific report
 				if (isset($data['acls']['report'][$this->id]['edit'])) {
 					return true;
@@ -603,7 +603,7 @@ class Listing extends Template {
 		$object_id = $this->id;
 
 		if (empty($object_id)) return;
-		parent::view_add_select_object($object_id, 'listing');
+		$temp = parent::view_add_select_object($object_id, 'listing');
 		$this->redirect("listing/add/".$temp['template_id']);
 	}
 		
