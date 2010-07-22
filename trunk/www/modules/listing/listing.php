@@ -606,9 +606,81 @@ class Listing extends Template {
 		$temp = parent::view_add_select_object($object_id, 'listing');
 		$this->redirect("listing/add/".$temp['template_id']);
 	}
+	
+	function view_columns() {
+		$this->current = $this->get_template($this->id);
+		$blah['columns'] = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM list_templates ll WHERE ll.template_id='".$this->id."';"));
+		return $blah;
+	}
+	
+	/**
+	 * Called by Listing::view_add. Gets all data required to show the add/edit column page
+	 */
+	function view_editcolumn() {
+		$column_query = null;
+		$column_id = $this->subid;
+
+		if ($constraint_id == "new") {
+		} else {
+			$constraint_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM list_templates ll WHERE ll.template_id='".$this->id."' AND ll.list_template_id='".$column_id."' LIMIT 1;"));
+
+			$blah['data']['column_id'] = $constraint_query['column_id'];
+			$blah['data']['type'] = $constraint_query['type'];
+			$blah['data']['value'] = $constraint_query['value'];
+
+			$_REQUEST['data']['column_id'] = $constraint_query['column_id'];
+			$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
+			$table_join_ajax = $table_join_ajax->data;
+			unset($_REQUEST['data']['column_id']);
+		}
+
+		$this->current = $this->get_template($this->id);
+		$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
+
+		foreach ($tables['catalogue'] as $i => $column) {
+			foreach ($column as $j => $cell) {
+				$column_id = $cell['column_id'];
+
+				$blah['options']['column_id'][$column_id] = $cell['table_name'].".".$cell['column_name'];
+
+				switch ($cell['data_type']) {
+					default:
+						break;
+					case "timestamp":
+					case "timestamp with time zone":
+					case "timestamp without time zone":
+						$blah['column_types'][$column_id] = "date";
+						break;
+				}
+
+				if ($cell['dropdown'] == "t") {
+					$blah['column_options'][$column_id] = true;
+				}
+			}
+		}
+
+		$blah['options']['type'] = array(
+			"eq"=>"Equals",
+			"neq"=>"Does not Equal",
+			"lt"=>"Less Than",
+			"gt"=>"Greater Than",
+			"lte"=>"Less Than or Equal To",
+			"gte"=>"Greater Than or Equal To",
+			"like"=>"Contains"
+			);
+
+		if ($this->subid == "new") {
+			$_REQUEST['data']['column_id'] = reset(array_keys($blah['options']['column_id']));
+			$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
+			$table_join_ajax = $table_join_ajax->data;
+			unset($_REQUEST['data']['column_id']);
+		}
+
+		return array($blah, $table_join_ajax);
+	}
 		
 	/**
-	 * First point of contact for almost every page, when createing a listing report.
+	 * First point of contact for almost every page, when creating a listing report.
 	 * Runs queries to gather data to display in Listing_View::view_add().
 	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
 	 *
@@ -626,21 +698,13 @@ class Listing extends Template {
 		switch ($this->subvar) {
 			case "columns":
 				if ((int)$this->id) {
-					$this->current = $this->get_template($this->id);
-					$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
-
+					$blah = Listing::view_columns();
+				}
+				break;
+			case "editcolumn":
+				if ($this->subid) {
 					$blah = array();
-					foreach ($tables['catalogue'] as $i => $column) {
-						foreach ($column as $j => $cell) {
-							$blah['options'][$cell['column_id']] = $cell['table_name'].".".$cell['column_name'];
-						}
-					}
-
-					$listing_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM list_templates ll INNER JOIN list_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='c' LIMIT 1;"));
-
-					if (!empty($listing_templates_query)) {
-						$tabular_template_auto = $listing_templates_query;
-					}
+					list($blah, $table_join_ajax) = Listing::view_editcolumn();
 				}
 				break;
 			case "editsquidconstraint":
@@ -804,8 +868,8 @@ class Listing extends Template {
 			case "cancel":
 				break;
 			case "columns":
-				$update_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM listing_templates lt WHERE lt.template_id='".$this->id."';"));
-				$update_query = sortByColumn($update_query);
+				$update_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM list_templates lt WHERE lt.template_id='".$this->id."';"));
+				$update_query = $this->sortByColumn($update_query);
 				print_r($_REQUEST);
 				die();
 				/*
@@ -1187,9 +1251,10 @@ class Listing_View extends Template_View {
 			default:
 			case "columns":
 				$output->title = "Select Columns";
-				$output->title_desc = "Select the output columns for the List report. Each row will be made up of the values from each of these columns";
+				//$output->title_desc = "Select the output columns for the List report. Each row will be made up of the values from each of these columns";
+				$output->data .= Listing_view::view_columns($blah);
 
-				$output->data .= $this->f("listing/save/".$this->id."/".$this->subvar, "dojoType='dijit.form.Form'");
+				/*$output->data .= $this->f("listing/save/".$this->id."/".$this->subvar, "dojoType='dijit.form.Form'");
 				foreach ($blah['options'] as $i => $column) {
 					//TODO: DEFAULT
 					//TODO: "dojoType"=>"dijit.form.CheckBox",
@@ -1197,7 +1262,14 @@ class Listing_View extends Template_View {
 				}
 
 				$output->data .= $this->i("submit", array("label"=>"Next", "type"=>"submit", "value"=>"Next", "dojoType"=>"dijit.form.Button"));
-				$output->data .= $this->f_close();
+				$output->data .= $this->f_close();*/
+				break;
+			case "editcolumn":
+				$output->title = "Edit Constraint";
+				$output->title_desc = "";
+
+				$output->data .= Tabular_view::view_editconstraint($blah);
+
 				break;
 			case "editsquidconstraint":
 				$output->title = "Edit Constraint";
@@ -1483,6 +1555,74 @@ class Listing_View extends Template_View {
 				$output->data .= $this->f_close();
 				break;
 		}
+		return $output;
+	}
+	/**
+	 * Called by Listing::view_add to show the columns for a report.
+	 */
+	function view_columns($blah) {
+		$output = "";
+		$output .= "<a href='".$this->webroot()."listing/add/".$this->id."/editcolumn/new'>Create Column</a>";
+	
+		if (!empty($blah['columns'])) {
+
+			$output .= "
+				<div class='reports'>
+					<table cellpadding='0' cellspacing='0'>
+						<tr>
+							<th>Column</th>
+							<th>&nbsp;</th>
+						</tr>
+						";
+
+			foreach ($blah['columns'] as $column) {
+				//TODO Update this
+				$constraint_id = $column['constraint_id'];
+
+				$output .= "<tr>";
+				$output .= "<td>";
+
+				switch ($column['foobar']) {
+					case "constraint":
+						$output .= "<span class='".$$column['foobar']."'>";
+						$output .= $$column['constraint'];
+						$output .= "</span>";
+						break;
+				}
+
+				$output .= "</td>";
+				$output .= "<td>";
+				$output .= "<ul>";
+
+				switch ($column['foobar']) {
+					case "constraint":
+						if ($blah['default']) {
+							if ($this->subvar == "constraints") {
+								$output .= "<li><a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/".$constraint_id."'>Edit</a></li>";
+								$output .= "<li><a href='".$this->webroot()."tabular/save/".$this->id."/removeconstraintsubmit/".$constraint_id."' onclick='if (confirm(\"Remove constraint?\")) {return true;} else {return false;}'>Remove</a></li>";
+							} else if ($this->subid == "squidconstraints") {
+								$output .= "<li><a href='".$this->webroot()."tabular/add/{$this->id}/editsquidconstraint/{$this->aux1}/{$constraint_id}'>Edit</a></li>";
+// 								$output .= "<li><a href='".$this->webroot()."tabular/save/{$this->id}/removeconstraintsubmit/{$this->aux1}/{$constraint_id}' onclick='if (confirm(\"Remove constraint?\")) {return true;} else {return false;}'>Remove</a></li>";
+							}
+						} else {
+							$output .= "<li>&nbsp;</li>";
+						}
+						break;
+				}
+
+				$output .= "</ul>";
+				$output .= "</td>";
+				$output .= "</tr>";
+			}
+			$output .= "
+					</table>
+				</div>
+				";
+		} else {
+
+			$output .= "<p>No columns can be found.</p>";
+		}
+
 		return $output;
 	}
 	

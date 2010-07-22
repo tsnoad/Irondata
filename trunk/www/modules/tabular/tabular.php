@@ -3526,13 +3526,13 @@ class Tabular_View extends Template_View {
 		}
 
 		$output .= "<h3>Constraints</h3>";
-
+		if ($this->subvar == "constraints") {
+			$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
+		} else if ($this->subid == "squidconstraints") {
+			$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editsquidconstraint/".$this->aux1."/new'>Create Constraint</a>";
+		}
+	
 		if (!empty($blah['constraints'])) {
-			if ($this->subvar == "constraints") {
-				$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
-			} else if ($this->subid == "squidconstraints") {
-				$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editsquidconstraint/".$this->aux1."/new'>Create Constraint</a>";
-			}
 
 			$output .= "
 				<div class='reports'>
@@ -3586,11 +3586,6 @@ class Tabular_View extends Template_View {
 				</div>
 				";
 		} else {
-			if ($this->subvar == "constraints") {
-				$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
-			} else if ($this->subid == "squidconstraints") {
-				$output .= "<a href='".$this->webroot()."tabular/add/".$this->id."/editsquidconstraint/".$this->aux1."/new'>Create Constraint</a>";
-			}
 
 			$output .= "<p>No constraints can be found.</p>";
 		}
