@@ -1386,10 +1386,10 @@ class Tabular extends Template {
 	}
 
 	/**
-	 * View Table Join Axis
-	 *
 	 * Called by x/y axis source and edit constraint. Given a selected column id and the insersection column id, shows all the possible table joins between them, and produces html form elements to allow the user so select one.
 	 *
+	 * @param int $current_join The id of the current join
+	 * @return The HTML string output
 	 */
 	function view_table_join_ajax($current_join=null) {
 		$intersection = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) INNER JOIN columns c ON (c.column_id=tta.column_id) WHERE tt.template_id='".$this->id."' AND tt.type='c' LIMIT 1;"));
@@ -3191,6 +3191,12 @@ class Tabular_View extends Template_View {
 		return $output;
 	}
 
+	/**
+	 * Output the markup for the table join radio buttons (called via ajax)
+	 *
+	 * @param $table_join_markup
+	 * @return The HTML string output
+	 */
 	function view_table_join_ajax($table_join_markup) {
 		$output->layout = "ajax";
 		$output->data = $table_join_markup;
@@ -3595,6 +3601,9 @@ class Tabular_View extends Template_View {
 
 	/**
 	 * Called by Tabular_view::view_add to show the add/edit constraint form. Also used for add/edit manual axis contraint
+	 *
+	 * @param array $blah The parameters that describe how to display the form elements
+	 * @return The HTML string output
 	 */
 	function view_editconstraint($blah) {
 		// Set empty variables

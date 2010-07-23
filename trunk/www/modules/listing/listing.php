@@ -175,273 +175,71 @@ class Listing extends Template {
 	function hook_javascript() {
 		$js = parent::hook_javascript("listing");
 		return $js."
-		dojo.subscribe('/dnd/drop', function(source,nodes,iscopy,t){
-			if (source.parent.parentNode.className == 'style') {
-				//do nothing
-			} else {
-				label = dnd_getlabel(nodes);
-				if (t.node.className.substr(0, 10) == 'constraint') {
-					col = create_con_column(node_id, label, {'type':['eq'], 'value':[''], 'choose':[false]});
-					if (col) {
-						t.node.parentNode.parentNode.appendChild(col);
-					}
-				}
-				if (t.node.className.substr(0, 7) == 'columns') {
-					col = create_cell_column(node_id, label, {'sort':['ASC'], 'optional':[false]});
-					if (col) {
-						t.node.parentNode.parentNode.appendChild(col);
-					}
-				}
-			}
-			window.setTimeout('save_template()', 1000);
-			window.setTimeout('remove_dropped_column()', 1000);
-			return false;
-		});
-
-		/*
-		 * Remove Dropped Column Function
-		 * Once a column is dragged and dropped from the left bar, to Select Report Columns, the dragged button that was copied needs to be removed. This method is ugly as all hell, but at the time I could not find a better way...
-		 */
-		function remove_dropped_column() {
-			//The table that contains the selected report columns is always called columns. Get all list item children of this table.
-			var dropped_columns = window.document.getElementById('columns').getElementsByTagName('li');
-			//if there are any...
-			if (dropped_columns) {
-				//... loop through them
-				for (var i in dropped_columns) {
-					//the ones we want allways have an id that starts with 'dojoUnique'. Look for this.
-					if (dropped_columns[i].id && dropped_columns[i].id.substr(0, 10) == 'dojoUnique') {
-						//DESTROY!
-						dropped_columns[i].parentNode.removeChild(dropped_columns[i]);
-					}
-				}
-			}
-		}
-
-		function save_template() {
-			current = dijit.byId('mainTabContainer').selectedChildWidget.containerNode;
-			if (current.id == 'page_columns') {
-				passContent = save_columns();
-			}
-			if (current.id == 'page_style') {
-				passContent = save_styles();
-			}
-			if (current.id == 'page_group') {
-				passContent = save_groups();
-			}
-			if (current.id == 'page_constraints') {
-				passContent = save_constraints();
-			}
-			if (passContent) {
-				results = ajax_load('".$this->webroot()."listing/save/".$this->id."', passContent, 'demo');
-			}
-		};
-
-		function save_columns() {
+		function update_join_display(o) {
 			var passContent = {};
-			var container = dojo.byId('columns');
-			all_columns = container.getElementsByTagName('input');
-			for (var i=0; i<all_columns.length; i++) {
-				if (dijit.byId(all_columns[i].id) != undefined) {
-					last_pos = all_columns[i].id.lastIndexOf('_');
-					id = all_columns[i].id.substring(last_pos+1)
-					passContent['data['+id+'][id_'+id+']'] = id;
-					passContent['data['+id+'][id]'] = id;
-					passContent['data['+id+']['+all_columns[i].id.substring(0, last_pos)+']'] = dijit.byId(all_columns[i].id).getValue();
+			passContent[o.name] = o.value;
+			ajax_load('".$this->webroot()."listing/table_join_ajax/".$this->id."', passContent, 'join_display');
+		}
+
+		function update_data_preview_first() {
+			dojo.byId('data_preview_load').style.display = 'none';
+			dojo.byId('data_preview_loading').style.display = 'block';
+
+			url = '".$this->webroot()."listing/data_preview_first_ajax/".$this->id."';
+			data = {};
+			div = 'data_preview_first';
+
+			var d = dojo.xhrPost({
+				url: url,
+				handleAs: 'text',
+				sync: false,
+				content: data,
+				// The LOAD function will be called on a successful response.
+				load: function(response, ioArgs) {
+					if (div) {
+						dojo.byId(div).innerHTML = response;
+					}
+
+					update_data_preview_slow();
+					return response;
+				},
+				// The ERROR function will be called in an error case.
+				error: function(response, ioArgs) {
+					console.error(\"HTTP status code: \", ioArgs.xhr.status);
+					return response;
 				}
-			}
-			return passContent;
+			});
 		}
 
-		function save_styles() {
-			var passContent = {};
-			var container = dojo.byId('style');
-			// level goes from -2 to 2
-			level = -2;
-			rows = container.getElementsByTagName('div');
-			for (var j=0; j<rows.length; j++) {
-				if ((rows[j].className.indexOf('dojoDndSource')) == -1) {
-					continue;
+		function update_data_preview_slow() {
+			var saved_report_id = window.document.getElementById('saved_report_id').innerHTML;
+
+			url = '".$this->webroot()."listing/data_preview_slow_ajax/".$this->id."/'+saved_report_id;
+			data = {};
+			div = 'data_preview';
+
+			var d = dojo.xhrPost({
+				url: url,
+				handleAs: 'text',
+				sync: false,
+				content: data,
+				// The LOAD function will be called on a successful response.
+				load: function(response, ioArgs) {
+					if (response == 'finished') {
+						return;
+					}
+
+					if (div) {
+						dojo.byId(div).innerHTML = response;
+					}
+
+					update_data_preview_slow();
+				},
+				// The ERROR function will be called in an error case.
+				error: function(response, ioArgs) {
+					console.error(\"HTTP status code: \", ioArgs.xhr.status);
+					return response;
 				}
-				console.log(rows[j].className);
-				all_columns = rows[j].getElementsByTagName('button');
-				for (var i=0; i<all_columns.length; i++) {
-					id = all_columns[i].id.substring(9);
-					passContent['data['+id+'][id_'+id+']'] = id;
-					passContent['data['+id+'][id]'] = id;
-					if (dojo.byId('s_id_'+id)) {
-						passContent['data['+id+']['+dijit.byId('label_'+id).name+']'] = dijit.byId('label_'+id).getValue();
-						passContent['data['+id+']['+dijit.byId('display_label_'+id).name+']'] = dijit.byId('display_label_'+id).getValue();
-						passContent['data['+id+']['+dijit.byId('display_duplicates_'+id).name+']'] = dijit.byId('display_duplicates_'+id).getValue();
-						passContent['data['+id+']['+dijit.byId('subtotal_'+id).name+']'] = dijit.byId('subtotal_'+id).getValue();
-						passContent['data['+id+']['+dijit.byId('style_'+id).name+']'] = dijit.byId('style_'+id).getValue();
-						passContent['data['+id+']['+dijit.byId('indent_cells_'+id).name+']'] = dijit.byId('indent_cells_'+id).getValue();
-						passContent['data['+id+'][level]'] = level;
-					}
-				}
-				level++;
-			}
-			return passContent;
-		}
-		
-		function save_groups() {
-			var passContent = {};
-			var container = dojo.byId('group');
-			all_columns = container.getElementsByTagName('input');
-			for (var i=0; i<all_columns.length; i++) {
-				id = all_columns[i].id.substring(10);
-				passContent['data['+id+'][id_'+id+']'] = id;
-				passContent['data['+id+'][id]'] = id;
-				if (dojo.byId('aggregate_'+id)) {
-					passContent['data['+id+']['+dijit.byId('aggregate_'+id).name+']'] = dijit.byId('aggregate_'+id).getValue();
-				}
-			}
-			return passContent;
-		}
-
-		function create_cell_column(id, name, data) {
-			/* Check if it already exists */
-			if (dijit.byId('sort_'+id)) {
-				return false;
-			}
-
-			//Add the optional cell
-			var container = dojo.doc.createElement('tr');
-
-			var td = dojo.doc.createElement('td');
-			container.appendChild(td)
-			var button = dojo.doc.createElement('div');
-			button.innerHTML = name;
-			td.appendChild(button);
-
-			sortStore = new dojo.data.ItemFileReadStore({id:'sortStore',url: '".$this->webroot()."listing/sort_dd_json'});
-
-			var xid = create_input('id', 'hidden', {id:'c_id_'+id, value: id, label: false});
-			var sort = create_input('sort', 'select', {label: false, id:'sort_'+id, value: data['sort'][0], store:sortStore, onChange: save_template});
-			var opt = create_input('optional', 'checkbox', {label: false, id:'optional_'+id, value: data['optional'][0], onChange: save_template});
-			var remove = create_input('remove', 'button', {label: 'Remove', id:'remove_'+id, onClick: remove_column});
-
-			var td2 = dojo.doc.createElement('td');
-			container.appendChild(td2)
-			td2.appendChild(xid);
-			td2.appendChild(sort);
-
-			var td3 = dojo.doc.createElement('td');
-			container.appendChild(td3)
-			td3.appendChild(opt);
-
-			var td4 = dojo.doc.createElement('td');
-			container.appendChild(td4)
-			td4.appendChild(remove);
-
-			return container;
-		}
-
-		function create_cell_style(id, name, data) {
-
-			//Add the optional cell
-			var container = dojo.doc.createElement('div');
-			var hidden = dojo.doc.createElement('div');
-			hidden.style.display='none';
-			container.appendChild(hidden);
-
-			var button = dojo.doc.createElement('div');
-			container.appendChild(button);
-			var button = new dijit.form.DropDownButton({label: name, id:'s_column_'+id, className: 'column', connectId:['s_column_dialog_'+id]},button);
-			
-			// The dialog. WHat opens when you click. This needs to be created first (before the button)
-			var dialog = dojo.doc.createElement('div');
-			hidden.appendChild(dialog);
-			var dialog2 = new dijit.TooltipDialog({id:'s_column_dialog_'+id},dialog);
-			button.dropDown = dialog2;
-
-			styleStore = new dojo.data.ItemFileReadStore({id:'aggStore',url: '".$this->webroot()."listing/style_dd_json'});
-
-			var xid = create_input('id', 'hidden', {id:'s_id_'+id, value: id, label: false});
-			var label = create_input('label', 'text', {label: 'Label: ', id:'label_'+id, value: data['label'][0], onChange: save_template});
-			var dl = create_input('display_label', 'checkbox', {label: 'Display Label: ', id:'display_label_'+id, value: data['display_label'][0], onChange: save_template});
-			var dd = create_input('display_duplicates', 'checkbox', {label: 'Display Duplicates: ', id:'display_duplicates_'+id, value: data['duplicates'][0], onChange: save_template});
-			var st = create_input('indent_cells', 'number', {label: 'Indent Cells: ', id:'indent_cells_'+id, value: data['indent_cells'][0], onChange: save_template});
-			var ic = create_input('subtotal', 'checkbox', {label: 'Subtotal: ', id:'subtotal_'+id, value: data['subtotal'][0], onChange: save_template});
-			var style = create_input('style', 'select', {label: 'Style: ', id:'style_'+id, store:styleStore, value: data['style'][0], onChange: save_template});
-
-			var dialog = dojo.doc.createElement('div');
-			dialog.appendChild(xid);
-			dialog.appendChild(label);
-			dialog.appendChild(dl);
-			dialog.appendChild(dd);
-			dialog.appendChild(st);
-			dialog.appendChild(ic);
-			dialog.appendChild(style);
-			dialog2.setContent(dialog);
-			
-			return container;
-		}
-
-		function create_cells() {
-			template.fetch({onComplete: proc_cell});
-		}
-		
-		var node_creator = function(data, hint){
-			var types = [];
-			var node = dojo.doc.createElement('td');
-			types.push('stylebox');dojo.addClass(node, 'stylebox');
-			if (hint != 'avatar') {
-				node.appendChild(data);
-			}
-			node.id = dojo.dnd.getUniqueId();
-			return {node: node, data: data, type: types};
-		};
-		
-		function proc_cell(items, request) {
-			cell = 1;
-			current = dijit.byId('mainTabContainer').selectedChildWidget.containerNode;
-			if (current.id == 'page_style' && dojo.byId('style')) {
-				var tr1 = dojo.doc.createElement('div');
-				var td = dojo.doc.createElement('span'); td.className='list-2'; td.innerHTML='Heading 1'; tr1.appendChild(td);
-				dojo.byId('style').appendChild(tr1);
-				c1 = new dojo.dnd.Source(tr1, {creator: node_creator,accept: ['stylebox']});
-				
-				var tr2 = dojo.doc.createElement('div');
-				var td = dojo.doc.createElement('span'); td.className='list-1'; td.innerHTML='Heading 2'; tr2.appendChild(td);
-				dojo.byId('style').appendChild(tr2);
-				c2 = new dojo.dnd.Source(tr2, {creator: node_creator,accept: ['stylebox']});
-
-				var tr3 = dojo.doc.createElement('div');
-				var td = dojo.doc.createElement('span'); td.className='list0'; td.innerHTML='Normal'; tr3.appendChild(td);
-				dojo.byId('style').appendChild(tr3);
-				c3 = new dojo.dnd.Source(tr3, {creator: node_creator,accept: ['stylebox']});
-
-				var tr4 = dojo.doc.createElement('div');
-				var td = dojo.doc.createElement('span'); td.className='list1'; td.innerHTML='Sub 1'; tr4.appendChild(td);
-				dojo.byId('style').appendChild(tr4);
-				c4 = new dojo.dnd.Source(tr4, {creator: node_creator,accept: ['stylebox']});
-
-				var tr5 = dojo.doc.createElement('div');
-				var td = dojo.doc.createElement('span'); td.className='list2'; td.innerHTML='Sub 2'; tr5.appendChild(td);
-				dojo.byId('style').appendChild(tr5);
-				c5 = new dojo.dnd.Source(tr5, {creator: node_creator,accept: ['stylebox']});
-			}
-			dojo.forEach(items, function(i){
-				if (current.id == 'page_style' && dojo.byId('style')) {
-					input = create_cell_style(i['column_id'][0], i['chuman'][0], i);
-					if (i['level'][0] == 0) {
-						c3.insertNodes(false, [input]);
-					}
-					if (i['level'][0] == -1) {
-						c2.insertNodes(false, [input]);
-					}
-					if (i['level'][0] == -2) {
-						c1.insertNodes(false, [input]);
-					}
-					if (i['level'][0] == 1) {
-						c4.insertNodes(false, [input]);
-					}
-					if (i['level'][0] == 2) {
-						c5.insertNodes(false, [input]);
-					}
-				}
-				cell = cell +1
 			});
 		}
 		";
@@ -609,8 +407,201 @@ class Listing extends Template {
 	
 	function view_columns() {
 		$this->current = $this->get_template($this->id);
-		$blah['columns'] = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM list_templates ll WHERE ll.template_id='".$this->id."';"));
+		$blah['columns'] = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT ll.*, c.name AS column_name, t.name AS table_name, c.human_name AS column_human_name, t.human_name AS table_human_name FROM list_templates ll, columns c, tables t WHERE c.table_id=t.table_id AND ll.column_id=c.column_id AND ll.template_id='".$this->id."';"));
 		return $blah;
+	}
+
+	/**
+	 * Called by column source and edit constraint. Given a selected column id and the first column id, shows all the possible table joins between them, and produces html form elements to allow the user so select one.
+	 *
+	 * @param int $current_join The id of the current join
+	 * @return The HTML string output
+	 */
+	function view_table_join_ajax($current_join=null) {
+		$intersection = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM list_templates lt INNER JOIN columns c ON (c.column_id=lt.column_id) WHERE lt.template_id='".$this->id."' ORDER BY list_template_id LIMIT 1;"));
+		// Is this the first column. If so there is nothing to join it to.
+		if (empty($intersection)) return null;
+
+		$selected_column_id = $_REQUEST['data']['column_id'];
+		$intersection_column_id = $intersection['column_id'];
+
+		$foobar = "<h3>Axis Relationship</h3>";
+		$foobar .= "<p class='h3attach'>The selected column may be linked to first column, by one of a number of different routes.</p>";
+
+		//self referential joins
+		$sr_joins_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT c.*, t.*, c.name AS column_name, t.name AS table_name FROM columns c INNER JOIN tables t ON (t.table_id=c.table_id) WHERE c.column_id='".$selected_column_id."' OR c.column_id='".$intersection_column_id."';"));
+
+		foreach ($sr_joins_query as $sr_join_tmp) {
+			$sr_joins[$sr_join_tmp['column_id']] = $sr_join_tmp;
+		}
+
+		$selected_table_id = $sr_joins[$selected_column_id]['table_id'];
+		$intersection_table_id = $sr_joins[$intersection_column_id]['table_id'];
+
+		if ($selected_table_id == $intersection_table_id) {
+			$foobar .= "<div class='input radio'>";
+			$foobar .= "<input type='radio' name='data[table_join_id]' checked='true' disabled='true' />";
+			$foobar .= "<label>";
+			$foobar .= "<span style='font-weight: bold;'>";
+			$foobar .= $sr_joins[$selected_column_id]['table_name'];
+			$foobar .= ".";
+			$foobar .= $sr_joins[$selected_column_id]['column_name'];
+			$foobar .= "</span>";
+			$foobar .= " &#x21C4; ";
+			$foobar .= "<span style='font-weight: bold;'>";
+			$foobar .= $sr_joins[$intersection_column_id]['table_name'];
+			$foobar .= ".";
+			$foobar .= $sr_joins[$intersection_column_id]['column_name'];
+			$foobar .= "</span>";
+			$foobar .= "</label>";
+			$foobar .= "</div>";
+			
+			$explaination_tmp = "The selected column is linked, via a self referential join, to the first column.";
+			$foobar .= "<p>".$explaination_tmp."</p>";
+		}
+
+		$table_joins_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM table_joins WHERE table1='".$selected_table_id."' AND table2='".$intersection_table_id."';"));
+
+		if (empty($table_joins_query)) {
+			$output = Listing_View::view_table_join_ajax($foobar);
+			return $output;
+		}
+
+		$columns_tmp = array($selected_column_id, $intersection_column_id);
+		foreach ($table_joins_query as $table_join_tmp) {
+			$columns_tmp = array_merge((array)$columns_tmp, (array)explode(",", $table_join_tmp['method']));
+			$table_joins[$table_join_tmp['table_join_id']] = $table_join_tmp;
+		}
+		$columns_tmp = array_unique($columns_tmp);
+
+		$columns_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT c.column_id, c.name as column_name, t.table_id, t.name as table_name FROM columns c INNER JOIN tables t ON (c.table_id=t.table_id) WHERE c.column_id='".implode("' OR c.column_id='", $columns_tmp)."';"));
+		foreach ($columns_query as $column_tmp) {
+			$columns[$column_tmp['column_id']] = $column_tmp;
+			$tables[$column_tmp['table_id']] = $column_tmp;
+		}
+
+		foreach ($table_joins as $table_join) {
+			$table_join_id = $table_join['table_join_id'];
+
+			$method_tmp = explode(",", $table_join['method']);
+
+			$method_start_table = $table_join['table1'];
+			$method_end_table = $table_join['table2'];
+
+			$this_pair_start_id = 0;
+			$this_pair_end_id = $this_pair_start_id + 1;
+
+			$last_pair_start_table = $method_start_table;
+
+			unset($method_reorg);
+
+			while (isset($method_tmp[$this_pair_start_id])) {
+				$this_pair_start_table = $columns[$method_tmp[$this_pair_start_id]]['table_id'];
+
+				if ($this_pair_start_id !== 0) $method_reorg[] = "internal join";
+
+				if ($last_pair_start_table != $this_pair_start_table) {
+					$method_reorg[] = $method_tmp[$this_pair_end_id];
+					$method_reorg[] = "referenced by";
+					$method_reorg[] = $method_tmp[$this_pair_start_id];
+				} else {
+					$method_reorg[] = $method_tmp[$this_pair_start_id];
+					$method_reorg[] = "references";
+					$method_reorg[] = $method_tmp[$this_pair_end_id];
+				}
+
+				$last_pair_start_table = isset($columns[$method_reorg[$this_pair_end_id]]['table_id']) ? $columns[$method_reorg[$this_pair_end_id]]['table_id'] : null;
+
+				$this_pair_start_id += 2;
+				$this_pair_end_id = $this_pair_start_id + 1;
+			}
+
+
+			$foobar .= "<div class='input'>";
+
+			$join_selected = $current_join == $table_join_id || count($table_joins) === 1;
+
+			$foobar .= "<input type='radio' name='data[table_join_id]' value='".$table_join_id."' ".($join_selected ? "checked=\"checked\"" : "")." /><label>";
+
+			$explaination_count = 0;
+			$explaination_sr_count = 0;;
+			$explaination_in_count = 0;
+			$explaination_tmp = "The selected column is linked, ";
+
+			if ($method_reorg[0] != $selected_column_id) {
+				$column = $columns[$selected_column_id];
+
+				$foobar .= "<span style='font-weight: bold;'>";
+				$foobar .= ucwords($column['table_name']);
+				$foobar .= ".";
+				$foobar .= ucwords($column['column_name']);
+				$foobar .= "</span>";
+
+				$foobar .= " &#x21C4; ";
+
+				$explaination_tmp .= "via a self referential join, ";
+				$explaination_count += 1;
+				$explaination_sr_count += 1;
+			}
+
+			foreach ($method_reorg as $method_step) {
+				if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "<span style='font-weight: bold;'>";
+
+				switch ($method_step) {
+					case "internal join":
+						$foobar .= " &#x21C4; ";
+
+						$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_sr_count > 0 ? "another" : "a")." self referential join, ";
+						$explaination_count += 1;
+						$explaination_sr_count += 1;
+						break;
+					case "references":
+					case "referenced by":
+						$foobar .= " <span style='font-style: italic;'>";
+						$foobar .= $method_step;
+						$foobar .= "</span> ";
+
+						$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_in_count > 0 ? "another" : "an")." inner join, ";
+						$explaination_count += 1;
+						$explaination_in_count += 1;
+						break;
+					default:
+						$column = $columns[$method_step];
+
+						$foobar .= ucwords($column['table_name']);
+						$foobar .= ".";
+						$foobar .= ucwords($column['column_name']);
+						break;
+				}
+
+				if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "</span>";
+			}
+
+			if (end($method_reorg) != $intersection_column_id) {
+				$foobar .= " &#x21C4; ";
+
+				$column = $columns[$intersection_column_id];
+
+				$foobar .= "<span style='font-weight: bold;'>";
+				$foobar .= ucwords($column['table_name']);
+				$foobar .= ".";
+				$foobar .= ucwords($column['column_name']);
+				$foobar .= "</span>";
+
+				$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_sr_count > 0 ? "another" : "a")." self referential join, ";
+				$explaination_count += 1;
+				$explaination_sr_count += 1;
+			}
+
+			$foobar .= "</label>";
+			$foobar .= "</div>";
+
+			$explaination_tmp .= "to the intersection column.";
+			$foobar .= "<p>".$explaination_tmp."</p>";
+		}
+
+		$output = Listing_View::view_table_join_ajax($foobar);
+		return $output;
 	}
 	
 	/**
@@ -618,18 +609,28 @@ class Listing extends Template {
 	 */
 	function view_editcolumn() {
 		$column_query = null;
-		$column_id = $this->subid;
+		$list_template_id = $this->subid;
 
-		if ($constraint_id == "new") {
+		if ($list_template_id == "new") {
 		} else {
-			$constraint_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM list_templates ll WHERE ll.template_id='".$this->id."' AND ll.list_template_id='".$column_id."' LIMIT 1;"));
-
-			$blah['data']['column_id'] = $constraint_query['column_id'];
-			$blah['data']['type'] = $constraint_query['type'];
-			$blah['data']['value'] = $constraint_query['value'];
-
-			$_REQUEST['data']['column_id'] = $constraint_query['column_id'];
-			$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
+			$column_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM list_templates ll WHERE ll.template_id='".$this->id."' AND ll.list_template_id='".$list_template_id."' LIMIT 1;"));
+			$blah['data']['list_template_id'] = $column_query['list_template_id'];
+			$blah['data']['column_id'] = $column_query['column_id'];
+			$blah['data']['index'] = $column_query['index'];
+			$blah['data']['duplicates'] = $column_query['duplicates'];
+			$blah['data']['subtotal'] = $column_query['subtotal'];
+			$blah['data']['sort'] = $column_query['sort'];
+			$blah['data']['aggregate'] = $column_query['aggregate'];
+			$blah['data']['label'] = $column_query['label'];
+			$blah['data']['optional'] = $column_query['optional'];
+			$blah['data']['order'] = $column_query['order'];
+			$blah['data']['level'] = $column_query['level'];
+			$blah['data']['style'] = $column_query['style'];
+			$blah['data']['show_label'] = $column_query['show_label'];
+			$blah['data']['indent'] = $column_query['indent'];
+			
+			$_REQUEST['data']['column_id'] = $column_query['column_id'];
+			$table_join_ajax = $this->view_table_join_ajax($column_query['table_join_id']);
 			$table_join_ajax = $table_join_ajax->data;
 			unset($_REQUEST['data']['column_id']);
 		}
@@ -640,38 +641,14 @@ class Listing extends Template {
 		foreach ($tables['catalogue'] as $i => $column) {
 			foreach ($column as $j => $cell) {
 				$column_id = $cell['column_id'];
-
 				$blah['options']['column_id'][$column_id] = $cell['table_name'].".".$cell['column_name'];
-
-				switch ($cell['data_type']) {
-					default:
-						break;
-					case "timestamp":
-					case "timestamp with time zone":
-					case "timestamp without time zone":
-						$blah['column_types'][$column_id] = "date";
-						break;
-				}
-
-				if ($cell['dropdown'] == "t") {
-					$blah['column_options'][$column_id] = true;
-				}
 			}
 		}
 
-		$blah['options']['type'] = array(
-			"eq"=>"Equals",
-			"neq"=>"Does not Equal",
-			"lt"=>"Less Than",
-			"gt"=>"Greater Than",
-			"lte"=>"Less Than or Equal To",
-			"gte"=>"Greater Than or Equal To",
-			"like"=>"Contains"
-			);
-
+		// TODO: What is this for?
 		if ($this->subid == "new") {
 			$_REQUEST['data']['column_id'] = reset(array_keys($blah['options']['column_id']));
-			$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
+			$table_join_ajax = $this->view_table_join_ajax($column_query['table_join_id']);
 			$table_join_ajax = $table_join_ajax->data;
 			unset($_REQUEST['data']['column_id']);
 		}
@@ -867,30 +844,25 @@ class Listing extends Template {
 		switch ($this->subvar) {
 			case "cancel":
 				break;
-			case "columns":
-				$update_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM list_templates lt WHERE lt.template_id='".$this->id."';"));
-				$update_query = $this->sortByColumn($update_query);
-				print_r($_REQUEST);
-				die();
-				/*
-				if ($update_query['tabular_template_id']) {
+			case "editcolumnsubmit":
+				$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM list_templates lt WHERE lt.template_id='".$this->id."' AND lt.list_template_id='".$this->subid."';"));
+				//$update_query = $this->sortByColumn($update_query);
+
+				if (isset($update_query['list_template_id'])) {
+					$list_template_id = $update_query['list_template_id'];
+					$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "list_template_id", $list_template_id, "list_templates"));
 				} else {
-					$this->dobj->db_query($this->dobj->insert(array("template_id"=>$this->id, "type"=>$this->subvar, "axis_type"=>"auto"), "tabular_templates"));
+					$_REQUEST['data']['template_id'] = $this->id;
+					$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "list_templates"));
 				}
+				break;
+			case "removecolumn":
+				$template_id = $this->id;
+				$list_template_id = $this->subid;
 
-				if ($update_query['tabular_templates_auto_id']) {
-					$tabular_template_id = $update_query['tabular_template_id'];
-
-					$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_template_id", $tabular_template_id, "tabular_templates_auto"));
-				} else {
-					$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
-
-					$tabular_template_id = $tabular_template_query['tabular_template_id'];
-					$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
-
-					$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_auto"));
-				}
-				*/
+				if (empty($template_id)) return;
+				if (empty($list_template_id)) return;
+				$this->dobj->db_query("DELETE FROM list_templates WHERE template_id='$template_id' AND list_template_id='".$list_template_id."';");
 				break;
 			case "editsquidconstraintsubmit":
 				if ($this->aux1) {
@@ -1049,85 +1021,7 @@ class Listing extends Template {
 		$this->view_add_next();
 		return;
 	}
-	
-	function view_saveX() {
-// 		/* Submitted information */
-// 		$order = 1;
-// 		foreach ($_REQUEST['data'] as $i => $post) {
-// 			if (strpos($i, "con") === 0) {
-// 				$col = array();
-// 				$col['column_id'] = $post['id'];
-// 				$col['template_id'] = $this->id;
-// 				$col['value'] = $post['value'];
-// 				$col['type'] = $post['type'];
-// 				$op = ($post['choose'] == "on") ? 't' : 'f';
-// 				$col['choose'] = $op;
-// 				/* Does it already exist. Column/Template must be unique */
-// 				$query = "SELECT * FROM list_constraints WHERE template_id=".$this->id." AND column_id=".$post['id'].";";
-// 				$cur = $this->dobj->db_fetch($this->dobj->db_query($query));
-// 				if ($cur) {
-// 					$this->dobj->db_query($this->dobj->update($col, "list_constraints_id", $cur['list_constraints_id'], "list_constraints"));
-// 				} else {
-// 					$this->dobj->db_query($this->dobj->insert($col, "list_constraints"));
-// 				}
-// 			} else {
-// 				$col = array();
-// 				$col['column_id'] = $post['id'];
-// 				/* This value is invalid. It must have an id */
-// 				if (!$post['id']) {
-// 					continue;
-// 				}
-// 				$col['template_id'] = $this->id;
-// 				if ($post['display_duplicates']) {
-// 					$dd = ($post['display_duplicates'] == "on" || $post['display_duplicates'] == "f" || $post['display_duplicates'] == "t" ) ? 't' : 'f';
-// 					$col['duplicates'] = $dd;
-// 				}
-// 				if ($post['subtotal']) {
-// 					$st = ($post['subtotal'] == "on" || $post['subtotal'] == "f" || $post['subtotal'] == "t") ? 't' : 'f';
-// 					$col['subtotal'] = $st;
-// 				}
-// 				if ($post['display_label']) {
-// 					$dl = ($post['display_label'] == "on" || $post['display_label'] == "f" || $post['display_label'] == "t") ? 't' : 'f';
-// 					$col['display_label'] = $dl;
-// 				}
-// 				if ($post['style']) {
-// 					$col['style'] = $post['style'];
-// 				}
-// 				if ($post['indent_cells']) {
-// 					$col['indent_cells'] = $post['indent_cells'];
-// 				}
-// 				if ($post['optional']) {
-// 					$op = ($post['optional'] == "on") ? 't' : 'f';
-// 					$col['optional'] = $op;
-// 				}
-// 				if ($post['aggregate']) {
-// 					$col['aggregate'] = $post['aggregate'];
-// 				}
-// 				if ($post['label']) {
-// 					$col['label'] = $post['label'];
-// 				}
-// 				if ($post['level']) {
-// 					$col['level'] = $post['level'];
-// 				}
-// 				if ($post['sort']) {
-// 					$col['sort'] = $post['sort'];
-// 					$col['col_order'] = $order;
-// 					$order++;
-// 				}
-// 				/* Does it already exist. Column/Template must be unique */
-// 				$query = "SELECT * FROM list_templates WHERE template_id=".$this->id." AND column_id=".$post['id'].";";
-// 				$cur = $this->dobj->db_fetch($this->dobj->db_query($query));
-// 				if ($cur) {
-// 					$this->dobj->db_query($this->dobj->update($col, "list_template_id", $cur['list_template_id'], "list_templates"));
-// 				} else {
-// 					$this->dobj->db_query($this->dobj->insert($col, "list_templates"));
-// 				}
-// 			}
-// 		}
-// 		$output = Listing_View::view_save($data, $template);
-// 		return $output;
-	}
-	
+
 // 	function hook_run($demo=false) {
 // 		$template = $this->get_columns($this->id);
 // 		$constraints = $this->get_constraints($this->id);
@@ -1265,10 +1159,10 @@ class Listing_View extends Template_View {
 				$output->data .= $this->f_close();*/
 				break;
 			case "editcolumn":
-				$output->title = "Edit Constraint";
+				$output->title = "Add/Edit Column";
 				$output->title_desc = "";
 
-				$output->data .= Tabular_view::view_editconstraint($blah);
+				$output->data .= Listing_view::view_editcolumn($blah);
 
 				break;
 			case "editsquidconstraint":
@@ -1557,6 +1451,7 @@ class Listing_View extends Template_View {
 		}
 		return $output;
 	}
+
 	/**
 	 * Called by Listing::view_add to show the columns for a report.
 	 */
@@ -1576,39 +1471,20 @@ class Listing_View extends Template_View {
 						";
 
 			foreach ($blah['columns'] as $column) {
-				//TODO Update this
-				$constraint_id = $column['constraint_id'];
-
+				$column_id = $column['column_id'];
+				$list_template_id = $column['list_template_id'];
+				
 				$output .= "<tr>";
 				$output .= "<td>";
-
-				switch ($column['foobar']) {
-					case "constraint":
-						$output .= "<span class='".$$column['foobar']."'>";
-						$output .= $$column['constraint'];
-						$output .= "</span>";
-						break;
-				}
-
+				$output .= "<span>";
+				$output .= $column['table_human_name'].".".$column['column_human_name'];
+				$output .= "</span>";
 				$output .= "</td>";
 				$output .= "<td>";
 				$output .= "<ul>";
 
-				switch ($column['foobar']) {
-					case "constraint":
-						if ($blah['default']) {
-							if ($this->subvar == "constraints") {
-								$output .= "<li><a href='".$this->webroot()."tabular/add/".$this->id."/editconstraint/".$constraint_id."'>Edit</a></li>";
-								$output .= "<li><a href='".$this->webroot()."tabular/save/".$this->id."/removeconstraintsubmit/".$constraint_id."' onclick='if (confirm(\"Remove constraint?\")) {return true;} else {return false;}'>Remove</a></li>";
-							} else if ($this->subid == "squidconstraints") {
-								$output .= "<li><a href='".$this->webroot()."tabular/add/{$this->id}/editsquidconstraint/{$this->aux1}/{$constraint_id}'>Edit</a></li>";
-// 								$output .= "<li><a href='".$this->webroot()."tabular/save/{$this->id}/removeconstraintsubmit/{$this->aux1}/{$constraint_id}' onclick='if (confirm(\"Remove constraint?\")) {return true;} else {return false;}'>Remove</a></li>";
-							}
-						} else {
-							$output .= "<li>&nbsp;</li>";
-						}
-						break;
-				}
+				$output .= "<li><a href='".$this->webroot()."listing/add/".$this->id."/editcolumn/".$list_template_id."'>Edit</a></li>";
+				$output .= "<li><a href='".$this->webroot()."listing/save/".$this->id."/removecolumn/".$list_template_id."' onclick='if (confirm(\"Remove Column?\")) {return true;} else {return false;}'>Remove</a></li>";
 
 				$output .= "</ul>";
 				$output .= "</td>";
@@ -1781,6 +1657,64 @@ class Listing_View extends Template_View {
 		}
 		return $output;
 	}
+
+	/**
+	 * Output the markup for the table join radio buttons (called via ajax)
+	 *
+	 * @param $table_join_markup
+	 * @return The HTML string output
+	 */
+	function view_table_join_ajax($table_join_markup) {
+		$output->layout = "ajax";
+		$output->data = $table_join_markup;
+		$output->data .= "<hr />";
+		return $output;
+	}
+	
+	/**
+	 * Called by Listing_view::view_add to show the add/edit constraint form. Also used for add/edit manual axis contraint
+	 *
+	 * @param array $blah The parameters that describe how to display the form elements
+	 * @return The HTML string output
+	 */
+	function view_editcolumn($blah) {
+		// Set empty variables
+		$output = "";
+		if (!isset($blah['data']['column_id'])) {
+			$blah['data']['column_id'] = null;
+		}
+		if (isset($blah['error'])) {
+			$output .= "<p style='color: #a40000; font-family: Arial; font-size: 10pt; font-weight: bold;'>".$blah['error']."</p>";
+		}
+
+		switch ($this->subvar) {
+			case "editcolumn":
+				$list_template_id = $this->subid;
+
+				$output .= $this->f("listing/save/{$this->id}/editcolumnsubmit/{$list_template_id}", "dojoType='dijit.form.Form'");
+				$cancel = "<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."listing/add/{$this->id}/columns\"; return false;' name='cancel' >Cancel</button>";
+				break;
+		}
+
+		$output .= $this->i("data[column_id]", array("id"=>"data[column_id]", "label"=>"Column", "type"=>"select", "default"=>$blah['data']['column_id'], "options"=>$blah['options']['column_id'], "onchange"=>"update_join_display(this);", "dojoType"=>"dijit.form.FilteringSelect"));
+
+		$output .= "<hr />";
+		$output .= "<div id='join_display'>";
+		
+		//TODO: Not required - DELETE $output .= $table_join_ajax;
+		$output .= "</div>";
+
+		$output .= "
+			<div class='input'>
+				{$cancel}<button type='submit' value='Next' dojoType='dijit.form.Button' name='submit' >Save</button>
+			</div>
+			";
+
+		$output .= $this->f_close();
+
+		return $output;
+	}
+	
 }
 
 

@@ -525,7 +525,7 @@ class Catalogue extends Modules {
 		return $tables;
 	}
 
-	/* TODO: Fix to display from only one database */
+	// TODO: Fix to display from only one database
 	function get_structure($object, $available=true) {
 		if ($available) {
 			$available = " AND c.available='t' ";

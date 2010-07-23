@@ -178,7 +178,8 @@ CREATE TABLE list_templates (
 	level INT DEFAULT 0,
 	style VARCHAR(50),
 	display_label BOOL DEFAULT 't',
-	indent_cells INT DEFAULT 0
+	indent_cells INT DEFAULT 0,
+	table_join_id BIGINT REFERENCES table_joins ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE list_constraints (
