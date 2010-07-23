@@ -757,17 +757,12 @@ class Listing extends Template {
 		}
 
 		//Steps: what steps have been competed, and what step are we at
-		$tabular_templates_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT tt.*, tta.tabular_templates_auto_id, ttt.tabular_templates_trend_id, tts.tabular_templates_single_id, ttm.tabular_templates_manual_id FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_trend ttt ON (ttt.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_single tts ON (tts.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_manual ttm ON (ttm.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND ((tt.axis_type = 'auto' AND tta.tabular_templates_auto_id IS NOT NULL) OR (tt.axis_type = 'trend' AND ttt.tabular_templates_trend_id IS NOT NULL) OR (tt.axis_type = 'single' AND tts.tabular_templates_single_id IS NOT NULL) OR (tt.axis_type = 'manual' AND ttm.tabular_templates_manual_id IS NOT NULL));"));
-
-		if (!empty($tabular_templates_query)) {
-			foreach ($tabular_templates_query as $tabular_template_tmp) {
-				$tabular_templates[$tabular_template_tmp['type']] = $tabular_template_tmp;
-			}
-		}
+		$listing_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT count(*) as count FROM list_templates WHERE template_id='".$this->id."';"));
+		$listing_templates = isset($listing_templates_query['count']) ? $listing_templates_query['count'] : 0;
 
 		//put all step data in a usable array
 		//TODO: listing_templates
-		if (empty($listing_templates['columns'])) {
+		if ($listing_templates === 0) {
 			$steps[0][0] = "Add Columns";
 			$steps[0][2] = true;
 			$steps[0][3] = "disabled";
@@ -775,12 +770,12 @@ class Listing extends Template {
 			$steps[0][0] = "Edit Columns";
 			$steps[0][2] = false;
 		}
-		$steps[0][1] = $this->webroot()."listing/add/".$this->id."/columns/source";
+		$steps[0][1] = $this->webroot()."listing/add/".$this->id."/columns";
 		if ($this->subvar == "columns") $steps[0][3] .= " current";
 
 		$steps[1][0] = "Preview";
 		$steps[1][1] = $this->webroot()."listing/add/".$this->id."/preview";
-		$steps[1][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
+		$steps[1][2] = $steps[0][2];
 		$steps[1][3] = "";
 		if ($steps[1][2]) $steps[1][3] = "disabled";
 		if ($this->subvar == "preview") $steps[1][3] .= " current";
@@ -1697,7 +1692,17 @@ class Listing_View extends Template_View {
 		}
 
 		$output .= $this->i("data[column_id]", array("id"=>"data[column_id]", "label"=>"Column", "type"=>"select", "default"=>$blah['data']['column_id'], "options"=>$blah['options']['column_id'], "onchange"=>"update_join_display(this);", "dojoType"=>"dijit.form.FilteringSelect"));
-
+		$output .= $this->i("data[label]", array("id"=>"data[label]", "label"=>"Column Label", "type"=>"text", "default"=>$blah['data']['label'], "dojoType"=>"dijit.form.TextBox"));
+		$output .= $this->i("data[show_label]", array("id"=>"data[show_label]", "label"=>"Show the Column Label", "type"=>"checkbox", "default"=>$blah['data']['show_label'], "dojoType"=>"dijit.form.CheckBox"));
+		$output .= $this->i("data[duplicates]", array("id"=>"data[duplicates]", "label"=>"Allow Duplicates", "type"=>"checkbox", "default"=>$blah['data']['duplicates'], "dojoType"=>"dijit.form.CheckBox"));
+		//TODO: Does subtotal mean on change or at the bottom???
+		$output .= $this->i("data[subtotal]", array("id"=>"data[subtotal]", "label"=>"Subtotal This Column", "type"=>"checkbox", "default"=>$blah['data']['subtotal'], "dojoType"=>"dijit.form.CheckBox"));
+		$output .= $this->i("data[sort]", array("id"=>"data[sort]", "label"=>"Sort The Report By This Column", "desc"=>"Sorting will also be based on the order in which the columns are listed", "type"=>"checkbox", "default"=>$blah['data']['sort'], "dojoType"=>"dijit.form.CheckBox"));
+		//$output .= $this->i("data[aggregate]", array("id"=>"data[aggregate]", "label"=>"???", "type"=>"???", "default"=>$blah['data']['aggregate'], "dojoType"=>"dijit.form.CheckBox"));
+		//$output .= $this->i("data[optional]", array("id"=>"data[duplicates]", "label"=>"Allow Duplicates", "type"=>"checkbox", "default"=>$blah['data']['duplicates'], "dojoType"=>"dijit.form.CheckBox"));
+		//$output .= $this->i("data[level]", array("id"=>"data[duplicates]", "label"=>"Allow Duplicates", "type"=>"checkbox", "default"=>$blah['data']['duplicates'], "dojoType"=>"dijit.form.CheckBox"));
+		//$output .= $this->i("data[style]", array("id"=>"data[duplicates]", "label"=>"Allow Duplicates", "type"=>"checkbox", "default"=>$blah['data']['duplicates'], "dojoType"=>"dijit.form.CheckBox"));
+		//$output .= $this->i("data[indent]", array("id"=>"data[duplicates]", "label"=>"Allow Duplicates", "type"=>"checkbox", "default"=>$blah['data']['duplicates'], "dojoType"=>"dijit.form.CheckBox"));
 		$output .= "<hr />";
 		$output .= "<div id='join_display'>";
 		
