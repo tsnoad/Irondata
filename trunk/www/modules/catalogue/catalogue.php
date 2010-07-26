@@ -533,7 +533,7 @@ class Catalogue extends Modules {
 		if (!is_array($object)) {
 			$object = array($object);
 		}
-		$query = "SELECT t.human_name as table_name, t.name as table_sql_name, t.table_id, c.human_name as column_name, c.name as column_sql_name, c.column_id, c.data_type, c.dropdown FROM databases d, tables t, columns c WHERE d.object_id=".$object[0]." AND d.database_id=t.database_id AND c.table_id=t.table_id ".$available." ORDER BY t.table_id, c.human_name;";
+		$query = "SELECT t.human_name as table_name, t.name as table_sql_name, t.table_id, c.human_name as column_name, c.name as column_sql_name, c.column_id, c.data_type, c.dropdown, c.description as column_description FROM databases d, tables t, columns c WHERE d.object_id=".$object[0]." AND d.database_id=t.database_id AND c.table_id=t.table_id ".$available." ORDER BY t.table_id, c.human_name;";
 		$columns = $this->dobj->db_fetch_all($this->dobj->db_query($query));
 		$arr = array();
 		foreach ($columns as $i => $column) {
