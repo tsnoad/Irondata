@@ -778,7 +778,7 @@ class Tabular extends Template {
 							$blah = array();
 							foreach ($tables['catalogue'] as $i => $column) {
 								foreach ($column as $j => $cell) {
-									$blah['options'][$cell['column_id']] = $cell['table_name'].".".$cell['column_name'];
+									$blah['options'][$cell['column_id']] = $cell/* ['table_name'].".".$cell['column_name'] */;
 
 									switch ($cell['data_type']) {
 										default:
@@ -2796,7 +2796,35 @@ class Tabular_View extends Template_View {
 						$output->title_desc = "The intersection is a numerical column selected from the database. Values from this column will be indexed by unique values in two related colums (the X and Y axies), and will fill the area of the table.";
 
 						$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/sourcesubmit", "dojoType='dijit.form.Form'");
-						$output->data .= $this->i("data[column_id]", array("label"=>"Source Column", "type"=>"select", "default"=>$tabular_template_auto['column_id'], "options"=>$blah['options'], "dojoType"=>"dijit.form.FilteringSelect", "onchange"=>"intersection_source_type_warning(this);"));
+
+/* 						$output->data .= $this->i("data[column_id]", array("label"=>"Source Column", "type"=>"select", "default"=>$tabular_template_auto['column_id'], "options"=>$blah['options'], "dojoType"=>"dijit.form.FilteringSelect", "onchange"=>"intersection_source_type_warning(this);")); */
+
+
+						$output->data .= "<div style=''>Source Column</div>";
+						$output->data .= "<div style='height: 300px; overflow-y: scroll; margin-left: 20px; margin-top: 10px; padding: 20px; border: 1px solid #d3d7cf;'>";
+
+						$last_table_id = "";
+						
+						foreach ($blah['options'] as $option) {
+							if ($last_table_id != $option['table_id']) {
+								if ($option != reset($blah['options'])) {
+									$output->data .= "<hr style='' />";
+								}
+						
+								$output->data .= "<div style='font-size: 8pt;'>Table</div>";
+								$output->data .= "<div style=''>".$option['table_name']."</div>";
+								$output->data .= "<div style='margin-left: 20px; margin-top: 5px; font-size: 8pt;'>Columns</div>";
+							}
+						
+							$output->data .= $this->i("data[column_id]", array("label"=>$option['column_name'], "type"=>"radio", "value"=>$option['column_id'], "default"=>($tabular_template_auto['column_id'] == $option['column_id']), "onchange"=>"intersection_source_type_warning(this);"));
+							$output->data .= "<p>".$option['column_description']."</p>";
+						
+							$last_table_id = $option['table_id'];
+						}
+						
+						$output->data .= "</div>";
+
+
 
 						if (!empty($blah['option_warnings'][$tabular_template_auto['column_id']])) {
 							$output->data .= "<p class='warning' id='intersection_source_type_warning' style='display: block;'>".$blah['option_warnings'][$tabular_template_auto['column_id']]."</p>";
