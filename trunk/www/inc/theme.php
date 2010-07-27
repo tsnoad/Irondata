@@ -735,7 +735,10 @@ class Theme {
 			$output .= "<p>".$option['column_description']."</p>";
 
 			if (!empty($option['example'])) {
-				$output .= "<p style='margin-top: 0px; color: #888a85;'>possible values: <span style='color: #555753; font-size: 9pt; font-style: normal;'>".$option['example']."</span></p>";
+				$option['example'] = str_replace(", ", ",", $option['example']);
+				$option['example'] = str_replace(",", "<span style='color: #888a85;'>, </span>", $option['example']);
+
+				$output .= "<p style='margin-top: 0px; color: #888a85;'>example values: <span style='color: #555753; font-size: 9pt; font-style: normal;'>".$option['example']."</span></p>";
 			}
 		
 			$last_table_id = $option['table_id'];
