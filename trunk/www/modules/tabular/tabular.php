@@ -712,11 +712,9 @@ class Tabular extends Template {
 							$blah = array();
 							foreach ($tables['catalogue'] as $i => $column) {
 								foreach ($column as $j => $cell) {
-									$blah[$cell['column_id']] = $cell['table_name'].".".$cell['column_name'];
+									$blah[$cell['column_id']] = $cell;
 								}
 							}
-
-// 							$blah = $tables['catalogue'];
 
 							if ($this->subid == "autosource") {
 								$tabular_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
@@ -778,7 +776,7 @@ class Tabular extends Template {
 							$blah = array();
 							foreach ($tables['catalogue'] as $i => $column) {
 								foreach ($column as $j => $cell) {
-									$blah['options'][$cell['column_id']] = $cell/* ['table_name'].".".$cell['column_name'] */;
+									$blah['options'][$cell['column_id']] = $cell;
 
 									switch ($cell['data_type']) {
 										default:
@@ -2673,7 +2671,9 @@ class Tabular_View extends Template_View {
 					case ("autosource"):
 						$output->data .= "<h3>Axis Source</h3>";
 						$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/autosourcesubmit", "dojoType='dijit.form.Form'");
-						$output->data .= $this->i("data[column_id]", array("label"=>"Source Column", "type"=>"select", "default"=>$tabular_template_auto['column_id'], "options"=>$blah, "onchange"=>"update_join_display(this);", "dojoType"=>"dijit.form.FilteringSelect"));
+/* 						$output->data .= $this->i("data[column_id]", array("label"=>"Source Column", "type"=>"select", "default"=>$tabular_template_auto['column_id'], "options"=>$blah, "onchange"=>"update_join_display(this);", "dojoType"=>"dijit.form.FilteringSelect")); */
+						$output->data .= $this->source_column_i("data[column_id]", $blah, $tabular_template_auto['column_id'], "update_join_display(this);");
+
 						$output->data .= $this->i("data[sort]", array("label"=>"Order", "type"=>"select", "default"=>$tabular_template_auto['sort'], "options"=>array("ASC"=>"Ascending", "DESC"=>"Descending"), "dojoType"=>"dijit.form.FilteringSelect"));
 						$output->data .= $this->i("data[human_name]", array("label"=>"Axis Name", "type"=>"text", "default"=>$tabular_template_auto['human_name'], "dojoType"=>"dijit.form.ValidationTextBox"));
 
@@ -2797,33 +2797,7 @@ class Tabular_View extends Template_View {
 
 						$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/sourcesubmit", "dojoType='dijit.form.Form'");
 
-/* 						$output->data .= $this->i("data[column_id]", array("label"=>"Source Column", "type"=>"select", "default"=>$tabular_template_auto['column_id'], "options"=>$blah['options'], "dojoType"=>"dijit.form.FilteringSelect", "onchange"=>"intersection_source_type_warning(this);")); */
-
-
-						$output->data .= "<div style=''>Source Column</div>";
-						$output->data .= "<div style='height: 300px; overflow-y: scroll; margin-left: 20px; margin-top: 10px; padding: 20px; border: 1px solid #d3d7cf;'>";
-
-						$last_table_id = "";
-						
-						foreach ($blah['options'] as $option) {
-							if ($last_table_id != $option['table_id']) {
-								if ($option != reset($blah['options'])) {
-									$output->data .= "<hr style='' />";
-								}
-						
-								$output->data .= "<div style='font-size: 8pt;'>Table</div>";
-								$output->data .= "<div style=''>".$option['table_name']."</div>";
-								$output->data .= "<div style='margin-left: 20px; margin-top: 5px; font-size: 8pt;'>Columns</div>";
-							}
-						
-							$output->data .= $this->i("data[column_id]", array("label"=>$option['column_name'], "type"=>"radio", "value"=>$option['column_id'], "default"=>($tabular_template_auto['column_id'] == $option['column_id']), "onchange"=>"intersection_source_type_warning(this);"));
-							$output->data .= "<p>".$option['column_description']."</p>";
-						
-							$last_table_id = $option['table_id'];
-						}
-						
-						$output->data .= "</div>";
-
+						$output->data .= $this->source_column_i("data[column_id]", $blah['options'], $tabular_template_auto['column_id'], "intersection_source_type_warning(this);");
 
 
 						if (!empty($blah['option_warnings'][$tabular_template_auto['column_id']])) {
