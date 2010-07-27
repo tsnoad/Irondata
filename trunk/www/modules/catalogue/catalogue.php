@@ -401,7 +401,7 @@ class Catalogue extends Modules {
 		$dbs = $this->dobj->db_fetch($res);
 		
 		/* Tables */
-		$query = "SELECT * FROM tables WHERE database_id='".$this->id."';";
+		$query = "SELECT * FROM tables WHERE database_id='".$this->id."' ORDER BY human_name;";
 		$res = $this->dobj->db_query($query);
 		$tables_query = $this->dobj->db_fetch_all($res);
 
@@ -409,6 +409,7 @@ class Catalogue extends Modules {
 			$table_id = $table_tmp['table_id'];
 
 			$tables[$table_id]['name'] = $table_tmp['human_name'];
+			$tables[$table_id]['description'] = $table_tmp['description'];
 		}
 
 		/* Columns */
@@ -420,6 +421,8 @@ class Catalogue extends Modules {
 			$column_id = $columns_tmp['column_id'];
 
 			$columns[$column_id]['name'] = $columns_tmp['table_human_name'].".".$columns_tmp['column_human_name'];
+			$columns[$column_id]['description'] = $columns_tmp['description'];
+			$columns[$column_id]['example'] = $columns_tmp['example'];
 			$columns[$column_id]['type'] = $columns_tmp['data_type'];
 		}
 
@@ -533,7 +536,7 @@ class Catalogue extends Modules {
 		if (!is_array($object)) {
 			$object = array($object);
 		}
-		$query = "SELECT t.human_name as table_name, t.name as table_sql_name, t.table_id, c.human_name as column_name, c.name as column_sql_name, c.column_id, c.data_type, c.dropdown, c.description as column_description FROM databases d, tables t, columns c WHERE d.object_id=".$object[0]." AND d.database_id=t.database_id AND c.table_id=t.table_id ".$available." ORDER BY t.table_id, c.human_name;";
+		$query = "SELECT t.human_name as table_name, t.name as table_sql_name, t.table_id, t.description as table_description, c.human_name as column_name, c.name as column_sql_name, c.column_id, c.data_type, c.dropdown, c.description as column_description, c.example FROM databases d, tables t, columns c WHERE d.object_id=".$object[0]." AND d.database_id=t.database_id AND c.table_id=t.table_id ".$available." ORDER BY t.table_id, c.human_name;";
 		$columns = $this->dobj->db_fetch_all($this->dobj->db_query($query));
 		$arr = array();
 		foreach ($columns as $i => $column) {
@@ -566,6 +569,24 @@ class Catalogue extends Modules {
 		$query = $this->dobj->update($data, "table_id", $id, "tables");
 		$this->dobj->db_query($query);
 		return $id;
+	}
+
+	function view_edit_table() {
+		$table_id = $this->id;
+
+		if (empty($table_id)) return;
+
+		$table = $this->dobj->db_fetch($this->dobj->db_query("SELECT t.* FROM tables t WHERE t.table_id='$table_id';"));
+		$database_id = $table['database_id'];
+
+		if (!empty($_REQUEST['data'])) {
+			$this->save_table($_REQUEST['data'], $table_id);
+
+			$this->redirect("catalogue/edit_columns/$database_id");
+		}
+
+		$output = Catalogue_View::view_edit_table($table, $database_id);
+		return $output;
 	}
 
 	function get_columns($table_id) {
@@ -765,6 +786,35 @@ Class Catalogue_View {
 		$output = "";
 		$output->title = "Edit Database";
 
+		$output->data .= "<h3>Tables</h3>";
+
+		$output->data .= "
+			<div class='reports'>
+				<table cellpadding='0' cellspacing='0'>
+					<tr>
+						<th>Table</th>
+						<th>Description</th>
+						<th>&nbsp;</th>
+					</tr>
+					";
+		foreach ($tables as $table_id => $db) {
+			$output->data .= "
+					<tr>
+						<td>".$db['name']."</td>
+						<td>".$db['description']."</td>
+						<td>
+							<ul>
+								<li>".$this->l("catalogue/edit_table/$table_id", "Edit")."</li>
+							</ul>
+						</td>
+					</tr>
+					";
+		}
+		$output->data .= "
+				</table>
+			</div>
+			";
+
 		$output->data .= "<h3>Columns</h3>";
 
 		$output->data .= "
@@ -772,6 +822,8 @@ Class Catalogue_View {
 				<table cellpadding='0' cellspacing='0'>
 					<tr>
 						<th>Column</th>
+						<th>Description</th>
+						<th>Example</th>
 						<th>Type</th>
 						<th>Key</th>
 						<th>References</th>
@@ -783,6 +835,8 @@ Class Catalogue_View {
 			$output->data .= "
 					<tr>
 						<td>".$db['name']."</td>
+						<td>".$db['description']."</td>
+						<td>".$db['example']."</td>
 						<td>".$db['type']."</td>
 						<td>".$db['key']."</td>
 						<td>".$db['references']."</td>
@@ -853,6 +907,24 @@ Class Catalogue_View {
 
 		return $output;
 	}
+	function view_edit_table($table, $database_id) {
+		$output->title = "Edit Table";
+		$output->data .= $this->f('catalogue/edit_table/'.$this->id);
+
+/* 		$output->data .= $this->i("data[human_name]", array("label"=>"Name", "default"=>$table['human_name'], "dojo"=>"dijit.form.TextBox")); */
+		$output->data .= $this->i("data[description]", array("label"=>"Description", "default"=>$table['description'], "dojo"=>"dijit.form.Textarea"));
+
+		$output->data .= "<hr />";
+
+		$output->data .= "
+			<div class='input'>
+				<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot()."catalogue/edit_columns/$database_id\"; return false;' name='cancel' />Cancel</button><button type='submit' value='Next' dojoType='dijit.form.Button' name='submit' />Save</button>
+			</div>
+			";
+		$output->data .= $this->f_close();
+
+		return $output;
+	}
 
 	function view_edit_column($column, $database_id) {
 		$output->title = "Edit Column";
@@ -860,6 +932,7 @@ Class Catalogue_View {
 
 		$output->data .= $this->i("data[human_name]", array("label"=>"Name", "default"=>$column['human_name'], "dojo"=>"dijit.form.TextBox"));
 		$output->data .= $this->i("data[description]", array("label"=>"Description", "default"=>$column['description'], "dojo"=>"dijit.form.Textarea"));
+		$output->data .= $this->i("data[example]", array("label"=>"Example", "default"=>$column['example'], "dojo"=>"dijit.form.Textarea"));
 
 		$output->data .= "<hr />";
 
