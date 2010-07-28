@@ -695,6 +695,60 @@ class Theme {
 
 		return $output;
 	}
+
+	/**
+	 * Render the source column input as used on the edit intersection, x axis, etc, pages
+	 *
+	 * @param string $name The message to display
+	 * @param array $column_data The message to display
+	 * @param string $default_column_id The message to display
+	 * @param string $onchange The message to display
+	 * @return A HTML string
+	 */
+	function source_column_i($name, $column_data, $default_column_id=null, $onchange="") {
+		$output = "<div style='position: relative;'>";
+
+		$output .= "<div style='width: 130px; height: 200px; position: absolute;'>";
+		$output .= "<div style='padding-top: 20px;'>Source Column:</div>";
+		$output .= "</div>";
+		$output .= "<div style='height: 200px; overflow-y: scroll; margin-left: 130px; padding: 10px 20px; border: 1px solid #d3d7cf;'>";
+
+
+		$last_table_id = "";
+		
+		foreach ($column_data as $option) {
+			if ($last_table_id != $option['table_id']) {
+				if ($option != reset($column_data)) {
+					$output .= "<hr style='' />";
+				}
+		
+				$output .= "<div style='font-size: 14pt;'>".$option['table_name']."</div>";
+				$output .= "<div style='margin-left: 20px; margin-top: 5px; font-size: 10pt; font-style: italic;'>".$option['table_description']."</div>";
+				$output .= "<div style='margin-left: 20px; margin-top: 10px; font-size: 8pt;'>Columns:</div>";
+			}
+
+			$output .= "<div class='input radio'>";
+			$output .= "<input type='radio' name='data[column_id]' value='".$option['column_id']."' ".($default_column_id == $option['column_id'] ? "checked" : "")." onchange='$onchange' />";
+			$output .= "<label for='data[column_id]' >".$option['column_name']."</label>";
+			$output .= "</div>";
+
+			$output .= "<p>".$option['column_description']."</p>";
+
+			if (!empty($option['example'])) {
+				$option['example'] = str_replace(", ", ",", $option['example']);
+				$option['example'] = str_replace(",", "<span style='color: #888a85;'>, </span>", $option['example']);
+
+				$output .= "<p style='margin-top: 0px; color: #888a85;'>example values: <span style='color: #555753; font-size: 9pt; font-style: normal;'>".$option['example']."</span></p>";
+			}
+		
+			$last_table_id = $option['table_id'];
+		}
+		
+		$output .= "</div>";
+		$output .= "</div>";
+
+		return $output;
+	}
 }
 
 ?>
