@@ -136,10 +136,10 @@ class Theme {
 		}
 		
 		/* Wrap the elements in tags */
-		if (isset($data->title)) {
+		if (isset($data->title) && !empty($data->title_desc)) {
 			$main .= "<h2>".ucwords($data->title)."</h2>";
 
-			if (isset($data->title_desc)) {
+			if (isset($data->title_desc) && !empty($data->title_desc)) {
 				$main .= "<p class='h2attach'>".$data->title_desc."</p>";
 			}
 		}

@@ -693,7 +693,6 @@ class Listing extends Template {
 				break;
 			case "preview":
 				if ((int)$this->id) {
-// 					$preview_table .= '<script>dojo.addOnLoad(function () { setTimeout("update_data_preview_first();", 7500); });</script>';
 					$preview_table .= '<div id="data_preview_first">';
 						$preview_table .= '<div id="data_preview_loading" style="display: none; text-align: center;">Loading Report...</div>';
 						$preview_table .= '<div id="data_preview_load" style="text-align: center;"><a href="javascript:update_data_preview_first();">Load Preview</a></div>';
@@ -769,6 +768,7 @@ class Listing extends Template {
 		} else {
 			$steps[0][0] = "Edit Columns";
 			$steps[0][2] = false;
+			$steps[0][3] = "";
 		}
 		$steps[0][1] = $this->webroot()."listing/add/".$this->id."/columns";
 		if ($this->subvar == "columns") $steps[0][3] .= " current";
@@ -806,7 +806,7 @@ class Listing extends Template {
 		if ($this->subvar == "access") $steps[5][3] .= " current";
 
 		$template = $this->get_template($this->id);
-		$output = Listing_View::view_add($template, $blah, $steps, $preview_table, $tabular_template_auto, $table_join_ajax, $tabular_template);
+		$output = Listing_View::view_add($template, $blah, $steps, $preview_table, $table_join_ajax, $listing_template);
 
 		return $output;
 	}
@@ -1016,56 +1016,6 @@ class Listing extends Template {
 		$this->view_add_next();
 		return;
 	}
-
-// 	function hook_run($demo=false) {
-// 		$template = $this->get_columns($this->id);
-// 		$constraints = $this->get_constraints($this->id);
-// 		/* Concatenate the predefined constraints and the user defined constraints */
-// 		if ($_REQUEST['data']['constraint']) {
-// 			foreach ($_REQUEST['data']['constraint'] as $i => $cons) {
-// 				foreach ($constraints as $j => $cons2) {
-// 					if ($cons2['list_constraints_id'] == $i) {
-// 						$constraints[$j]['value'] = $cons;
-// 						break;
-// 					}
-// 				}
-// 			}
-// 		}
-// 		/* Generate the query to run */
-// 		$query = $this->hook_query($template, $constraints, $demo);
-// 		$start = time();
-// 		/* Run the query and get the results */
-// 		$data = parent::hook_run_query($template[0]['object_id'], $query);
-// 		$end = time();
-// 		if (!$demo) {
-// 			/* Only update the run statistics if this is a complete run, not a preview run */
-// 			$update_query = "UPDATE templates SET last_run=now(), last_time='".($end-$start)."', last_by=1, last_size=".count($data)." WHERE template_id=".$this->id."";
-// 			$update = $this->dobj->db_query($update_query);
-// 			$now = $this->save_results($this->id, $data, 't', 'f', ($end-$start), 1);
-// 		}
-// 		$output = Listing_View::hook_run($data, $template, $demo, $now);
-// /*		if ($demo) {
-// 			$output->data .= "<br/><br/>".$query;
-// 		}*/
-// 		return $output;
-// 	}
-	
-// 	function view_run() {
-// 		$template = $this->get_columns($this->id);
-// 		$constraints = $this->get_constraints($this->id);
-// 		$output = true;
-// 		/* We skip this step if the constraints values are already populated from the $_REQUEST array */
-// 		if (empty($_REQUEST['data']['constraint'])) {
-// 			/* Get the constraints */
-// 			$output = Listing_View::view_run($template, $constraints);
-// 		}
-// 		/* If there a form to fill out? If not (either because there are no user modifiable constriants, or the form has
-// 		 * already been filled out) go directly to running the report.  */
-// 		if ($output === true) {
-// 			$output = $this->hook_run();
-// 		}
-// 		return $output;
-// 	}
 	
 	function get_columns($template_id) {
 		$query = "SELECT l.*, t.*, c.column_id, tb.table_id, c.human_name as chuman, tb.human_name as thuman, c.name as column, tb.name as table FROM list_templates l, templates t, columns c, tables tb WHERE tb.table_id=c.table_id AND c.column_id=l.column_id AND t.template_id=l.template_id AND t.template_id=".$template_id." ORDER BY l.level, l.col_order;";
