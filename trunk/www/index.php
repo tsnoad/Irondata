@@ -71,8 +71,9 @@ if ($url[0]) {
 		$display->js = isset($js[$url[0]]) ? $js[$url[0]] : null;
 		$js_href = $mo->call_function($url[0], "hook_javascript_href");
 		$display->js_href = isset($js_href[$url[0]]) ? $js_href[$url[0]] : null;
-// 		$menu = $mo->call_function($url[0], 'hook_menu');
-// 		$display->menu = $mo->render_menu($menu[$url[0]]);
+		// Display the module context menu
+ 		$menu = $mo->call_function($url[0], 'hook_menu');
+ 		$display->submenu = $mo->render_menu($menu[$url[0]]);
 		$pagetitle = $mo->call_function($url[0], 'hook_pagetitle');
 		$display->pagetitle = isset($pagetitle[$url[0]]) ? $pagetitle[$url[0]] : null;
 	}

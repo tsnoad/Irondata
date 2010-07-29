@@ -62,20 +62,22 @@ class Theme {
 		return $string;
 	}
 	
-	function render_menu($marray) {
-		if (!$marray) {
-			return false;
-		}
-		$string .= "<div dojoType='dijit.layout.AccordionContainer' duration='200' style='width: 200px; height: 300px; overflow: hidden'> ";
-		if (is_array($marray)) {
-			foreach ($marray as $i => $mod) {
-				$string .= "<div dojoType='dijit.layout.AccordionPane' title='".$i."'> ";
-				$string .= $this->render_innermenu($mod);
-				$string .= "</div>";
+	function render_menu($steps) {
+		$submenu = "";
+		if (!empty($steps)) {
+			$submenu .= "<ol>";
+			foreach ($steps as $i => $step) {
+				$step[3] = isset($step[3]) ? $step[3] : null;
+				$submenu .= "<li>";
+				$submenu .= ($i + 1 === 1 ? "Step " : "").($i + 1).". ";
+				$submenu .= "<a href=\"".$step[1]."\" class=\"".$step[3]."\" ".($step[2] ? "onClick=\"void(0); return false;\"" : "").">";
+				$submenu .= ucwords($step[0]);
+				$submenu .= "</a>";
+				$submenu .= "</li>";
 			}
+			$submenu .= "</ol>";
 		}
-		$string .= "</div>";
-		return $string;
+		return $submenu;
 	}
 	
 	function render_innermenu($marray) {
@@ -131,8 +133,8 @@ class Theme {
 		}
 
 		// create the main output string
-		if (isset($data->submenu)) {
-			$main .= $data->submenu;
+		if (isset($display->submenu)) {
+			$main .= $display->submenu;
 		}
 		
 		/* Wrap the elements in tags */

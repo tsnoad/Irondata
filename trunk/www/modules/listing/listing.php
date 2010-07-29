@@ -45,14 +45,20 @@ class Listing extends Template {
 					return true;
 				}
 				break;
-			case "hook_style":
+			case "hook_pagetitle":
 			case "hook_top_menu":
 			case "hook_javascript":
-			case "hook_menu":
 			case "hook_workspace":
 			case "hook_template_entry":
 				// these can be called by other modules
 				if (isset($data['acls']['system']['login'])) {
+					return true;
+				}
+				return false;
+				break;
+			case "view_add_select_object":
+				//only people with permission to create reports can access these functions
+				if (isset($data['acls']['system']['reportscreate'])) {
 					return true;
 				}
 				return false;
@@ -81,11 +87,16 @@ class Listing extends Template {
 				}
 				return false;
 				break;
-			case "view_add_select_object":
 			case "view_add":
 			case "view_save":
-			case "hook_output":
+			case "view_table_join_ajax":
 			case "get_columns":
+			case "hook_output":
+			case "view_data_preview_ajax":
+			case "view_data_preview_first_ajax":
+			case "view_data_preview_slow_ajax":
+			case "view_constraint_column_options_ajax":
+			case "hook_recipient_selector":
 			default:
 				//only people with permission to create reports can access these functions
 				//if (isset($data['acls']['system']['reportscreate'])) {
@@ -110,7 +121,7 @@ class Listing extends Template {
 
 */
 	}
-		
+	
 	/**
 	 * Overwrite hook_top_menu in Template.php - this module should have no top menu
 	 *
@@ -130,22 +141,6 @@ class Listing extends Template {
 	function hook_admin_tools() {
 		return null;
 	}
-	
-	/**
-	 * (non-PHPdoc)
-	 * @see inc/Modules::hook_style()
-	 */
-	function hook_style() {
-		return "td.columns div{ display: none;}
-		#style div.dojoDndSource {margin: 5px; background: #ccc;}
-		span.list-2 {font-size: 1.2em; font-weight: bold;}
-		span.list-1 {font-size: 1.1em; font-weight: bold;}
-		span.list1 {font-size: 0.9em;}
-		span.list2 {font-size: 0.8em;}
-		#style td {display: block;}
-		.label_first label {float: none;}
-		";
-	}
 
 	/**
 	 * (non-PHPdoc)
@@ -153,19 +148,6 @@ class Listing extends Template {
 	 */
 	function hook_workspace() {
 		return null;
-	}
-	
-	/**
-	 * (non-PHPdoc)
-	 * @see modules/template/Template::hook_menu()
-	 */
-	function hook_menu() {
-		$menu = array();
-		switch ($this->action) {
-			default:
-				$menu = parent::hook_menu($url);
-		}
-		return $menu;
 	}
 	
 	/**
@@ -179,68 +161,6 @@ class Listing extends Template {
 			var passContent = {};
 			passContent[o.name] = o.value;
 			ajax_load('".$this->webroot()."listing/table_join_ajax/".$this->id."', passContent, 'join_display');
-		}
-
-		function update_data_preview_first() {
-			dojo.byId('data_preview_load').style.display = 'none';
-			dojo.byId('data_preview_loading').style.display = 'block';
-
-			url = '".$this->webroot()."listing/data_preview_first_ajax/".$this->id."';
-			data = {};
-			div = 'data_preview_first';
-
-			var d = dojo.xhrPost({
-				url: url,
-				handleAs: 'text',
-				sync: false,
-				content: data,
-				// The LOAD function will be called on a successful response.
-				load: function(response, ioArgs) {
-					if (div) {
-						dojo.byId(div).innerHTML = response;
-					}
-
-					update_data_preview_slow();
-					return response;
-				},
-				// The ERROR function will be called in an error case.
-				error: function(response, ioArgs) {
-					console.error(\"HTTP status code: \", ioArgs.xhr.status);
-					return response;
-				}
-			});
-		}
-
-		function update_data_preview_slow() {
-			var saved_report_id = window.document.getElementById('saved_report_id').innerHTML;
-
-			url = '".$this->webroot()."listing/data_preview_slow_ajax/".$this->id."/'+saved_report_id;
-			data = {};
-			div = 'data_preview';
-
-			var d = dojo.xhrPost({
-				url: url,
-				handleAs: 'text',
-				sync: false,
-				content: data,
-				// The LOAD function will be called on a successful response.
-				load: function(response, ioArgs) {
-					if (response == 'finished') {
-						return;
-					}
-
-					if (div) {
-						dojo.byId(div).innerHTML = response;
-					}
-
-					update_data_preview_slow();
-				},
-				// The ERROR function will be called in an error case.
-				error: function(response, ioArgs) {
-					console.error(\"HTTP status code: \", ioArgs.xhr.status);
-					return response;
-				}
-			});
 		}
 		";
 	}
@@ -257,6 +177,112 @@ class Listing extends Template {
 			"module"=>"listing",
 			"description"=>"A list report takes an index column from the database, then additional columns. Each row of the report shows attributes from the columns, that are related to the index."
 		);
+	}
+
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::view_add_select_object()
+	 */
+	function view_add_select_object() {
+		$object_id = $this->id;
+
+		if (empty($object_id)) return;
+		$temp = parent::view_add_select_object($object_id);
+		$this->redirect("listing/add/".$temp['template_id']);
+	}
+		
+	/**
+	 * First point of contact for almost every page, when creating a listing report.
+	 * Runs queries to gather data to display in Listing_View::view_add().
+	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
+	 *
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::view_add()
+	 */
+	function view_add() {
+		//define default variables
+		$table_join_ajax = null;
+		$listing_template = null;
+		$listing_template_auto = null;
+		$blah = null; //TODO: bad variable name. Must change
+		
+		switch ($this->subvar) {
+			case "columns":
+				if ((int)$this->id) {
+					$blah = Listing::view_columns();
+				}
+				break;
+			case "editcolumn":
+				if ($this->subid) {
+					$blah = array();
+					list($blah, $table_join_ajax) = Listing::view_editcolumn();
+				}
+				break;
+			case "editsquidconstraint":
+				if ($this->subid) {
+					$blah = array();
+
+					list($blah, $table_join_ajax) = Listing::view_editconstraint();
+				}
+				break;
+			default:
+				$this->view_add_next();
+				break;
+		}
+
+		//Steps: what steps have been competed, and what step are we at
+		$listing_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT count(*) as count FROM list_templates WHERE template_id='".$this->id."';"));
+		$listing_templates = isset($listing_templates_query['count']) ? $listing_templates_query['count'] : 0;
+
+		//put all step data in a usable array
+		if ($listing_templates === 0) {
+			$steps[0][0] = "Add Columns";
+			$steps[0][2] = true;
+			$steps[0][3] = "disabled";
+		} else {
+			$steps[0][0] = "Edit Columns";
+			$steps[0][2] = false;
+			$steps[0][3] = "";
+		}
+		$steps[0][1] = $this->webroot()."listing/add/".$this->id."/columns";
+		if ($this->subvar == "columns") $steps[0][3] .= " current";
+
+		$steps[1][0] = "Preview";
+		$steps[1][1] = $this->webroot()."listing/add/".$this->id."/preview";
+		$steps[1][2] = $steps[0][2];
+		$steps[1][3] = "";
+		if ($steps[1][2]) $steps[1][3] = "disabled";
+		if ($this->subvar == "preview") $steps[1][3] .= " current";
+
+		$steps[2][0] = "Constraints";
+		$steps[2][1] = $this->webroot()."listing/add/".$this->id."/constraints";
+		$steps[2][2] = empty($listing_templates['c']) || empty($listing_templates['x']) || empty($listing_templates['y']);
+		$steps[2][3] = "";
+		if ($steps[2][2]) $steps[2][3] = "disabled";
+		if ($this->subvar == "constraints") $steps[2][3] .= " current";
+
+		$steps[3][0] = "Publishing";
+		$steps[3][1] = $this->webroot()."listing/add/".$this->id."/publish";
+		$steps[3][2] = empty($listing_templates['c']) || empty($listing_templates['x']) || empty($listing_templates['y']);
+		if ($steps[3][2]) $steps[3][3] = "disabled";
+		if ($this->subvar == "publish") $steps[3][3] .= " current";
+
+		$steps[4][0] = "Execution";
+		$steps[4][1] = $this->webroot()."listing/add/".$this->id."/execution";
+		$steps[4][2] = empty($listing_templates['c']) || empty($listing_templates['x']) || empty($listing_templates['y']);
+		if ($steps[4][2]) $steps[4][3] = "disabled";
+		if ($this->subvar == "execution") $steps[4][3] .= " current";
+
+		$steps[5][0] = "Access";
+		$steps[5][1] = $this->webroot()."listing/add/".$this->id."/access";
+		$steps[5][2] = empty($listing_templates['c']) || empty($listing_templates['x']) || empty($listing_templates['y']);
+		if ($steps[5][2]) $steps[5][3] = "disabled";
+		if ($this->subvar == "access") $steps[5][3] .= " current";
+
+		$template = $this->get_template($this->id);
+		$output = Listing_View::view_add($template, $blah, $steps, $preview_table, $table_join_ajax, $listing_template);
+
+		return $output;
 	}
 	
 	/**
@@ -391,18 +417,6 @@ class Listing extends Template {
 
 		$output = Listing_View::hook_output($results, $template, $demo, $now, $pdf);
 		return $output;
-	}
-
-	/**
-	 * (non-PHPdoc)
-	 * @see modules/template/Template::view_add_select_object()
-	 */
-	function view_add_select_object() {
-		$object_id = $this->id;
-
-		if (empty($object_id)) return;
-		$temp = parent::view_add_select_object($object_id, 'listing');
-		$this->redirect("listing/add/".$temp['template_id']);
 	}
 	
 	function view_columns() {
@@ -655,161 +669,6 @@ class Listing extends Template {
 
 		return array($blah, $table_join_ajax);
 	}
-		
-	/**
-	 * First point of contact for almost every page, when creating a listing report.
-	 * Runs queries to gather data to display in Listing_View::view_add().
-	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
-	 *
-	 * (non-PHPdoc)
-	 * @see modules/template/Template::view_add()
-	 */
-	function view_add() {
-		//define default variables
-		$table_join_ajax = null;
-		$listing_template = null;
-		$listing_template_auto = null;
-		$blah = null; //TODO: bad variable name. Must change
-		$preview_table = null;
-		
-		switch ($this->subvar) {
-			case "columns":
-				if ((int)$this->id) {
-					$blah = Listing::view_columns();
-				}
-				break;
-			case "editcolumn":
-				if ($this->subid) {
-					$blah = array();
-					list($blah, $table_join_ajax) = Listing::view_editcolumn();
-				}
-				break;
-			case "editsquidconstraint":
-				if ($this->subid) {
-					$blah = array();
-
-					list($blah, $table_join_ajax) = Tabular::view_editconstraint();
-				}
-				break;
-			case "preview":
-				if ((int)$this->id) {
-					$preview_table .= '<div id="data_preview_first">';
-						$preview_table .= '<div id="data_preview_loading" style="display: none; text-align: center;">Loading Report...</div>';
-						$preview_table .= '<div id="data_preview_load" style="text-align: center;"><a href="javascript:update_data_preview_first();">Load Preview</a></div>';
-					$preview_table .= '</div>';
-
-					$template = $blah;
-				}
-				break;
-			case "constraints":
-				if ((int)$this->id) {
-					$blah = Tabular::view_constraints();
-				}
-				break;
-			case "editconstraint":
-				if ($this->subid) {
-					$blah = array();
-
-					list($blah, $table_join_ajax) = Tabular::view_editconstraint();
-				}
-				break;
-			case "publish":
-				break;
-			case "execution":
-				break;
-			case "access":
-				$users_query = $this->call_function("ALL", "hook_access_users", array());
-
-				foreach ($users_query as $module => $users_query_tmp) {
-					$users_tmp = array_merge((array)$users_tmp, (array)$users_query_tmp['users']);
-					$groups_tmp = array_merge((array)$groups_tmp, (array)$users_query_tmp['groups']);
-					$users_groups_tmp = array_merge((array)$users_groups_tmp, (array)$users_query_tmp['users_groups']);
-					$disabled_tmp = array_merge((array)$disabled_tmp, (array)$users_query_tmp['disabled']);
-				}
-
-				$acls_query = $this->call_function("ALL", "hook_access_report_acls", array($this->id));
-
-				foreach ($acls_query as $module => $acls_query_tmp) {
-					$acls_tmp = array_merge_recursive((array)$acls_tmp, (array)$acls_query_tmp['acls']);
-				}
-
-				$roles = array(
-					"histories" => array("Histories", ""),
-					"edit" => array("Edit", ""),
-					"execute" => array("Execute", "")
-					);
-
-				list($ids_r, $users, $groups, $user_groups, $disabled, $acls, $membership, $rows) = $this->acl_resort_users($users_tmp, $groups_tmp, $users_groups_tmp, $disabled_tmp, $acls_tmp);
-
-				$titles = array(
-					"User",
-					"&nbsp;",
-					"Memberships"
-					);
-
-				$blah['acl_markup'] = $this->render_acl($roles, $ids_r, $groups, $users, $acls, $user_groups, $disabled, $titles, $rows);
-
-				break;
-			default:
-				$this->view_add_next();
-				break;
-		}
-
-		//Steps: what steps have been competed, and what step are we at
-		$listing_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT count(*) as count FROM list_templates WHERE template_id='".$this->id."';"));
-		$listing_templates = isset($listing_templates_query['count']) ? $listing_templates_query['count'] : 0;
-
-		//put all step data in a usable array
-		//TODO: listing_templates
-		if ($listing_templates === 0) {
-			$steps[0][0] = "Add Columns";
-			$steps[0][2] = true;
-			$steps[0][3] = "disabled";
-		} else {
-			$steps[0][0] = "Edit Columns";
-			$steps[0][2] = false;
-			$steps[0][3] = "";
-		}
-		$steps[0][1] = $this->webroot()."listing/add/".$this->id."/columns";
-		if ($this->subvar == "columns") $steps[0][3] .= " current";
-
-		$steps[1][0] = "Preview";
-		$steps[1][1] = $this->webroot()."listing/add/".$this->id."/preview";
-		$steps[1][2] = $steps[0][2];
-		$steps[1][3] = "";
-		if ($steps[1][2]) $steps[1][3] = "disabled";
-		if ($this->subvar == "preview") $steps[1][3] .= " current";
-
-		$steps[2][0] = "Constraints";
-		$steps[2][1] = $this->webroot()."listing/add/".$this->id."/constraints";
-		$steps[2][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
-		$steps[2][3] = "";
-		if ($steps[2][2]) $steps[2][3] = "disabled";
-		if ($this->subvar == "constraints") $steps[2][3] .= " current";
-
-		$steps[3][0] = "Publishing";
-		$steps[3][1] = $this->webroot()."listing/add/".$this->id."/publish";
-		$steps[3][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
-		if ($steps[3][2]) $steps[3][3] = "disabled";
-		if ($this->subvar == "publish") $steps[3][3] .= " current";
-
-		$steps[4][0] = "Execution";
-		$steps[4][1] = $this->webroot()."listing/add/".$this->id."/execution";
-		$steps[4][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
-		if ($steps[4][2]) $steps[4][3] = "disabled";
-		if ($this->subvar == "execution") $steps[4][3] .= " current";
-
-		$steps[5][0] = "Access";
-		$steps[5][1] = $this->webroot()."listing/add/".$this->id."/access";
-		$steps[5][2] = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
-		if ($steps[5][2]) $steps[5][3] = "disabled";
-		if ($this->subvar == "access") $steps[5][3] .= " current";
-
-		$template = $this->get_template($this->id);
-		$output = Listing_View::view_add($template, $blah, $steps, $preview_table, $table_join_ajax, $listing_template);
-
-		return $output;
-	}
 
 	function view_add_next() {
 		if (empty($this->id)) {
@@ -861,15 +720,15 @@ class Listing extends Template {
 				break;
 			case "editsquidconstraintsubmit":
 				if ($this->aux1) {
-					Tabular::view_editconstraintsubmit();
+					Listing::view_editconstraintsubmit();
 				}
 				break;
 			case "constraintlogicsubmit":
-				Tabular::view_constraintlogicsubmit();
+				Listing::view_constraintlogicsubmit();
 				break;
 			case "editconstraintsubmit":
 				if ($this->subid) {
-					Tabular::view_editconstraintsubmit();
+					Listing::view_editconstraintsubmit();
 				}
 				break;
 			case "removeconstraintsubmit":
@@ -920,9 +779,9 @@ class Listing extends Template {
 				} else {
 				}
 
-				$this->dobj->db_query($this->dobj->update(array("logic"=>$constraint_logic), "template_id", $this->id, "tabular_constraint_logic"));
+				$this->dobj->db_query($this->dobj->update(array("logic"=>$constraint_logic), "template_id", $this->id, "listing_constraint_logic"));
 
-				$this->dobj->db_query("DELETE FROM tabular_constraints WHERE tabular_constraints_id='$constraint_id';");
+				$this->dobj->db_query("DELETE FROM listing_constraints WHERE listing_constraints_id='$constraint_id';");
 				break;
 			case "publishsubmit":
 				if ($_REQUEST['data']['publish_table'] == "on") {
@@ -1114,7 +973,7 @@ class Listing_View extends Template_View {
 				$output->title = "Edit Constraint";
 				$output->title_desc = "";
 
-				$output->data .= Tabular_view::view_editconstraint($blah);
+				$output->data .= Listing_view::view_editconstraint($blah);
 				break;
 			case "preview":
 				$output->title = "Preview";
@@ -1127,14 +986,14 @@ class Listing_View extends Template_View {
 				$output->title = "Constraints";
 				$output->title_desc = "";
 
-				$output->data .= Tabular_view::view_constraints($blah);
+				$output->data .= Listing_view::view_constraints($blah);
 
 				break;
 			case "editconstraint":
 				$output->title = "Edit Constraint";
 				$output->title_desc = "";
 
-				$output->data .= Tabular_view::view_editconstraint($blah);
+				$output->data .= Listing_view::view_editconstraint($blah);
 
 				break;
 			case "publish":
@@ -1145,14 +1004,14 @@ class Listing_View extends Template_View {
 				$output->title = "Publishing";
 				$output->title_desc = "";
 
-				$output->data .= $this->f("tabular/save/".$this->id."/publishsubmit", "id='publishing_form' dojoType='dijit.form.Form'");
+				$output->data .= $this->f("listing/save/".$this->id."/publishsubmit", "id='publishing_form' dojoType='dijit.form.Form'");
 				$output->data .= $this->i("data[name]", array("label"=>"Report Name", "default"=>$template['name'], "dojo"=>"dijit.form.TextBox"));
 				$output->data .= $this->i("data[description]", array("label"=>"Description", "default"=>$template['description'], "dojo"=>"dijit.form.Textarea"));
 				$output->data .= "<hr />";
 
 				$output->data .= "<h3>Publishing</h3>";
 
-				$output->data .= $this->i("data[publish_table]", array("label"=>"Publish Tabular Data", "type"=>"checkbox", "default"=>$template['publish_table']));
+				$output->data .= $this->i("data[publish_table]", array("label"=>"Publish List Data", "type"=>"checkbox", "default"=>$template['publish_table']));
 				$output->data .= $this->i("data[publish_graph]", array("label"=>"Publish Graphic Data", "type"=>"checkbox", "default"=>$template['publish_graph']));
 				$output->data .= $this->i("data[publish_csv]", array("label"=>"Publish CSV Data", "type"=>"checkbox", "default"=>true, "disabled"=>true));
 				$output->data .= "<hr />";
@@ -1185,7 +1044,7 @@ class Listing_View extends Template_View {
 				$output->title = "Execution";
 				$output->title_desc = "";
 
-				$output->data .= $this->f("tabular/save/".$this->id."/executionsubmit", "id='execution_form'", "dojoType='dijit.form.Form'");
+				$output->data .= $this->f("listing/save/".$this->id."/executionsubmit", "id='execution_form'", "dojoType='dijit.form.Form'");
 				$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_manually]", "label"=>"Execute Manually", "type"=>"radio", "value"=>"manually"/*, "onchange"=>'console.log("skoo");'*/));
 				$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_hourly]", "label"=>"Execute Hourly", "type"=>"radio", "value"=>"hourly", "default"=>($template['execute_hourly'] == "t")));
 				$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_daily]", "label"=>"Execute Daily", "type"=>"radio", "value"=>"daily", "default"=>($template['execute_daily'] == "t")));
@@ -1350,7 +1209,7 @@ class Listing_View extends Template_View {
 								var object = o;
 							}
 
-							if (object.id == 'tabular_recipients') {
+							if (object.id == 'listing_recipients') {
 								var emails = object.value;
 								emails = emails.replace(' ', '');
 
@@ -1388,7 +1247,7 @@ class Listing_View extends Template_View {
 				$output->title = "Access";
 				$output->title_desc = "";
 
-				$output->data .= $this->f("tabular/save/".$this->id."/accesssubmit");
+				$output->data .= $this->f("listing/save/".$this->id."/accesssubmit");
 				$output->data .=  $blah['acl_markup'];
 				$output->data .= $this->i("submit", array("label"=>"Save", "type"=>"submit", "value"=>"Save", "dojoType"=>"dijit.form.Button"));
 				$output->data .= $this->f_close();

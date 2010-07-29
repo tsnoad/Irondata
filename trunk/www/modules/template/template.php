@@ -96,6 +96,9 @@ class Template extends Modules {
 		return false;
 	}
 	
+	/**
+	 * Returns the page title for this module
+	 */
 	function hook_pagetitle() {
 		return "Report";
 	}
@@ -144,40 +147,47 @@ class Template extends Modules {
 	 * (non-PHPdoc)
 	 * @see inc/Modules::hook_menu()
 	 */
-	function hook_menu() {
-		//TODO: Is this used anymore?
-// 		$menu = array();
-//
-// 		$menu[$i][$j] = array();
-//
-// if (!$this->newschool) {
-// 		switch ($this->action) {
-// 			case "view_add":
-// 			case "add":
-// if (!$this->newschool) {
-// 				if ((int)$this->id) {
-// 					$this->current = $this->get_template($this->id);
-// 					$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
-// 					$menu = array();
-// 					foreach ($tables['catalogue'] as $i => $column) {
-// 						foreach ($column as $j => $cell) {
-// 							$menu[$i][$j] = array(
-// 								"name"=>$this->wrap_column($cell['column_id'], $j),
-// 								'type'=>'dnd',
-// 								'link'=>null
-// 							);
-// 						}
-// 					}
-// 				}
-// }
-// 				break;
-// 			default:
-// // 				$this->current = $this->get_template($this->id);
-// // 				$this->current = $this->get_template();
-// 				break;
-// 		}
-// }
-// 		return $menu;
+	function hook_menu($pre = true, $con = true, $pub = true, $exe = true, $acc = true) {
+		$type = $this->module;
+		$steps = array();
+		// The following javascript is only for template modules. Not for the template itself.
+		if ($type != "template") {
+			$steps[0][0] = "Preview";
+			$steps[0][1] = $this->webroot().$type."/add/".$this->id."/preview";
+			$steps[0][2] = $pre;
+			$steps[0][3] = "";
+			if ($steps[0][2]) $steps[0][3] = "disabled";
+			if ($this->subvar == "preview") $steps[0][3] .= " current";
+			
+			$steps[1][0] = "Constraints";
+			$steps[1][1] = $this->webroot().$type."/add/".$this->id."/constraints";
+			$steps[1][2] = $con;
+			$steps[1][3] = "";
+			if ($steps[1][2]) $steps[1][3] = "disabled";
+			if ($this->subvar == "constraints") $steps[1][3] .= " current";
+			
+			$steps[2][0] = "Publishing";
+			$steps[2][1] = $this->webroot().$type."/add/".$this->id."/publish";
+			$steps[2][2] = $pub;
+			$steps[2][3] = "";
+			if ($steps[2][2]) $steps[2][3] = "disabled";
+			if ($this->subvar == "publish") $steps[5][3] .= " current";
+			
+			$steps[3][0] = "Execution";
+			$steps[3][1] = $this->webroot().$type."/add/".$this->id."/execution";
+			$steps[3][2] = $exe;
+			$steps[3][3] = "";
+			if ($steps[3][2]) $steps[3][3] = "disabled";
+			if ($this->subvar == "execution") $steps[3][3] .= " current";
+			
+			$steps[4][0] = "Access";
+			$steps[4][1] = $this->webroot().$type."/add/".$this->id."/access";
+			$steps[4][2] = $acc;
+			$steps[4][3] = "";
+			if ($steps[4][2]) $steps[4][3] = "disabled";
+			if ($this->subvar == "access") $steps[4][3] .= " current";
+		}
+		return $steps;
 	}
 
 	/**
@@ -312,158 +322,84 @@ class Template extends Modules {
 	 * (non-PHPdoc)
 	 * @see inc/Modules::hook_javascript()
 	 */
-	function hook_javascript($type = "listing"){
-		return "
-
-		var xsource;
-		var xnodes;
-		var xt;
-		function dnd_cancel(nodes, source) {
-			xsource = source;
-			xnodes = nodes;
-			window.setTimeout('xsource.node.appendChild(xnodes[0])', 100);
-		}
-		function dnd_cancel_clone(t) {
-			xt = t;
-			window.setTimeout('destroy_dom(xt.node.lastChild.id);', 100);
-		}
-
-		function dnd_getlabel(nodes) {
-			buttons = nodes[0].getElementsByTagName('button');
-			node_id = buttons[0].id.substring(11);
-			label = buttons[0].childNodes[1].childNodes[0].innerHTML;
-			return label;
-		}
-
-		function destroy_dom(id) {
-			if (!dojo.byId(id)) {
-				return;
-			}
-			dojo.forEach(
-			dojo.query('.dijit*', dojo.byId(id)),
-			function(xid) {
-				try {
-					dijit.getEnclosingWidget(xid).destroy();
-				} catch(err) {
-					//continue;
-				}
-			}
-			);
-			try {
-				dojo.byId(id).parentNode.removeChild(dojo.byId(id));
-			} catch(err) {
-				//continue;
-			}
-		}
+	function hook_javascript(){
+		$type = $this->module;
+		$js = "";
+		// The following javascript is only for template modules. Not for the template itself.
+		if ($type != "template") {
+			$js .= "
+			
+			function update_data_preview_first() {
+				dojo.byId('data_preview_load').style.display = 'none';
+				dojo.byId('data_preview_loading').style.display = 'block';
+				url = '".$this->webroot().$type."/data_preview_first_ajax/".$this->id."';
+				data = {};
+				div = 'data_preview_first';
 	
-		function remove_column(id) {
-			console.log(id);
-			if (id.target) {
-				cid = id.target.id.substr(7);
-				id = id.target.parentNode.parentNode.parentNode.parentNode.parentNode.parentNode.id;
-			} else if (id.id) {
-				cid = id.id.substr(7);
-				id = id.containerNode.parentNode.parentNode.parentNode.parentNode.parentNode.parentNode.id;
+				var d = dojo.xhrPost({
+					url: url,
+					handleAs: 'text',
+					sync: false,
+					content: data,
+					// The LOAD function will be called on a successful response.
+					load: function(response, ioArgs) {
+						if (div) {
+							dojo.byId(div).innerHTML = response;
+						}
+						update_data_preview_slow();
+						return response;
+					},
+					// The ERROR function will be called in an error case.
+					error: function(response, ioArgs) {
+						console.error(\"HTTP status code: \", ioArgs.xhr.status);
+						return response;
+					}
+				});
 			}
-			console.log(cid, id);
-			results = ajax_load('".$this->webroot()."".$type."/remove/".$this->id."/'+cid);
-			try {
-				if (dojo.byId(id)) {
-					destroy_dom(id);
-				}
-			} catch(err) {
-				// skip
+			
+			function update_data_preview_slow() {
+				var saved_report_id = window.document.getElementById('saved_report_id').innerHTML;
+				url = '".$this->webroot().$type."/data_preview_slow_ajax/".$this->id."/'+saved_report_id;
+				data = {};
+				div = 'data_preview';
+	
+				var d = dojo.xhrPost({
+					url: url,
+					handleAs: 'text',
+					sync: false,
+					content: data,
+					// The LOAD function will be called on a successful response.
+					load: function(response, ioArgs) {
+						if (response == 'finished') {
+							return;
+						}
+	
+						if (div) {
+							dojo.byId(div).innerHTML = response;
+						}
+	
+						update_data_preview_slow();
+					},
+					// The ERROR function will be called in an error case.
+					error: function(response, ioArgs) {
+						console.error(\"HTTP status code: \", ioArgs.xhr.status);
+						return response;
+					}
+				});
 			}
-		};
-		function remove_constraint(id) {
-			console.log(id);
-			if (id.target) {
-				console.log('T', id.target.id);
-				cid = id.target.id.substr(11);
-				id = id.target.parentNode.parentNode.parentNode.parentNode.parentNode.parentNode.id;
-			} else {
-				console.log('I', id.id);
-				cid = id.id.substr(11);
-				id = id.containerNode.parentNode.parentNode.parentNode.parentNode.parentNode.parentNode.id;
-			}
-			console.log(cid, id);
-			results = ajax_load('".$this->webroot()."".$type."/remove_constraint/".$this->id."/'+cid);
-			try {
-				if (dojo.byId(id)) {
-					destroy_dom(id);
-				}
-			} catch(err) {
-				// skip
-			}
-		};
-
-		function save_constraints() {
-			var passContent = {};
-			var container = dojo.byId('constraints');
-			all_columns = container.getElementsByTagName('input');
-			for (var i=0; i<all_columns.length; i++) {
-				if (dijit.byId(all_columns[i].id) != undefined) {
-					last_pos = all_columns[i].id.lastIndexOf('_');
-					id = all_columns[i].id.substring(last_pos+1)
-					passContent['data[con_'+id+'][id_'+id+']'] = id;
-					passContent['data[con_'+id+'][id]'] = id;
-					passContent['data[con_'+id+']['+all_columns[i].id.substring(0, last_pos)+']'] = dijit.byId(all_columns[i].id).getValue();
-				}
-			}
-			return passContent;
+			";
 		}
-
-		function create_con_column(id, name, data) {
-
-			//Add the optional cell
-			var container = dojo.doc.createElement('tr');
-			container.id = 'row_cons_'+id;
-
-			var td = dojo.doc.createElement('td');
-			container.appendChild(td)
-			var button = dojo.doc.createElement('div');
-			button.innerHTML = name;
-			td.appendChild(button);
-
-			constraint_options = new dojo.data.ItemFileReadStore({id:'constraint_options',url: '".$this->webroot()."".$type."/constraint_options_json'});
-
-			var xid = create_input('id', 'hidden', {id:'c_id_'+id, value: id, label: false});
-			var type = create_input('type', 'select', {label: false, id:'type_'+id, value: data['type'][0], store:constraint_options, onChange: save_template});
-			var value = create_input('value', 'textbox', {label: false, id:'value_'+id, value: data['value'][0], onChange: save_template});
-			var choose = create_input('choose', 'checkbox', {label: false, id:'choose_'+id, value: data['choose'][0], onChange: save_template});
-			var remove = create_input('remove_con', 'button', {label: 'Remove', id:'remove_con_'+id, onClick: remove_constraint});
-
-			var td2 = dojo.doc.createElement('td');
-			container.appendChild(td2)
-			td2.appendChild(xid);
-			td2.appendChild(type);
-
-			var td3 = dojo.doc.createElement('td');
-			container.appendChild(td3)
-			td3.appendChild(value);
-
-			var td4 = dojo.doc.createElement('td');
-			container.appendChild(td4)
-			td4.appendChild(choose);
-
-			var td5 = dojo.doc.createElement('td');
-			container.appendChild(td5)
-			td5.appendChild(remove);
-
-			return container;
-		}
-
-		";
+		return $js;
 	}
 
 	/**
 	 * Create the initial report object in the database
 	 *
 	 * @param $object_id int The database id
-	 * @param $type string The type of report. Defaults to tabular
 	 * @return The report template array
 	 */
-	function view_add_select_object($object_id, $type='tabular') {
+	function view_add_select_object($object_id) {
+		$type = $this->module;
 		//create the new template in the database
 		$temp =array();
 		$temp['name'] = "Unnamed Report - ".date("g:i A l jS F, Y");
@@ -481,29 +417,267 @@ class Template extends Modules {
 		return $temp;
 	}
 	
-	function view_add($module='', $type='') {
-		$modules = $this->call_function("ALL", "hook_template_entry");
-		$objects = $this->call_function("catalogue", "get_databases");
-
-		$output = Template_View::view_add($objects, $modules);
+	/**
+	 * First point of contact for almost every page, when creating a report.
+	 * Runs queries to gather data to display in MODULE_View::view_add().
+	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
+	 *
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::view_add()
+	 */
+	function view_add() {
+		$type = $this->module;
+		$output = null;
+		$blah = null; //TODO: bad variable name. Must change
+		if ($type == 'template') {
+			$modules = $this->call_function("ALL", "hook_template_entry");
+			$objects = $this->call_function("catalogue", "get_databases");
+			$output = Template_View::view_add($objects, $modules);
+		} else {
+			$preview_table = null;
+			switch ($this->subvar) {
+				case "preview":
+					if ((int)$this->id) {
+						$output = Template_View::view_add_preview();
+					} else {
+						//TODO: Preview Error
+					}
+					break;
+				case "constraints":
+					if ((int)$this->id) {
+						$blah = Template::view_constraints();
+						$output = Template_View::view_add_constraints($blah);
+					} else {
+						//TODO: Constraint Error
+					}
+					break;
+				case "editconstraint":
+					if ($this->subid) {
+						$blah = array();
+						list($blah, $table_join_ajax) = Template::view_editconstraint();
+						$output = Template_View::view_add_editconstraints($blah);
+					} else {
+						//TODO: EditConstraint Error
+					}
+					break;
+				case "publish":
+					$template = $this->get_template($this->id);
+					$output = Template_View::view_add_publish($template);
+					break;
+				case "execution":
+					$template = $this->get_template($this->id);
+					$output = Template_View::view_add_execute($template);
+					break;
+				case "access":
+					$users_query = $this->call_function("ALL", "hook_access_users", array());
+					$users_tmp = array();
+					$groups_tmp = array();
+					$users_groups_tmp = array();
+					$disabled_tmp = array();
+					foreach ($users_query as $module => $users_query_tmp) {
+						$users_tmp = array_merge((array)$users_tmp, (array)$users_query_tmp['users']);
+						$groups_tmp = array_merge((array)$groups_tmp, (array)$users_query_tmp['groups']);
+						$users_groups_tmp = array_merge((array)$users_groups_tmp, (array)$users_query_tmp['users_groups']);
+						$disabled_tmp = array_merge((array)$disabled_tmp, (array)$users_query_tmp['disabled']);
+					}
+					$acls_query = $this->call_function("ALL", "hook_access_report_acls", array($this->id));
+					$acls_tmp = array();
+					foreach ($acls_query as $module => $acls_query_tmp) {
+						$acls_tmp = array_merge_recursive((array)$acls_tmp, (array)$acls_query_tmp['acls']);
+					}
+					$roles = array(
+						"histories" => array("Histories", ""),
+						"edit" => array("Edit", ""),
+						"execute" => array("Execute", "")
+						);
+					list($ids_r, $users, $groups, $user_groups, $disabled, $acls, $membership, $rows) = $this->acl_resort_users($users_tmp, $groups_tmp, $users_groups_tmp, $disabled_tmp, $acls_tmp);
+					$titles = array(
+						"User",
+						"&nbsp;",
+						"Memberships"
+						);
+					$blah['acl_markup'] = $this->render_acl($roles, $ids_r, $groups, $users, $acls, $user_groups, $disabled, $titles, $rows);
+					$output = Template_View::view_add_access($blah);
+					break;
+			}
+		}
 		return $output;
 	}
+	
+	/**
+	 * Called by Template::view_add. Gets all data required to view constraints and constraint logic editor
+	 */
+	function view_constraints() {
+		switch ($this->subid) {
+			default:
+				$blah['default'] = true;
+				break;
+		}
+		
+		if ($this->subvar == "constraints") {
+			$squid = false;
+		} else if ($this->subid == "squidconstraints") {
+			$squid = true;
+		}
+		
+		if (!$squid) {
+			$constraints_query = $this->dobj->db_fetch_all($this->dobj->db_query("
+				SELECT
+					tc.*,
+					tcl.*,
+					c.name AS column_name,
+					t.name AS table_name,
+					c.human_name AS column_human_name,
+					t.human_name AS table_human_name
+				FROM
+					template_constraints tc
+					INNER JOIN template_constraint_logic tcl ON (tcl.template_id=tc.template_id)
+					INNER JOIN columns c ON (c.column_id=tc.column_id)
+					INNER JOIN tables t ON (t.table_id=c.table_id)
+				WHERE
+					tc.template_id='{$this->id}'
+				ORDER BY
+					tc.template_constraints_id
+				;"));
+		} else {
+			$constraints_query = $this->dobj->db_fetch_all($this->dobj->db_query("
+				SELECT
+					sc.*,
+					scl.*,
+					c.name AS column_name,
+					t.name AS table_name,
+					c.human_name AS column_human_name,
+					t.human_name AS table_human_name
+				FROM
+					tabular_templates_manual_squid_constraints sc
+					INNER JOIN tabular_templates_manual_squid_constraint_logic scl ON (scl.tabular_templates_manual_squid_id=sc.tabular_templates_manual_squid_id)
+					INNER JOIN columns c ON (c.column_id=sc.column_id)
+					INNER JOIN tables t ON (t.table_id=c.table_id)
+				WHERE
+					sc.tabular_templates_manual_squid_id='{$this->aux1}'
+				ORDER BY
+					sc.squid_constraints_id
+				;"));
+		}
+		
+		if (!empty($constraints_query)) {
+			$blah['logic'] = $constraints_query[0]['logic'];
+			
+			$constraint_index = 0;
+			
+			foreach ($constraints_query as $constraint_tmp) {
+				if (!$squid) {
+					$constraint_id = $constraint_tmp['template_constraints_id'];
+				} else {
+					$constraint_id = $constraint_tmp['squid_constraints_id'];
+				}
+			
+				$index_id = isset($constraint_tmp['index_id']) ? $constraint_tmp['index_id'] : null;
+				$table_name = $constraint_tmp['table_name'];
+				$column_name = $constraint_tmp['column_name'];
+				/* The constraints should show with the human name, not data name */
+				$table_human_name = $constraint_tmp['table_human_name'];
+				$column_human_name = $constraint_tmp['column_human_name'];
+				$column = $table_human_name.".".$column_human_name;
+				
+				$type_array = array(
+					"eq"=>"Equals",
+					"neq"=>"Does not Equal",
+					"lt"=>"Is Less Than",
+					"gt"=>"Is Greater Than",
+					"lte"=>"Is Less Than or Equal To",
+					"gte"=>"Is Greater Than or Equal To",
+					"like"=>"Contains"
+					);
+				$type = strtolower($type_array[$constraint_tmp['type']]);
+				$value = $constraint_tmp['value'];
+				
+				$constraints[$constraint_index]['constraint_id'] = $constraint_id;
+				$constraints[$constraint_index]['index_id'] = $index_id;
+				$constraints[$constraint_index]['foobar'] = "constraint";
+				$constraints[$constraint_index]['constraint'] = "$column $type '$value'";
+				
+				$constraint_index ++;
+			}
+			
+			if ($blah['default']) {
+				$constraints_query = $constraints;
+				$indentation = 0;
+				
+				foreach ($constraints_query as $constraint_index => $constraint_tmp) {
+					$index_id_tmp = $constraint_tmp['index_id'];
+					
+					$new_constraints[] = array_merge((array)$constraint_tmp, (array)array("indentation" => $indentation));
+				}
+				
+				$constraints = $new_constraints;
+			}
+			
+			$blah['constraints'] = $constraints;
+		}
+		
+		return $blah;
+	}
+
+	/**
+	 * Called by Template::view_save to create a new constraint, or save changes to an existing one. Also used to edit constaints on manual axies
+	 */
+	function view_editconstraintsubmit() {
+		switch ($this->subvar) {
+			case "editconstraintsubmit":
+				$_REQUEST['data']['template_id'] = $this->id;
+				break;
+			case "editsquidconstraintsubmit":
+				$squid_id = $this->subid;
+				$_REQUEST['data']['tabular_templates_manual_squid_id'] = $squid_id;
+				break;
+		}
+		
+		$selected_input_id = $_REQUEST['data']['value_input_selected'];
+		$selected_input_value = $_REQUEST['data'][$selected_input_id];
+		
+		$_REQUEST['data']['value'] = $selected_input_value;
+		
+		foreach (explode(",", $_REQUEST['data']['value_inputs']) as $input_id) {
+			unset($_REQUEST['data'][$input_id]);
+		}
+		
+		unset($_REQUEST['data']['value_inputs']);
+		unset($_REQUEST['data']['value_input_selected']);
+
+		switch ($this->subvar) {
+			case "editconstraintsubmit":
+				$constraint_id = $this->subid;
+
+				if ($constraint_id == "new") {
+					$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "template_constraints"));
+				} else {
+					$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_constraints_id", $constraint_id, "template_constraints"));
+				}
+				break;
+			case "editsquidconstraintsubmit":
+				$constraint_id = $this->aux1;
+
+				if ($constraint_id == "new") {
+					$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_manual_squid_constraints"));
+				} else {
+					$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "squid_constraints_id", $constraint_id, "tabular_templates_manual_squid_constraints"));
+				}
+				break;
+		}
+	}
+	
+	
+	
+	
+	
+	
+	
 	
 	function wrap_column($id, $name, $values=array()) {
 		/* Drop down button or tooltipdialog? */
 		$col = "<div id='raw_column_".$id."' class='column' dojoType='dijit.form.Button'>";
 		$col .= "<span>".$name."</span>";
-		$col .= "</div>";
-		return $col;
-	}
-	
-	function wrap_constraint_column($id, $name, $values=array()) {
-		/* Drop down button or tooltipdialog? */
-		$col = "<div id='conscolumn_".$id."' class='column' dojoType='dijit.form.DropDownButton'>";
-		$col .= "<span>".$name."</span>";
-		$col .= "<div dojoType='dijit.TooltipDialog' id='conscolumn_dialog_".$id."'>";
-		$col .= $this->b("remove", array("label"=>"Remove", "dojo"=>"dijit.form.Button", "onclick"=>"remove_column(this);", "id"=>"remove_conscolumn_".$id));
-		$col .= "</div>";
 		$col .= "</div>";
 		return $col;
 	}
@@ -986,15 +1160,6 @@ class Template extends Modules {
 
 		return $return;
 	}
-	
-	function view_display_constraints() {
-		$constraints = $this->get_constraints($this->id);
-		$options = $this->hook_constraint_options();
-		$object = $this->dobj->db_fetch($this->dobj->db_query("SELECT object_id FROM templates WHERE template_id='".$this->id."'"));
-		$tables = $this->call_function("catalogue", "get_structure", array($object['object_id'], $constraints));
-		$output = Template_View::view_display_constraints($tables, $options, $constraints);
-		return $output;
-	}
 
 	function view_constraint_options_json() {
 		$options = $this->hook_constraint_options();
@@ -1124,6 +1289,556 @@ class Template_View {
 		return $output;
 	}
 	
+	/**
+	 * Display the preview table. It will be populated via AJAX
+	 *
+	 * @param string $preview_table The HTML for the preview table
+	 */
+	public function view_add_preview() {
+		$output->title = "Preview";
+		$output->title_desc = "";
+		$output->data .= '<div id="data_preview_first">';
+		$output->data .= '<div id="data_preview_loading" style="display: none; text-align: center;">Loading Report...</div>';
+		$output->data .= '<div id="data_preview_load" style="text-align: center;"><a href="javascript:update_data_preview_first();">Load Preview</a></div>';
+		$output->data .= '</div>';
+		return $output;
+	}
+
+	/**
+	 * Display the access view
+	 *
+	 * @param array $blah The acl information to generate the constraint options
+	 */
+	public function view_add_access($blah) {
+		$type = $this->module;
+		$output->title = "Access";
+		$output->title_desc = "";
+		$output->data .= $this->f($type."/save/".$this->id."/accesssubmit");
+		$output->data .=  $blah['acl_markup'];
+		$output->data .= $this->i("submit", array("label"=>"Save", "type"=>"submit", "value"=>"Save", "dojoType"=>"dijit.form.Button"));
+		$output->data .= $this->f_close();
+		return $output;
+	}
+	
+	/**
+	 * Display the execute template page
+	 *
+	 * @param array $template The generic template information
+	 */
+	public function view_add_execute($template) {
+		$type = $this->module;
+		//prevent the editor from adding more escapes than neccessary
+		$template['email_body'] = stripslashes($template['email_body']);
+		$output->title = "Execution";
+		$output->title_desc = "";
+		
+		$output->data .= $this->f($type."/save/".$this->id."/executionsubmit", "id='execution_form'", "dojoType='dijit.form.Form'");
+		$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_manually]", "label"=>"Execute Manually", "type"=>"radio", "value"=>"manually"/*, "onchange"=>'console.log("skoo");'*/));
+		$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_hourly]", "label"=>"Execute Hourly", "type"=>"radio", "value"=>"hourly", "default"=>($template['execute_hourly'] == "t")));
+		$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_daily]", "label"=>"Execute Daily", "type"=>"radio", "value"=>"daily", "default"=>($template['execute_daily'] == "t")));
+		$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_weekly]", "label"=>"Execute Weekly", "type"=>"radio", "value"=>"weekly", "default"=>($template['execute_weekly'] == "t")));
+		$output->data .= $this->i("data[execution_interval]", array("id"=>"data[execution_interval_monthly]", "label"=>"Execute Monthly", "type"=>"radio", "value"=>"monthly", "default"=>($template['execute_monthly'] == "t")));
+		$output->data .= "<hr />";
+		
+		$output->data .= $this->i("data[execute_hour]", array("id"=>"data[execute_hour]", "div_id"=>"execute_hour_div", "label"=>"Hour of Execution", "type"=>"select", "dojoType"=>"dijit.form.FilteringSelect", "default"=>$template['execute_hour'], "options"=>array(
+			"0"=>"0 AM", "1"=>"1 AM", "2"=>"2 AM", "3"=>"3 AM", "4"=>"4 AM", "5"=>"5 AM",
+			"6"=>"6 AM", "7"=>"7 AM", "8"=>"8 AM", "9"=>"9 AM", "10"=>"10 AM", "11"=>"11 AM",
+			"12"=>"12 PM", "13"=>"1 PM", "14"=>"2 PM", "15"=>"3 PM", "16"=>"4 PM", "17"=>"5 PM",
+			"18"=>"6 PM", "19"=>"7 PM", "20"=>"8 PM", "21"=>"9 PM", "22"=>"10 PM", "23"=>"11 PM"
+			)));
+		$output->data .= "<p>Hour of the day to execute the report.</p>";
+		
+		$output->data .= $this->i("data[execute_dayofweek]", array("id"=>"data[execute_dayofweek]", "div_id"=>"execute_dayofweek_div", "label"=>"Day of Execution", "type"=>"select", "dojoType"=>"dijit.form.FilteringSelect", "default"=>$template['execute_dayofweek'], "options"=>array(
+			"1"=>"Monday", "2"=>"Tuesday", "3"=>"Wednesday", "4"=>"Thursday", "5"=>"Friday", "6"=>"Saturday", "7"=>"Sunday" )));
+		$output->data .= "<p>Day of the week to execute the report.</p>";
+		
+		$output->data .= $this->i("data[execute_day]", array("id"=>"data[execute_day]", "div_id"=>"execute_day_div", "label"=>"Date of Execution", "type"=>"select", "dojoType" =>"dijit.form.FilteringSelect", "default"=>$template['execute_day'], "options"=>array(
+			"1"=>"1st", "2"=>"2nd", "3"=>"3rd", "4"=>"4th", "5"=>"5th", "6"=>"6th", "7"=>"7th",
+			"8"=>"8th", "9"=>"9th", "10"=>"10th", "11"=>"11th", "12"=>"12th", "13"=>"13th",
+			"14"=>"14th", "15"=>"15th", "16"=>"16th", "17"=>"17th", "18"=>"18th", "19"=>"19th",
+			"20"=>"20th", "21"=>"21st", "22"=>"22nd", "23"=>"23rd", "24"=>"24th", "25"=>"25th",
+			"26"=>"26th", "27"=>"27th", "28"=>"28th", "29"=>"29th", "30"=>"30th", "31"=>"31st (or last day of month)"
+		)));
+		$output->data .= "<p>Day of the month to execute the report.</p>";
+		
+		$output->data .= "
+			<script>
+				dojo.addOnLoad(execution_interval_input_toggle_init);
+
+				function execution_interval_input_toggle_init() {
+					dojo.connect(dojo.byId('data[execution_interval_manually]'), 'onclick', 'execution_interval_input_toggle');
+					dojo.connect(dojo.byId('data[execution_interval_hourly]'), 'onclick', 'execution_interval_input_toggle');
+					dojo.connect(dojo.byId('data[execution_interval_daily]'), 'onclick', 'execution_interval_input_toggle');
+					dojo.connect(dojo.byId('data[execution_interval_weekly]'), 'onclick', 'execution_interval_input_toggle');
+					dojo.connect(dojo.byId('data[execution_interval_monthly]'), 'onclick', 'execution_interval_input_toggle');
+
+					execution_interval_input_toggle();
+				}
+
+				function execution_interval_input_toggle() {
+					var execution_interval_daily = dojo.byId('data[execution_interval_daily]').checked;
+					var execution_interval_weekly = dojo.byId('data[execution_interval_weekly]').checked;
+					var execution_interval_monthly = dojo.byId('data[execution_interval_monthly]').checked;
+
+					var execute_hour_div = dojo.byId('execute_hour_div');
+					var execute_dayofweek_div = dojo.byId('execute_dayofweek_div');
+					var execute_day_div = dojo.byId('execute_day_div');
+
+					//enable all the execution inputs
+					dijit.byId('data[execute_hour]').setDisabled(false);
+					dijit.byId('data[execute_dayofweek]').setDisabled(false);
+					dijit.byId('data[execute_day]').setDisabled(false);
+
+					//make all labels look enabled
+					execute_hour_div.className = execute_hour_div.className.replace('disabled', '');
+					execute_dayofweek_div.className = execute_dayofweek_div.className.replace('disabled', '');
+					execute_day_div.className = execute_day_div.className.replace('disabled', '');
+
+					//if no appropriate interval is selected, disable the hour input
+					if (!execution_interval_daily && !execution_interval_weekly && !execution_interval_monthly) {
+						dijit.byId('data[execute_hour]').setDisabled(true);
+						execute_hour_div.className = execute_hour_div.className+' disabled';
+					}
+
+					//as above, but for the day of week input
+					if (!execution_interval_weekly) {
+						dijit.byId('data[execute_dayofweek]').setDisabled(true);
+						execute_dayofweek_div.className = execute_dayofweek_div.className+' disabled';
+					}
+
+					//as above, but for the day of month input
+					if (!execution_interval_monthly) {
+						dijit.byId('data[execute_day]').setDisabled(true);
+						execute_day_div.className = execute_day_div.className+' disabled';
+					}
+				}
+			</script>
+			";
+		
+		$output->data .= "<hr />";
+		$output->data .= "<h3>Email Dissemination</h3>";
+		$output->data .= $this->i("data[email_dissemination]", array("label"=>"Disseminate Via Email", "type"=>"checkbox", "default"=>($template['email_dissemination'] == "t")));
+		$output->data .= "<hr />";
+		
+		$recipient_selectors = $this->call_function("ALL", "hook_recipient_selector", array($template['email_recipients']));
+		$output->data .= "
+			<div style=''>Recipients:</div>
+			<script>
+				dojo.addOnLoad(recipients_count_init);
+
+				var recipient_selectors = ".json_encode(array_keys($recipient_selectors)).";
+
+				function recipients_count_init() {
+					for (var i in recipient_selectors) {
+						recipients_count(null, dojo.byId(recipient_selectors[i]+'_recipients'));
+						dojo.byId(recipient_selectors[i]+'_recipients').onchange = recipients_count;
+					}
+				}
+
+				function recipients_count(e, o) {
+					if (e) {
+						var object = e.currentTarget;
+					} else if (o) {
+						var object = o;
+					}
+
+					if (object.id == 'tabular_recipients') {
+						var emails = object.value;
+						emails = emails.replace(' ', '');
+
+						if (emails.length > 0) {
+							emails = emails.split(',');
+						}
+
+						if (emails.length === 1) {
+							var count_text = '1 recipient';
+						} else {
+							var count_text = (emails.length)+' recipients';
+						}
+
+						dojo.byId(object.id+'_count').innerHTML = count_text;
+					} else {
+					}
+				}
+			</script>
+			";
+		
+		$output->data .= implode("\n", $recipient_selectors);
+		$output->data .= "<p>This should be a comma seperated list of email addresses.</p>";
+		$output->data .= $this->i("data[email_subject]", array("label"=>"Message Subject", "type"=>"text", "default"=>$template['email_subject'], "dojo"=>"dijit.form.TextBox"));
+		$output->data .= $this->i("data[email_body]", array("label"=>"Message Body", "type"=>"wysiwyg", "default"=>$template['email_body'], "parent_form"=>"execution_form"));
+		$output->data .= "<p>The following placeholders can be used to dynamically update the header and footer at runtime. %name, %desc, %run, %by, %size</p>";
+		$output->data .= "<hr />";
+		
+		$output->data .= $this->i("submit", array("label"=>"Edit", "type"=>"submit", "value"=>"Edit", "dojoType"=>"dijit.form.Button"));
+		$output->data .= $this->f_close();
+		return $output;
+	}
+	
+	/**
+	 * Display the publish template page
+	 *
+	 * @param array $template The generic template information
+	 */
+	function view_add_publish($template) {
+		$type = $this->module;
+		//prevent the editor from adding more escapes than neccessary
+		$template['header'] = stripslashes($template['header']);
+		$template['footer'] = stripslashes($template['footer']);
+		
+		$output->title = "Publishing";
+		$output->title_desc = "";
+		$output->data .= $this->f($type."/save/".$this->id."/publishsubmit", "id='publishing_form' dojoType='dijit.form.Form'");
+		$output->data .= $this->i("data[name]", array("label"=>"Report Name", "default"=>$template['name'], "dojo"=>"dijit.form.TextBox"));
+		$output->data .= $this->i("data[description]", array("label"=>"Description", "default"=>$template['description'], "dojo"=>"dijit.form.Textarea"));
+		$output->data .= "<hr />";
+		
+		$output->data .= "<h3>Publishing</h3>";
+		$output->data .= $this->i("data[publish_table]", array("label"=>"Publish Tabular Data", "type"=>"checkbox", "default"=>$template['publish_table']));
+		$output->data .= $this->i("data[publish_graph]", array("label"=>"Publish Graphic Data", "type"=>"checkbox", "default"=>$template['publish_graph']));
+		$output->data .= $this->i("data[publish_csv]", array("label"=>"Publish CSV Data", "type"=>"checkbox", "default"=>true, "disabled"=>true));
+		$output->data .= "<hr />";
+		
+		$output->data .= "<h3>Graph</h3>";
+		$output->data .= $this->i("data[graph_type]", array("label"=>"Scatter Graph", "type"=>"radio", "value"=>"Scatter", "default"=>($template['graph_type'] == "Scatter"), "disabled"=>true));
+		$output->data .= $this->i("data[graph_type]", array("label"=>"Line Graph", "type"=>"radio", "value"=>"Lines", "default"=>($template['graph_type'] == "Lines")));
+		$output->data .= $this->i("data[graph_type]", array("label"=>"Line Graph - Stacked", "type"=>"radio", "value"=>"StackedLines", "default"=>($template['graph_type'] == "StackedLines"), "disabled"=>true));
+		$output->data .= $this->i("data[graph_type]", array("label"=>"Area Graph", "type"=>"radio", "value"=>"Areas", "default"=>($template['graph_type'] == "Areas"), "disabled"=>true));
+		$output->data .= $this->i("data[graph_type]", array("label"=>"Area Graph - Stacked", "type"=>"radio", "value"=>"StackedAreas", "default"=>($template['graph_type'] == "StackedAreas")));
+		$output->data .= $this->i("data[graph_type]", array("label"=>"Bar Graph - Vertical", "type"=>"radio", "value"=>"Columns", "default"=>($template['graph_type'] == "Columns"), "disabled"=>true));
+		$output->data .= $this->i("data[graph_type]", array("label"=>"Bar Graph - Vertical, Stacked", "type"=>"radio", "value"=>"StackedColumns", "default"=>($template['graph_type'] == "StackedColumns")));
+		$output->data .= $this->i("data[graph_type]", array("label"=>"Bar Graph - Vertical, Clustered", "type"=>"radio", "value"=>"ClusteredColumns", "default"=>($template['graph_type'] == "ClusteredColumns"), "disabled"=>true));
+		$output->data .= "<hr />";
+		
+		$output->data .= "<h3>Page Addenda</h3>";
+		$output->data .= $this->i("data[header]", array("type"=>"wysiwyg", "label"=>"Report Header", "default"=>$template['header'], "parent_form"=>"publishing_form"));
+		$output->data .= "<p>The following placeholders can be used to dynamically update the header and footer at runtime. %logo, %name, %desc, %run, %by, %size</p>";
+		$output->data .= $this->i("data[footer]", array("type"=>"wysiwyg", "label"=>"Report Footer", "default"=>$template['footer'], "parent_form"=>"publishing_form"));
+		$output->data .= "<p>The following placeholders can be used to dynamically update the header and footer at runtime. %logo, %name, %desc, %run, %by, %size</p>";
+		$output->data .= "<hr />";
+		
+		$output->data .= $this->i("submit", array("label"=>"Edit", "type"=>"submit", "value"=>"Edit", "dojoType"=>"dijit.form.Button"));
+		$output->data .= $this->f_close();
+		return $output;
+	}
+	
+	/**
+	 * Display the edit constraints view
+	 *
+	 * @param array $blah The structure information to generate the constraint options
+	 */
+	function view_add_editconstraints($blah) {
+		$type = $this->module;
+		$output->title = "Edit Constraint";
+		$output->title_desc = "";
+		$output->data .= "";
+		if (!isset($blah['data']['value'])) {
+			$blah['data']['value'] = null;
+		}
+		if (!isset($blah['data']['type'])) {
+			$blah['data']['type'] = null;
+		}
+		if (!isset($blah['data']['column_id'])) {
+			$blah['data']['column_id'] = null;
+		}
+		if (isset($blah['error'])) {
+			$output->data .= "<p style='color: #a40000; font-family: Arial; font-size: 10pt; font-weight: bold;'>".$blah['error']."</p>";
+		}
+		
+		switch ($this->subvar) {
+			case "editconstraint":
+				$constraint_id = $this->subid;
+				$output->data .= $this->f($type."/save/{$this->id}/editconstraintsubmit/{$constraint_id}", "dojoType='dijit.form.Form'");
+				$cancel = "<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot().$type."/add/{$this->id}/constraints\"; return false;' name='cancel' >Cancel</button>";
+				break;
+			case "editsquidconstraint":
+				$squid_id = $this->subid;
+				$constraint_id = $this->aux1;
+				$output->data .= $this->f($type."/save/{$this->id}/editsquidconstraintsubmit/{$squid_id}/{$constraint_id}", "dojoType='dijit.form.Form'");
+				$cancel = "<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot().$type."/add/{$this->id}/y/squidconstraints/{$squid_id}\"; return false;' name='cancel' >Cancel</button>";
+				break;
+		}
+		
+		$output->data .= $this->i("data[column_id]", array("id"=>"data[column_id]", "label"=>"Column", "type"=>"select", "default"=>$blah['data']['column_id'], "options"=>$blah['options']['column_id'], "onchange"=>"update_join_display(this);", "dojoType"=>"dijit.form.FilteringSelect"));
+		$output->data .= $this->i("data[type]", array("id"=>"data[type]", "label"=>"&nbsp;", "type"=>"select", "default"=>$blah['data']['type'], "options"=>$blah['options']['type'], "dojoType"=>"dijit.form.FilteringSelect"));
+		$output->data .= $this->i("data[value_text]", array("id"=>"data[value_text]", "div_id"=>"value_text_div", "label"=>"&nbsp;", "type"=>"text", "value"=>$blah['data']['value'], "dojoType"=>"dijit.form.ValidationTextBox"));
+		$output->data .= $this->i("data[value_date]", array("id"=>"data[value_date]", "div_id"=>"value_date_div", "label"=>"&nbsp;", "type"=>"text", "value"=>$blah['data']['value'], "dojoType"=>"dijit.form.DateTextBox"));
+		
+		if (!empty($blah['column_options'])) {
+			foreach ($blah['column_options'] as $column_id => $column_options) {
+				$output->data .= $this->i("data[value_select_$column_id]", array("id"=>"data[value_select_$column_id]", "div_id"=>"value_select_div_$column_id", "label"=>"&nbsp;", "type"=>"select", "default"=>$blah['data']['value'], "options"=>array(), "dojoType"=>"dijit.form.FilteringSelect"));
+			}
+		}
+		
+		$output->data .= "<p id='dropdown_loading' style='display: none;'>Loading possible options...</p>";
+		$output->data .= $this->i("data[value_inputs]", array("id"=>"data[value_inputs]", "type"=>"hidden", "default"=>json_encode(array())));
+		$output->data .= $this->i("data[value_input_selected]", array("id"=>"data[value_input_selected]", "type"=>"hidden", "default"=>""));
+		$output->data .= "
+			<script>
+				dojo.addOnLoad(constraint_input_toggle_init);
+
+				var column_options = ".json_encode((array)$blah['column_options']).";
+
+				function constraint_input_toggle_init() {
+					dojo.connect(dijit.byId('data[column_id]'), 'onChange', 'constraint_input_toggle');
+					dojo.connect(dijit.byId('data[type]'), 'onChange', 'constraint_input_toggle');
+
+					constraint_input_toggle();
+				}
+
+				function constraint_input_toggle() {
+					var types = ".json_encode((array)$blah['column_types']).";
+
+					var value_text_div = dojo.byId('value_text_div');
+					var value_date_div = dojo.byId('value_date_div');
+
+					value_date_div.style.display = 'none';
+					value_text_div.style.display = 'none';
+
+					var skoo = [];
+
+					skoo[skoo.length] = 'value_text';
+					skoo[skoo.length] = 'value_date';
+
+					for (var i in column_options) {
+						dojo.byId('value_select_div_'+i).style.display = 'none';
+
+						skoo[skoo.length] = 'value_select_'+i;
+					}
+
+					dojo.byId('data[value_inputs]').value = skoo;
+
+					if (dijit.byId('data[type]').value != 'like') {
+						if (column_options[dijit.byId('data[column_id]').value]) {
+							dojo.byId('value_select_div_'+dijit.byId('data[column_id]').value).style.display = 'block';
+
+							dojo.byId('dropdown_loading').style.display = 'block';
+
+							dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').setAttribute('disabled', true);
+
+							var pantryStore = new dojo.data.ItemFileReadStore({url: '".$this->webroot().$type."/constraint_column_options_ajax/".$this->id."/'+dijit.byId('data[column_id]').value});
+
+							pantryStore.fetch({
+								onComplete: function () {
+									dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').setAttribute('disabled', false);
+									dojo.byId('dropdown_loading').style.display = 'none';
+									return true;
+								}
+							});
+							dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').store = pantryStore;
+
+							dojo.byId('data[value_input_selected]').value = 'value_select_'+dijit.byId('data[column_id]').value;
+
+							return;
+						}
+
+						if (types[dijit.byId('data[column_id]').value] == 'date') {
+							value_date_div.style.display = 'block';
+
+							dojo.byId('data[value_input_selected]').value = 'value_date';
+
+							return;
+						}
+					}
+
+					value_text_div.style.display = 'block';
+
+					dojo.byId('data[value_input_selected]').value = 'value_text';
+
+					return;
+				}
+			</script>
+			";
+		
+		$output->data .= "<hr />";
+		$output->data .= "<div id='join_display'>";
+		//TODO: Not required - DELETE $output .= $table_join_ajax;
+		$output->data .= "</div>";
+		$output->data .= "
+			<div class='input'>
+				{$cancel}<button type='submit' value='Next' dojoType='dijit.form.Button' name='submit' >Save</button>
+			</div>
+			";
+		$output->data .= $this->f_close();
+		return $output;
+	}
+	
+	/**
+	 * Display the add constraints view
+	 *
+	 * @param array $blah The structure information to generate the constraint options
+	 */
+	function view_add_constraints($blah) {
+		$type = $this->module;
+		$output->title = "Constraints";
+		$output->title_desc = "";
+		$output->data = "";
+		if (!empty($blah['constraints']) && count($blah['constraints']) > 0) {
+			$output->data .= "<h3>Constraint Logic</h3>";
+			$constraint_index = 1;
+			foreach ($blah['constraints'] as $constraint_tmp) {
+				$constraints_ascii[$constraint_index] = chr($constraint_index);
+				$constraints_id[$constraint_index] = $constraint_tmp['constraint_id'];
+				$constraints_text[$constraint_index] = $constraint_tmp['constraint'];
+				$constraint_index ++;
+			}
+		
+			$logic_ascii = $blah['logic'];
+			foreach ($constraints_id as $constraint_index_tmp => $constraint_id_tmp) {
+				$logic_ascii = str_replace($constraint_id_tmp, $constraints_ascii[$constraint_index_tmp], $logic_ascii);
+			}
+		
+			$output->data .= "
+				<script>
+					";
+			$output->data .= "
+					var constraints_ascii = new Array;
+					";
+			foreach ($constraints_ascii as $i => $tmp) {
+				$output->data .= "
+					constraints_ascii[$i] = '$tmp';
+					";
+			}
+
+			$output->data .= "
+					var constraints_id = new Array;
+					";
+			foreach ($constraints_id as $i => $tmp) {
+				$output->data .= "
+					constraints_id[$i] = '$tmp';
+					";
+			}
+			$output->data .= "
+					var constraints_text = new Array;
+					";
+			foreach ($constraints_text as $i => $tmp) {
+				$output->data .= "
+					constraints_text[$i] = '".str_replace("'", "\'", $tmp)."';
+					";
+			}
+
+			$output->data .= file_get_contents($this->sw_path."modules/template/constraints_ui.js");
+			$output->data .= "
+				</script>
+				<style>
+					#confoo_div {
+						margin: 20px 0px;
+						padding: 10px;
+						border: 1px solid #d3d7cf;
+					}
+						#confoo_div span {
+							position: relative;
+							border: 1px solid white;
+							vertical-align: middle;
+						}
+							#confoo_div span.constraint {
+								color: #888a85;
+							}
+							#confoo_div span.bracket {
+								border: 1px solid #fce94f;
+								background-color: #fce94f;
+							}
+							#confoo_div span.cursor_before {
+								border-left: 1px solid black;
+							}
+							#confoo_div span.selected {
+								border: 1px solid #204a87;
+								background-color: #204a87;
+								color: #eeeeec;
+							}
+							#confoo_div span.constraint.selected {
+								color: #babdb6;
+							}
+					#confoo_in {
+						width: 0px;
+						height: 0px;
+						position: absolute;
+						margin: 0px;
+						padding: 0px;
+						border: 0px;
+					}
+				</style>
+				";
+			if ($this->subvar == "constraints") {
+				$output->data .= $this->f($type."/save/{$this->id}/constraintlogicsubmit/{$this->subid}", "dojoType='dijit.form.Form'");
+			} else if ($this->subid == "squidconstraints") {
+				$output->data .= $this->f($type."/save/{$this->id}/{$this->subvar}/squidconstraintlogicsubmit/{$this->aux1}", "dojoType='dijit.form.Form'");
+			}
+			$output->data .= "
+				<div id='confoo_div'></div>
+				<input type='text' id='confoo_in' name='data[constraint_logic]' value='$logic_ascii' autocomplete='off' />
+				<input type='hidden' id='confoo_old' value='$logic_ascii' />
+				<input type='hidden' name='data[constraints_id]' value='".json_encode($constraints_id)."' />
+				<input type='hidden' name='data[constraints_ascii]' value='".json_encode($constraints_ascii)."' />
+				<div id='confoo_save'>
+					<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=window.location; return false;' name='cancel' >Cancel</button>
+					<button type='submit' value='Save' dojoType='dijit.form.Button' name='save' >Save</button>
+				</div>
+				";
+			$output->data .= $this->f_close();
+		}
+		
+		$output->data .= "<h3>Constraints</h3>";
+		if ($this->subvar == "constraints") {
+			$output->data .= "<a href='".$this->webroot().$type."/add/".$this->id."/editconstraint/new'>Create Constraint</a>";
+		} else if ($this->subid == "squidconstraints") {
+			$output->data .= "<a href='".$this->webroot().$type."/add/".$this->id."/editsquidconstraint/".$this->aux1."/new'>Create Constraint</a>";
+		}
+		
+		if (!empty($blah['constraints'])) {
+			$output->data .= "
+				<div class='reports'>
+					<table cellpadding='0' cellspacing='0'>
+						<tr>
+							<th>Constraint</th>
+							<th>&nbsp;</th>
+						</tr>
+						";
+			
+			foreach ($blah['constraints'] as $constraint_tmp) {
+				$constraint_id = $constraint_tmp['constraint_id'];
+				$output->data .= "<tr>";
+				$output->data .= "<td>";
+				switch ($constraint_tmp['foobar']) {
+					case "constraint":
+						$output->data .= "<span class='".$constraint_tmp['foobar']."'>";
+						$output->data .= $constraint_tmp['constraint'];
+						$output->data .= "</span>";
+						break;
+				}
+				$output->data .= "</td>";
+				$output->data .= "<td>";
+				$output->data .= "<ul>";
+				
+				switch ($constraint_tmp['foobar']) {
+					case "constraint":
+						if ($blah['default']) {
+							if ($this->subvar == "constraints") {
+								$output->data .= "<li><a href='".$this->webroot().$type."/add/".$this->id."/editconstraint/".$constraint_id."'>Edit</a></li>";
+								$output->data .= "<li><a href='".$this->webroot().$type."/save/".$this->id."/removeconstraintsubmit/".$constraint_id."' onclick='if (confirm(\"Remove constraint?\")) {return true;} else {return false;}'>Remove</a></li>";
+							} else if ($this->subid == "squidconstraints") {
+								$output->data .= "<li><a href='".$this->webroot().$type."/add/{$this->id}/editsquidconstraint/{$this->aux1}/{$constraint_id}'>Edit</a></li>";
+// 								$output .= "<li><a href='".$this->webroot().$type."/save/{$this->id}/removeconstraintsubmit/{$this->aux1}/{$constraint_id}' onclick='if (confirm(\"Remove constraint?\")) {return true;} else {return false;}'>Remove</a></li>";
+							}
+						} else {
+							$output->data .= "<li>&nbsp;</li>";
+						}
+						break;
+				}
+				$output->data .= "</ul>";
+				$output->data .= "</td>";
+				$output->data .= "</tr>";
+			}
+			$output->data .= "
+					</table>
+				</div>
+				";
+		} else {
+			$output->data .= "<p>No constraints can be found.</p>";
+		}
+		return $output;
+	}
+	
 	function view_dd_json($values) {
 		$output->layout = 'ajax';
 		$output->data = "{
@@ -1143,44 +1858,6 @@ class Template_View {
 	function view_save_reports() {
 		$output->layout = "ajax";
 		$output->data = "Results Saved";
-		return $output;
-	}
-	
-	function view_display_constraints($tables, $options, $constraints) {
-		$output->layout = 'ajax';
-		$output->title = "Constraints";
-		$output->data .= "<p class='description'>Restrict the output based on the selected fields by dragging the appropriate columns from the list of tables on the left to the space below. </p>";
-		$output->data .= "<table id='constraints' class='constraints template'>";
-		$output->data .= "<tr><th>Column</th>
-		<th>Constraint</th>
-		<th>Value</th>
-		<th>User Choice</th>
-		<th></th>
-		</tr>";
-		$output->data .= "<tr style='height: 25px;'><td colspan='6' class='constraint' dojoType='dojo.dnd.Target'>
-		<p class='description drop'>Drop the columns that make up the constraint here.</p></td>
-		</tr>";
-		if (is_array($constraints)) {
-			foreach ($constraints as $i => $constraint) {
-				$choose = $constraint['choose'] == "t" ? true : false;
-				$output->data .= "<tr id='row_cons_".$constraint['column_id']."' style='height: 25px;'><td class='constraint'>".$constraint['chuman']."</td>
-				<td class='type'>".$this->i("type_".$constraint['column_id'], array("id"=>"type_".$constraint['column_id'], "type"=>"select", "dojoType"=>"dijit.form.FilteringSelect", "label"=>false, "options"=>$options, "default"=>$constraint['type'], "onChange"=>"save_template()"))."</td>";
-				if ($constraint['dropdown'] == 't') {
-					$values = explode(",", $constraint['example']);
-					$val_options = array();
-					foreach ($values as $i=>$val) {
-						$val_options[$val] = $val;
-					}
-					$output->data .= "<td class='type'>".$this->i("value_".$constraint['column_id'], array("id"=>"value_".$constraint['column_id'], "type"=>"select", "dojoType"=>"dijit.form.FilteringSelect", "options"=>$val_options , "label"=>false, "default"=>$constraint['value'], "onChange"=>"save_template()"))."</td>";
-				} else {
-					$output->data .= "<td class='type'>".$this->i("value_".$constraint['column_id'], array("id"=>"value_".$constraint['column_id'], "type"=>"text", "dojoType"=>"dijit.form.TextBox", "label"=>false, "default"=>$constraint['value'], "onChange"=>"save_template()"))."</td>";
-				}
-				$output->data .= "<td class='type'>".$this->i("choose_".$constraint['column_id'], array("id"=>"choose_".$constraint['column_id'], "type"=>"checkbox", "dojoType"=>"dijit.form.CheckBox", "label"=>false, "default"=>$choose, "onChange"=>"save_template()"))."</td>
-				<td class='remove'>".$this->i("remove", array("id"=>"remove_con_".$constraint['column_id'], "type"=>"button", "dojoType"=>"dijit.form.Button", "label"=>"Remove", "onClick"=>"remove_constraint(this)"))."</td>
-				</tr>";
-			}
-		}
-		$output->data .= "</table>";
 		return $output;
 	}
 
@@ -1344,47 +2021,6 @@ class Template_View {
 		$output->data .= "<p class='description'>The following placeholders can be used to dynamically update the header and footer at runtime. %logo, %name, %desc, %run, %by, %size</p>";
 		$output->data .= "</div>";
 		return $output;
-	}
-
-	function hook_run($data, $template, $demo=false, $now=false, $foo_json=null) {
-// 		if (!$demo) {
-// 			$output->title = "Quizblorg";
-// 		}
-//
-// 		$saved_report_id = $this->id;
-//
-// 		if (!$demo) {
-// // 			$output->data .= "<button dojoType='dijit.form.Button' onClick='ajax_load(\"".$this->webroot()."tabular/save_reports/".$this->id."\", undefined, \"message\")' >Save Results</button>";
-//
-// // 			$hook = $this->call_function("ALL", "hook_export_entry");
-// // 			foreach ($hook as $i => $entry) {
-// // 				$output->data .= "<button dojoType='dijit.form.Button' onClick='window.location=\"".$this->webroot()."".$entry['module']."/".$entry['callback']."/".$this->id."/".$now."\"' >".$entry['label']."</button>";
-// // 			}
-// // 			$output->data .= "<button dojoType='dijit.form.Button'  onClick='window.location=\"".$this->webroot()."tabular/graph/".$this->id."/".$now."\"' >Generate Graph</button>";
-// // 			$output->data .= "<button dojoType='dijit.form.Button' onClick='window.location=\"".$this->webroot()."workspace/home/\"' >Close</button>";
-//
-//
-// 			$output->data .= "<h4>".$this->l("", "Download Table, Graph and CSV")."</h4>";
-// 			$output->data .= "<h4>".$this->l("", "Download Table")."</h4>";
-// 			$output->data .= "<h4>".$this->l("", "Download Graph")."</h4>";
-// 			$output->data .= "<h4>".$this->l("", "Download CSV")."</h4>";
-// 		}
-//
-// 		if ($template[0]['publish_format'] == "table" || $template[0]['publish_format'] == "table and graph") {
-// 			$output->data .= "<h3>Tabular Data</h3>";
-// // 			$tmp_output = $this->hook_output(array($data, $template, $demo, $now));
-// // 			$output->data .= $tmp_output->data;
-// 		}
-//
-// 		if ($template[0]['publish_format'] == "graph" || $template[0]['publish_format'] == "table and graph") {
-// 			$output->data .= "<h3>Graphic Data</h3>";
-// // 			$tmp_output = $this->call_function("graphing", "hook_graph", array($template[0]['graph_type'], $foo_json, true, false));
-// // 			$output->data .= $tmp_output['graphing']['object'];
-//
-// 			$tmp_output = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template[0]['graph_type'], true, false));
-// 			$output->data .= $tmp_output['graphing']['object'];
-// 		}
-// 		return $output;
 	}
 
 }

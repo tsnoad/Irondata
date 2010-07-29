@@ -182,33 +182,6 @@ CREATE TABLE list_templates (
 	table_join_id BIGINT REFERENCES table_joins ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE list_constraints (
-	list_constraints_id BIGSERIAL PRIMARY KEY,
-	template_id BIGINT REFERENCES templates ON DELETE CASCADE ON UPDATE CASCADE,
-	column_id BIGINT REFERENCES columns ON DELETE CASCADE ON UPDATE CASCADE,
-	type TEXT,
-	value TEXT,
-	choose BOOL DEFAULT 'f'
-);
-
-CREATE TABLE simplegraph_templates (
-	autotable_template_id BIGSERIAL PRIMARY KEY,
-	template_id BIGINT REFERENCES templates ON DELETE CASCADE ON UPDATE CASCADE,
-	column_id BIGINT REFERENCES columns ON DELETE CASCADE ON UPDATE CASCADE,
-	sort TEXT,
-	aggregate TEXT,
-	axis TEXT
-);
-
-CREATE TABLE simplegraph_constraints (
-	autotable_constraints_id BIGSERIAL PRIMARY KEY,
-	template_id BIGINT REFERENCES templates ON DELETE CASCADE ON UPDATE CASCADE,
-	column_id BIGINT REFERENCES columns ON DELETE CASCADE ON UPDATE CASCADE,
-	type TEXT,
-	value TEXT,
-	choose BOOL DEFAULT 'f'
-);
-
 CREATE TABLE backgrounds (
 	background_id BIGSERIAL PRIMARY KEY,
 	url VARCHAR(255) UNIQUE,
@@ -249,8 +222,8 @@ CREATE TABLE tabular_templates (
 	axis_type VARCHAR(20)
 );
 
-CREATE TABLE tabular_constraints (
-	tabular_constraints_id BIGSERIAL PRIMARY KEY,
+CREATE TABLE template_constraints (
+	template_constraints_id BIGSERIAL PRIMARY KEY,
 	template_id BIGINT REFERENCES templates ON DELETE CASCADE ON UPDATE CASCADE,
 	column_id BIGINT REFERENCES columns ON DELETE CASCADE ON UPDATE CASCADE,
 	type TEXT,
@@ -259,7 +232,7 @@ CREATE TABLE tabular_constraints (
 	choose BOOL DEFAULT 'f'
 );
 
-CREATE TABLE tabular_constraint_logic (
+CREATE TABLE template_constraint_logic (
 	template_id BIGINT REFERENCES templates ON DELETE CASCADE ON UPDATE CASCADE,
 	logic TEXT
 );
