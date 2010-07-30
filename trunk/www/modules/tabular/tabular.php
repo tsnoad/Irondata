@@ -1135,43 +1135,6 @@ class Tabular extends Template {
 		}
 	}
 
-	/**
-	 * Deprecated function: replaced by Tabular::execute()... I think
-	 *
-	 */
-	function view_run() {
-// 		$template = $this->get_columns($this->id);
-// 		$constraints = $this->get_constraints($this->id);
-// 		$output = true;
-// 		/* We skip this step if the constraints values are already populated from the $_REQUEST array */
-// 		if (empty($_REQUEST['data']['constraint'])) {
-// 			/* Get the constraints */
-// 			$output = Tabular_View::view_run($template, $constraints);
-// 		}
-// 		/* If there a form to fill out? If not (either because there are no user modifiable constriants, or the form has
-// 		 * already been filled out) go directly to running the report.  */
-// 		if ($output === true) {
-// 			$output = $this->hook_run();
-// 		}
-//
-// 		return $output;
-
-		$template_id = null;
-		$saved_report_id = $this->id;
-
-		$return_tmp = $this->get_saved_report($template_id, $saved_report_id);
-
-		$template_id = $return_tmp['template_id'];
-
-		$data = json_decode($return_tmp['report'], true);
-		$template = $this->get_columns($template_id);
-		$demo = false;
-		$now = null;
-		$foo_json = $return_tmp['report'];
-
-		return Tabular_View::hook_run($data, $template, $demo, $now, $foo_json);
-	}
-
 	function view_tables_json() {
 		$template = $this->get_columns($this->id);
 		$output = Tabular_View::view_tables_json($template);
@@ -1717,6 +1680,9 @@ WHERE
 		return $output;
 	}
 
+	/**
+	 * This is called to display the preview (cellwise) of this report
+	 */
 	function view_data_preview_slow_ajax() {
 		$data_preview = "";
 		if ((int)$this->id) {
@@ -2069,40 +2035,6 @@ class Tabular_View extends Template_View {
 		return $output;
 	}
 
-	function view_run($template, $constraints) {
-		$skip = true;
-		$output->data .= $this->f('tabular/run/'.$this->id);
-
-		if (is_array($constraints)) {
-			/* Iterate through all the constraints in the report */
-			foreach ($constraints as $i => $constraint) {
-				/* If the constraint can be modifified by the user at run time */
-				if ($constraint['choose'] == "t") {
-					/* Ignore pre populated constraints - see $_REQUEST variable */
-					if ($_REQUEST["data"][$constraint['list_constraints_id']]) {
-						$constraints[$i]['value'] = $_REQUEST["data"][$constraint['list_constraints_id']];
-					} else {
-						$skip = false;
-						$output->title = "Report Parameters";
-						/* Automatically build the form with all the constraint options */
-						$output->data .= $this->i("data[constraint][".$constraint['list_constraints_id']."]", array("dojoType"=>"dijit.form.TextBox", "type"=>"text", "label"=>$constraint['chuman']." ".$constraint['type'], "default"=>$constraint['value']));
-					}
-				}
-			}
-		}
-
-		$output->data .= $this->submit("Next");
-		$output->data .= $this->f_close();
-
-// 		$output->data = "<div style='overflow:auto;' layoutAlign='client' dojoType='dojox.layout.ContentPane'>".$output->data."</div>";
-		/* Only return the HTML if there is a form to fill out, otherwise return false */
-		if ($skip == false) {
-			return $output;
-		} else {
-			return $skip;
-		}
-	}
-
 	function hook_output($results, $template, $demo=false, $now=false, $pdf=false) {
 		$odd = "";
 		$output->data = "";
@@ -2451,11 +2383,15 @@ class Tabular_View extends Template_View {
 		return $output;
 	}
 
+	/**
+	 * Display the preview output via ajax
+	 *
+	 * @param string $data_preview The preview HTML
+	 * @return The display object
+	 */
 	function view_data_preview_ajax($data_preview) {
 		$output->layout = "ajax";
-
 		$output->data = $data_preview;
-
 		return $output;
 	}
 

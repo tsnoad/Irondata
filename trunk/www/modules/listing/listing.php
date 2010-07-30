@@ -575,10 +575,30 @@ class Listing extends Template {
 		return $this->execute($template_id, true);
 	}
 
+
+	/**
+	 * Called by Listing::view_data_preview_first_ajax() to get values for axies only. Calls Listing::execute() with appropriate arguments to do so
+	 *
+	 * @return The display object
+	 */
+	function execute_demo_quick($template_id) {
+		return $this->execute($template_id, true, true);
+	}
+	
+	/**
+	 * Small helper function to call the execute command for a demo
+	 *
+	 * @param int $template_id The template to run
+	 * @return The id of the saved report
+	 */
+	function execute_demo_cellwise($template_id) {
+		return $this->execute($template_id, true, false, true);
+	}
+	
 	function execute($template_id, $demo) {
 		$template = $this->get_columns($template_id);
 		$constraints = $this->get_constraints($template_id);
-// 		$constraint_logic = $this->get_constraint_logic($template_id);
+ 		$constraint_logic = $this->get_constraint_logic($template_id);
 
 		/* Generate the query to run */
 		$query = $this->hook_query($template, $constraints, $demo);
@@ -592,6 +612,72 @@ print_r($data);
 
 		return $saved_report_id;
 	}
+	
+	/**
+	 * This is called to display the preview (cellwise) of this report
+	 *
+	 * @return The display object
+	 */
+	function view_data_preview_slow_ajax() {
+		$data_preview = "";
+		if ((int)$this->id) {
+			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
+			$saved_report_id = $this->execute_demo_cellwise($this->id);
+			if (!$saved_report_id) {
+				return Listing_View::view_data_preview_ajax("finished");
+			}
+			
+			if ($template['publish_table'] == "t") {
+				$data_preview .= "<h3>Data</h3>";
+				$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, true, true));
+				$data_preview .= $table['pdf']['object'];
+			}
+			
+			if ($template['publish_graph'] == "t") {
+				$data_preview .= "<h3>Graphic Data</h3>";
+				$data_preview .= "<div style='height: 690px;'>";
+				$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], true, false));
+				$data_preview .= $graph['graphing']['object'];
+				$data_preview .= "</div>";
+			}
+		}
+		$output = Listing_View::view_data_preview_ajax($data_preview);
+		return $output;
+	}
+	
+	/**
+	 * This is to setup the preview process
+	 *
+	 * @return The display object
+	 */
+	function view_data_preview_first_ajax() {
+		$data_preview = "";
+		if ((int)$this->id) {
+			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
+			$saved_report_id = $this->execute_demo_quick($this->id);
+			$data_preview .= '<div id="saved_report_id" style="display: none;">'.$saved_report_id.'</div>';
+			$data_preview .= '<div id="data_preview">';
+			
+			if ($template['publish_table'] == "t") {
+				$data_preview .= "<h3>Data</h3>";
+				$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, true, true));
+				$data_preview .= $table['pdf']['object'];
+			}
+			
+			if ($template['publish_graph'] == "t") {
+				$data_preview .= "<h3>Graphic Data</h3>";
+				$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], true, false));
+				$data_preview .= $graph['graphing']['object'];
+			}
+			
+			$data_preview .= '</div>';
+		}
+		
+		$output = Listing_View::view_data_preview_ajax($data_preview);
+		return $output;
+	}
+	
+
 }
 
 
