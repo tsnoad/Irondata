@@ -73,7 +73,9 @@ if ($url[0]) {
 		$display->js_href = isset($js_href[$url[0]]) ? $js_href[$url[0]] : null;
 		// Display the module context menu
  		$menu = $mo->call_function($url[0], 'hook_menu');
- 		$display->submenu = $mo->render_menu($menu[$url[0]]);
+ 		if (isset($menu[$url[0]])) {
+	 		$display->submenu = $mo->render_menu($menu[$url[0]]);
+ 		}
 		$pagetitle = $mo->call_function($url[0], 'hook_pagetitle');
 		$display->pagetitle = isset($pagetitle[$url[0]]) ? $pagetitle[$url[0]] : null;
 	}

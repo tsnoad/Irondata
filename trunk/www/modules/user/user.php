@@ -119,7 +119,7 @@ class User extends Modules {
 		) {
 			return true;
 		}
-		if (!$_SESSION['user']) {
+		if (!isset($_SESSION['user'])) {
 			$_SESSION['premodule'] = $this->module;
 			$_SESSION['preaction'] = $this->action;
 			$this->redirect('user/login');

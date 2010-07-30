@@ -70,7 +70,7 @@ class Theme {
 				$step[3] = isset($step[3]) ? $step[3] : null;
 				$submenu .= "<li>";
 				$submenu .= ($i + 1 === 1 ? "Step " : "").($i + 1).". ";
-				$submenu .= "<a href=\"".$step[1]."\" class=\"".$step[3]."\" ".($step[2] ? "onClick=\"void(0); return false;\"" : "").">";
+				$submenu .= "<a href=\"".$step[1]."\" class=\"".$step[3]."\" ".(!$step[2] ? "onClick=\"void(0); return false;\"" : "").">";
 				$submenu .= ucwords($step[0]);
 				$submenu .= "</a>";
 				$submenu .= "</li>";

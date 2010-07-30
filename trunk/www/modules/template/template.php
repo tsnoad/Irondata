@@ -156,35 +156,35 @@ class Template extends Modules {
 			$steps[0][1] = $this->webroot().$type."/add/".$this->id."/preview";
 			$steps[0][2] = $pre;
 			$steps[0][3] = "";
-			if ($steps[0][2]) $steps[0][3] = "disabled";
+			if (!$steps[0][2]) $steps[0][3] = "disabled";
 			if ($this->subvar == "preview") $steps[0][3] .= " current";
 			
 			$steps[1][0] = "Constraints";
 			$steps[1][1] = $this->webroot().$type."/add/".$this->id."/constraints";
 			$steps[1][2] = $con;
 			$steps[1][3] = "";
-			if ($steps[1][2]) $steps[1][3] = "disabled";
+			if (!$steps[1][2]) $steps[1][3] = "disabled";
 			if ($this->subvar == "constraints") $steps[1][3] .= " current";
 			
 			$steps[2][0] = "Publishing";
 			$steps[2][1] = $this->webroot().$type."/add/".$this->id."/publish";
 			$steps[2][2] = $pub;
 			$steps[2][3] = "";
-			if ($steps[2][2]) $steps[2][3] = "disabled";
-			if ($this->subvar == "publish") $steps[5][3] .= " current";
+			if (!$steps[2][2]) $steps[2][3] = "disabled";
+			if ($this->subvar == "publish") $steps[2][3] .= " current";
 			
 			$steps[3][0] = "Execution";
 			$steps[3][1] = $this->webroot().$type."/add/".$this->id."/execution";
 			$steps[3][2] = $exe;
 			$steps[3][3] = "";
-			if ($steps[3][2]) $steps[3][3] = "disabled";
+			if (!$steps[3][2]) $steps[3][3] = "disabled";
 			if ($this->subvar == "execution") $steps[3][3] .= " current";
 			
 			$steps[4][0] = "Access";
 			$steps[4][1] = $this->webroot().$type."/add/".$this->id."/access";
 			$steps[4][2] = $acc;
 			$steps[4][3] = "";
-			if ($steps[4][2]) $steps[4][3] = "disabled";
+			if (!$steps[4][2]) $steps[4][3] = "disabled";
 			if ($this->subvar == "access") $steps[4][3] .= " current";
 		}
 		return $steps;
@@ -429,11 +429,16 @@ class Template extends Modules {
 		$type = $this->module;
 		$output = null;
 		$blah = null; //TODO: bad variable name. Must change
+		
 		if ($type == 'template') {
+			// If this is called specifically (when the module is template)
+			// It should display the initial add view
 			$modules = $this->call_function("ALL", "hook_template_entry");
 			$objects = $this->call_function("catalogue", "get_databases");
 			$output = Template_View::view_add($objects, $modules);
 		} else {
+			// Otherwise it should provide standard functions to any module that
+			// implements template
 			$preview_table = null;
 			switch ($this->subvar) {
 				case "preview":
@@ -618,7 +623,7 @@ class Template extends Modules {
 		
 		return $blah;
 	}
-
+	
 	/**
 	 * Called by Template::view_save to create a new constraint, or save changes to an existing one. Also used to edit constaints on manual axies
 	 */
@@ -644,11 +649,10 @@ class Template extends Modules {
 		
 		unset($_REQUEST['data']['value_inputs']);
 		unset($_REQUEST['data']['value_input_selected']);
-
+		
 		switch ($this->subvar) {
 			case "editconstraintsubmit":
 				$constraint_id = $this->subid;
-
 				if ($constraint_id == "new") {
 					$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "template_constraints"));
 				} else {
@@ -657,7 +661,6 @@ class Template extends Modules {
 				break;
 			case "editsquidconstraintsubmit":
 				$constraint_id = $this->aux1;
-
 				if ($constraint_id == "new") {
 					$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_manual_squid_constraints"));
 				} else {
@@ -667,26 +670,455 @@ class Template extends Modules {
 		}
 	}
 	
+	/**
+	 * Called by Template::view_add. Gets all data required to show the add/edit constraint page
+	 */
+	function view_editconstraint() {
+		$constraint_query = null;
+		$squid = false;
+		switch ($this->subvar) {
+			case "editconstraint":
+				$constraint_id = $this->subid;
+				break;
+			case "editsquidconstraint":
+				$squid = true;
+				$squid_id = $this->subid;
+				$constraint_id = $this->aux1;
+				break;
+		}
+		
+		if ($constraint_id == "new") {
+		} else {
+			if (!$squid) {
+				$constraint_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM template_constraints WHERE template_constraints_id='".$constraint_id."' LIMIT 1;"));
+			} else {
+				$constraint_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates_manual_squid_constraints WHERE squid_constraints_id='".$constraint_id."' LIMIT 1;"));
+			}
+			
+			$blah['data']['column_id'] = $constraint_query['column_id'];
+			$blah['data']['type'] = $constraint_query['type'];
+			$blah['data']['value'] = $constraint_query['value'];
+			
+			$_REQUEST['data']['column_id'] = $constraint_query['column_id'];
+			$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
+			$table_join_ajax = $table_join_ajax->data;
+			unset($_REQUEST['data']['column_id']);
+		}
+		
+		$this->current = $this->get_template($this->id);
+		$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
+		
+		foreach ($tables['catalogue'] as $i => $column) {
+			foreach ($column as $j => $cell) {
+				$column_id = $cell['column_id'];
+				$blah['options']['column_id'][$column_id] = $cell['table_name'].".".$cell['column_name'];
+				switch ($cell['data_type']) {
+					default:
+						break;
+					case "timestamp":
+					case "timestamp with time zone":
+					case "timestamp without time zone":
+						$blah['column_types'][$column_id] = "date";
+						break;
+				}
+				if ($cell['dropdown'] == "t") {
+					$blah['column_options'][$column_id] = true;
+				}
+			}
+		}
+		
+		$blah['options']['type'] = array(
+			"eq"=>"Equals",
+			"neq"=>"Does not Equal",
+			"lt"=>"Less Than",
+			"gt"=>"Greater Than",
+			"lte"=>"Less Than or Equal To",
+			"gte"=>"Greater Than or Equal To",
+			"like"=>"Contains"
+			);
+		
+		if ($this->subid == "new") {
+			$_REQUEST['data']['column_id'] = reset(array_keys($blah['options']['column_id']));
+			$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
+			$table_join_ajax = $table_join_ajax->data;
+			unset($_REQUEST['data']['column_id']);
+		}
+		
+		return array($blah, $table_join_ajax);
+	}
 	
-	
-	
-	
-	
-	
-	
-	function wrap_column($id, $name, $values=array()) {
-		/* Drop down button or tooltipdialog? */
-		$col = "<div id='raw_column_".$id."' class='column' dojoType='dijit.form.Button'>";
-		$col .= "<span>".$name."</span>";
-		$col .= "</div>";
-		return $col;
+	/**
+	 * Called as the action on forms on almost every page when creating a report.
+	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
+	 *
+	 * @return null
+	 */
+	function view_save() {
+		switch ($this->subvar) {
+			case "cancel":
+				break;
+			case "constraintlogicsubmit":
+				Template::view_constraintlogicsubmit();
+				break;
+			case "editconstraintsubmit":
+				if ($this->subid) {
+					Template::view_editconstraintsubmit();
+				}
+				break;
+			case "removeconstraintsubmit":
+				$template_id = $this->id;
+				$constraint_id = $this->subid;
+				if (empty($template_id)) return;
+				if (empty($constraint_id)) return;
+				$constraint_logic = $this->get_constraint_logic($template_id);
+				
+				if (preg_match("/^ ?($constraint_id) ?$/", $constraint_logic, &$matches)) {
+					//if the constraint to be removed is the only constraint in the logic: simply set logic to ''
+					$constraint_logic = "";
+				} else if (preg_match("/^ ?($constraint_id) ?(AND|OR) ?/", $constraint_logic, &$matches)) {
+					//if the constrain to be be removed is at the start and is followed by an and/or, then remove the constraint and the and/or
+					$constraint_logic = preg_replace("/^ ?($constraint_id) ?(AND|OR) ?/", "", $constraint_logic);
+				} else if (preg_match("/\( ?($constraint_id) ?\)/", $constraint_logic, &$matches)) {
+					//if the constraint to be removed is on it's own in a set of brackets, then remove the constraint only. This will make the logic invailid...
+					$constraint_logic = preg_replace("/\( ?($constraint_id) ?\)/", "", $constraint_logic);
+				} else if (preg_match("/ ?\( ?($constraint_id) ?(AND|OR) ?/", $constraint_logic, &$matches)) {
+					//if the constraint to be removed comes after a bracket and is followed by an and/or, then remove the constraint and the and/or
+					$constraint_logic = preg_replace("/\( ?($constraint_id) ?(AND|OR) ?/", "(", $constraint_logic);
+				} else if (preg_match("/ ?(AND|OR) ?($constraint_id) ?$/", $constraint_logic, &$matches)) {
+					//if the constraint to be removed comes after an and/or and is at the end of the logic, then remove the and/or and the constraint
+					$constraint_logic = preg_replace("/ ?(AND|OR) ?($constraint_id) ?$/", "", $constraint_logic);
+				} else if (preg_match("/ ?(AND|OR) ?($constraint_id) ?\)/", $constraint_logic, &$matches)) {
+					//if the constraint to be removed comes after an and/or and is followed by a bracket, then remove the and/or and the constraint
+					$constraint_logic = preg_replace("/ ?(AND|OR) ?($constraint_id) ?\)/", ")", $constraint_logic);
+				} else if (preg_match("/ ?(AND|OR) ?($constraint_id) ?(AND|OR) ?/", $constraint_logic, &$matches)) {
+					//if the constraint to be removed comes after an and/or and is followed by another and/or, then remove the constraint and the second and/or
+					$constraint_logic = preg_replace("/ ?($constraint_id) ?(AND|OR) ?/", " ", $constraint_logic);
+				} else {
+				}
+				
+				$this->dobj->db_query($this->dobj->update(array("logic"=>$constraint_logic), "template_id", $this->id, "template_constraint_logic"));
+				$this->dobj->db_query("DELETE FROM template_constraints WHERE template_constraints_id='$constraint_id';");
+				break;
+			case "publishsubmit":
+				if ($_REQUEST['data']['publish_table'] == "on") {
+					$_REQUEST['data']['publish_table'] = "t";
+				} else {
+					$_REQUEST['data']['publish_table'] = "f";
+				}
+				
+				if ($_REQUEST['data']['publish_graph'] == "on") {
+					$_REQUEST['data']['publish_graph'] = "t";
+				} else {
+					$_REQUEST['data']['publish_graph'] = "f";
+				}
+					
+				$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "templates"));
+				break;
+			case "executionsubmit":
+				$_REQUEST['data']['execute'] = "f";
+				$_REQUEST['data']['execute_hourly'] = "f";
+				$_REQUEST['data']['execute_daily'] = "f";
+				$_REQUEST['data']['execute_weekly'] = "f";
+				$_REQUEST['data']['execute_monthly'] = "f";
+				
+				switch ($_REQUEST['data']['execution_interval']) {
+					case "manually":
+						break;
+					case "hourly":
+						$_REQUEST['data']['execute'] = "t";
+						$_REQUEST['data']['execute_hourly'] = "t";
+						break;
+					case "daily":
+						$_REQUEST['data']['execute'] = "t";
+						$_REQUEST['data']['execute_daily'] = "t";
+						break;
+					case "weekly":
+						$_REQUEST['data']['execute'] = "t";
+						$_REQUEST['data']['execute_weekly'] = "t";
+						break;
+					case "monthly":
+						$_REQUEST['data']['execute'] = "t";
+						$_REQUEST['data']['execute_monthly'] = "t";
+						break;
+				}
+				
+				unset($_REQUEST['data']['execution_interval']);
+				
+				if ($_REQUEST['data']['email_dissemination'] == "on") {
+					$_REQUEST['data']['email_dissemination'] = "t";
+				} else {
+					$_REQUEST['data']['email_dissemination'] = "f";
+				}
+				
+				//TODO: I do not believe this is required. If I am wrong it should be moved to the LDAP module.
+				//$ldap_recipient_selector = ($_REQUEST['data']['ldap'] == "ldap");
+				//unset($_REQUEST['data']['ldap']);
+				
+				$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "templates"));
+				
+				//if ($ldap_recipient_selector) {
+				//	$this->redirect("ldap/recipient_selector/".$this->id);
+				//	die();
+				//}
+				break;
+			case "accesssubmit":
+				if (empty($_REQUEST['data'])) return;
+				$ids_r = json_decode(stripslashes($_REQUEST['data']['ids_r']), true);
+				$acls_tmp = $_REQUEST['data'];
+				foreach ($acls_tmp as $acl_key_tmp => $acl_tmp) {
+					if (substr($acl_key_tmp, 0, 7) != "access_") continue;
+					$acl_key = substr($acl_key_tmp, 7);
+					$break_pos = strrpos($acl_key, "_");
+					$role = substr($acl_key, 0, $break_pos);
+					$user_id_tmp = substr($acl_key, $break_pos + 1);
+					$user_id = $ids_r[$user_id_tmp][0];
+					$user_meta = $ids_r[$user_id_tmp][1];
+					$acls[$user_meta][$user_id][$role] = true;
+				}
+				$this->call_function("ALL", "hook_access_report_submit", array($acls, $this->id));
+				break;
+			default:
+				break;
+		}
+		return;
 	}
 
-	function column_options($module) {
-		$output = "";
-		$output->data = "";
+	/**
+	 * Called by Template::view_save to create edit constraint. Also used to edit constaint logic on manual axies
+	 */
+	function view_constraintlogicsubmit() {
+		$logic = $_REQUEST['data']['constraint_logic'];
+		$constraints_id = json_decode(stripslashes($_REQUEST['data']['constraints_id']), true);
+		$constraints_ascii = json_decode(stripslashes($_REQUEST['data']['constraints_ascii']), true);
+		
+		foreach ($constraints_ascii as $index_tmp => $ascii_tmp) {
+			$logic = str_replace($ascii_tmp, $constraints_id[$index_tmp], $logic);
+		}
+		
+		unset($_REQUEST['data']['constraint_logic']);
+		unset($_REQUEST['data']['constraints_id']);
+		unset($_REQUEST['data']['constraints_ascii']);
+		$_REQUEST['data']['logic'] = $logic;
+		
+		if ($this->subvar == "constraintlogicsubmit") {
+			$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "template_constraint_logic"));
+		} else if ($this->subid == "squidconstraintlogicsubmit") {
+			$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_templates_manual_squid_id", $this->aux1, "tabular_templates_manual_squid_constraint_logic"));
+		}
+	}
+	
+	/**
+	 * Retrieve the constraint logic from the database
+	 *
+	 * @param int $template_id The template id
+	 */
+	function get_constraint_logic($template_id) {
+		$query = "SELECT * FROM template_constraint_logic WHERE template_id='$template_id' LIMIT 1;";
+		$data = $this->dobj->db_fetch($this->dobj->db_query($query));
+		return $data['logic'];
+	}
+	
+	/**
+	 * Called anywhere a column is selected.
+	 * Given a selected column id and the insersection column id, shows all the possible table joins between them, and produces html form elements to allow the user so select one.
+	 *
+	 * @param int $current_join The id of the current join
+	 * @param int $intersection_column_id The id of the primary column to join to
+	 * @return The HTML string output
+	 */
+	function view_table_join_ajax($current_join=null, $intersection_column_id=null) {
+		$foobar = "";
+		$selected_column_id = $_REQUEST['data']['column_id'];
+		if ($intersection_column_id == 0) die;
+		
+		//self referential joins
+		$sr_joins_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT c.*, t.*, c.name AS column_name, t.name AS table_name FROM columns c INNER JOIN tables t ON (t.table_id=c.table_id) WHERE c.column_id='".$selected_column_id."' OR c.column_id='".$intersection_column_id."';"));
+		
+		foreach ($sr_joins_query as $sr_join_tmp) {
+			$sr_joins[$sr_join_tmp['column_id']] = $sr_join_tmp;
+		}
+		
+		$selected_table_id = $sr_joins[$selected_column_id]['table_id'];
+		$intersection_table_id = $sr_joins[$intersection_column_id]['table_id'];
+		
+		if ($selected_table_id == $intersection_table_id) {
+			$foobar .= "<div class='input radio'>";
+			$foobar .= "<input type='radio' name='data[table_join_id]' checked='true' disabled='true' />";
+			$foobar .= "<label>";
+			$foobar .= "<span style='font-weight: bold;'>";
+			$foobar .= $sr_joins[$selected_column_id]['table_name'];
+			$foobar .= ".";
+			$foobar .= $sr_joins[$selected_column_id]['column_name'];
+			$foobar .= "</span>";
+			$foobar .= " &#x21C4; ";
+			$foobar .= "<span style='font-weight: bold;'>";
+			$foobar .= $sr_joins[$intersection_column_id]['table_name'];
+			$foobar .= ".";
+			$foobar .= $sr_joins[$intersection_column_id]['column_name'];
+			$foobar .= "</span>";
+			$foobar .= "</label>";
+			$foobar .= "</div>";
+			
+			$explaination_tmp = "The selected column is linked, via a self referential join, to the intersection column.";
+			$foobar .= "<p>".$explaination_tmp."</p>";
+		} else {
+			$table_joins_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM table_joins WHERE table1='".$selected_table_id."' AND table2='".$intersection_table_id."';"));
+			if (empty($table_joins_query)) {
+				die();
+			}
+			
+			$columns_tmp = array($selected_column_id, $intersection_column_id);
+			foreach ($table_joins_query as $table_join_tmp) {
+				$columns_tmp = array_merge((array)$columns_tmp, (array)explode(",", $table_join_tmp['method']));
+				$table_joins[$table_join_tmp['table_join_id']] = $table_join_tmp;
+			}
+			$columns_tmp = array_unique($columns_tmp);
+			
+			$columns_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT c.column_id, c.name as column_name, t.table_id, t.name as table_name FROM columns c INNER JOIN tables t ON (c.table_id=t.table_id) WHERE c.column_id='".implode("' OR c.column_id='", $columns_tmp)."';"));
+			foreach ($columns_query as $column_tmp) {
+				$columns[$column_tmp['column_id']] = $column_tmp;
+				$tables[$column_tmp['table_id']] = $column_tmp;
+			}
+			
+			foreach ($table_joins as $table_join) {
+				$table_join_id = $table_join['table_join_id'];
+				$method_tmp = explode(",", $table_join['method']);
+				$method_start_table = $table_join['table1'];
+				$method_end_table = $table_join['table2'];
+				
+				$this_pair_start_id = 0;
+				$this_pair_end_id = $this_pair_start_id + 1;
+				$last_pair_start_table = $method_start_table;
+				unset($method_reorg);
+				
+				while (isset($method_tmp[$this_pair_start_id])) {
+					$this_pair_start_table = $columns[$method_tmp[$this_pair_start_id]]['table_id'];
+					if ($this_pair_start_id !== 0) $method_reorg[] = "internal join";
+					if ($last_pair_start_table != $this_pair_start_table) {
+						$method_reorg[] = $method_tmp[$this_pair_end_id];
+						$method_reorg[] = "referenced by";
+						$method_reorg[] = $method_tmp[$this_pair_start_id];
+					} else {
+						$method_reorg[] = $method_tmp[$this_pair_start_id];
+						$method_reorg[] = "references";
+						$method_reorg[] = $method_tmp[$this_pair_end_id];
+					}
+					$last_pair_start_table = isset($columns[$method_reorg[$this_pair_end_id]]['table_id']) ? $columns[$method_reorg[$this_pair_end_id]]['table_id'] : null;
+					$this_pair_start_id += 2;
+					$this_pair_end_id = $this_pair_start_id + 1;
+				}
+				$foobar .= "<div class='input'>";
+				$join_selected = $current_join == $table_join_id || count($table_joins) === 1;
+				$foobar .= "<input type='radio' name='data[table_join_id]' value='".$table_join_id."' ".($join_selected ? "checked=\"checked\"" : "")." /><label>";
+				
+				$explaination_count = 0;
+				$explaination_sr_count = 0;;
+				$explaination_in_count = 0;
+				$explaination_tmp = "The selected column is linked, ";
+				
+				if ($method_reorg[0] != $selected_column_id) {
+					$column = $columns[$selected_column_id];
+					$foobar .= "<span style='font-weight: bold;'>";
+					$foobar .= ucwords($column['table_name']);
+					$foobar .= ".";
+					$foobar .= ucwords($column['column_name']);
+					$foobar .= "</span>";
+					$foobar .= " &#x21C4; ";
+					$explaination_tmp .= "via a self referential join, ";
+					$explaination_count += 1;
+					$explaination_sr_count += 1;
+				}
+				
+				foreach ($method_reorg as $method_step) {
+					if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "<span style='font-weight: bold;'>";
+					
+					switch ($method_step) {
+						case "internal join":
+							$foobar .= " &#x21C4; ";
+							$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_sr_count > 0 ? "another" : "a")." self referential join, ";
+							$explaination_count += 1;
+							$explaination_sr_count += 1;
+							break;
+						case "references":
+						case "referenced by":
+							$foobar .= " <span style='font-style: italic;'>";
+							$foobar .= $method_step;
+							$foobar .= "</span> ";
+							$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_in_count > 0 ? "another" : "an")." inner join, ";
+							$explaination_count += 1;
+							$explaination_in_count += 1;
+							break;
+						default:
+							$column = $columns[$method_step];
+							$foobar .= ucwords($column['table_name']);
+							$foobar .= ".";
+							$foobar .= ucwords($column['column_name']);
+							break;
+					}
+					
+					if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "</span>";
+				}
+					
+				if (end($method_reorg) != $intersection_column_id) {
+					$foobar .= " &#x21C4; ";
+					$column = $columns[$intersection_column_id];
+					$foobar .= "<span style='font-weight: bold;'>";
+					$foobar .= ucwords($column['table_name']);
+					$foobar .= ".";
+					$foobar .= ucwords($column['column_name']);
+					$foobar .= "</span>";
+					$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_sr_count > 0 ? "another" : "a")." self referential join, ";
+					$explaination_count += 1;
+					$explaination_sr_count += 1;
+				}
+				
+				$foobar .= "</label>";
+				$foobar .= "</div>";
+				
+				$explaination_tmp .= "to the intersection column.";
+				$foobar .= "<p>".$explaination_tmp."</p>";
+			}
+		}
+		
+		$output = Template_View::view_table_join_ajax($foobar);
 		return $output;
 	}
+	
+	/**
+	 * Display a dropdown list of all values in a constraint column
+	 */
+	function view_constraint_column_options_ajax() {
+		$template_id = $this->id;
+		$column_id = $this->subvar;
+
+		$this->current = $this->get_template($this->id);
+		$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
+
+		foreach ($tables['catalogue'] as $i => $column) {
+			foreach ($column as $j => $cell) {
+				if ($column_id != $cell['column_id']) continue;
+				if ($cell['dropdown'] != "t") return;
+				if (!isset($obj)) {
+					$obj = new Catalogue();
+				}
+				foreach ($obj->hook_query_source($this->current['object_id'], "SELECT ".$cell['column_sql_name']." FROM ".$cell['table_sql_name']." GROUP BY ".$cell['column_sql_name'].";") as $tmp) {
+					$column_options_json['items'][] = array("name"=>$tmp[$cell['column_sql_name']], "label"=>$tmp[$cell['column_sql_name']], "abbreviation"=>$tmp[$cell['column_sql_name']]);
+				}
+				break 2;
+			}
+		}
+		$column_options_json['identifier'] = "abbreviation";
+		$column_options_json['label'] = "name";
+		$column_options_json = json_encode($column_options_json);
+		$output = Template_View::view_constraint_column_options_ajax($column_options_json);
+		return $output;
+	}
+	
+	
+	
+	
+	
+	
 	
 	function where($alias_tmp, $column_tmp, $type_tmp, $value_tmp) {
 		switch ($type_tmp) {
@@ -2023,5 +2455,33 @@ class Template_View {
 		return $output;
 	}
 
+	/**
+	 * Output the markup for the table join radio buttons (called via ajax)
+	 *
+	 * @param $table_join_markup
+	 * @return The HTML string output
+	 */
+	function view_table_join_ajax($table_join_markup) {
+		$output->layout = "ajax";
+		$output->data = "<h3>Axis Relationship</h3>";
+		$output->data .= "<p class='h3attach'>The selected column may be linked to the primary column, by one of a number of different routes.</p>";
+		
+		$output->data .= $table_join_markup;
+		$output->data .= "<hr />";
+		return $output;
+	}
+	
+	/**
+	 * Display a list of values for a dropdown constraint column
+	 *
+	 * @param string $column_options_json A json string of values
+	 * @return The JSON string output
+	 */
+	function view_constraint_column_options_ajax($column_options_json) {
+		$output->layout = "ajax";
+		$output->data = $column_options_json;
+		return $output;
+	}
+	
 }
 ?>

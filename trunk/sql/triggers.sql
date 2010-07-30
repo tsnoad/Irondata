@@ -61,15 +61,15 @@ CREATE TRIGGER tabular_templates_delete AFTER DELETE ON tabular_templates
 
 
 --After a new constraint is added, add the constraint id to the constraint logic. Constraint logic is what tells us how to put the where clause together and looks something like: 1 AND (2 OR 3)
-CREATE OR REPLACE FUNCTION tabular_constraints_create() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION template_constraints_create() RETURNS trigger AS $$
   DECLARE
     tmp RECORD;
   BEGIN
-    FOR tmp IN SELECT COUNT(*) FROM tabular_constraint_logic WHERE template_id = NEW.template_id LOOP 
+    FOR tmp IN SELECT COUNT(*) FROM template_constraint_logic WHERE template_id = NEW.template_id LOOP 
       IF tmp.count < 1 THEN
-        INSERT INTO tabular_constraint_logic (template_id, logic) VALUES (NEW.template_id, NEW.tabular_constraints_id);
+        INSERT INTO template_constraint_logic (template_id, logic) VALUES (NEW.template_id, NEW.template_constraints_id);
       ELSE
-        UPDATE tabular_constraint_logic SET logic = logic || ' AND ' || NEW.tabular_constraints_id WHERE template_id = NEW.template_id;
+        UPDATE template_constraint_logic SET logic = logic || ' AND ' || NEW.template_constraints_id WHERE template_id = NEW.template_id;
       END IF;
     END LOOP;
 
@@ -77,21 +77,21 @@ CREATE OR REPLACE FUNCTION tabular_constraints_create() RETURNS trigger AS $$
   END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER tabular_constraints_create AFTER INSERT ON tabular_constraints
-  FOR EACH ROW EXECUTE PROCEDURE tabular_constraints_create();
+CREATE TRIGGER template_constraints_create AFTER INSERT ON template_constraints
+  FOR EACH ROW EXECUTE PROCEDURE template_constraints_create();
 
 
 --If constraint logic is updated and all constraints are removed, delete the constraint logic row
-CREATE OR REPLACE FUNCTION tabular_constraints_update() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION template_constraints_update() RETURNS trigger AS $$
   BEGIN
-    DELETE FROM tabular_constraint_logic WHERE template_id=NEW.template_id AND logic IS NULL;
+    DELETE FROM template_constraint_logic WHERE template_id=NEW.template_id AND logic IS NULL;
 
     RETURN null;
   END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER tabular_constraints_update AFTER UPDATE ON tabular_constraint_logic
-  FOR EACH ROW EXECUTE PROCEDURE tabular_constraints_update();
+CREATE TRIGGER template_constraints_update AFTER UPDATE ON template_constraint_logic
+  FOR EACH ROW EXECUTE PROCEDURE template_constraints_update();
 
 
 --Constraint logic for manual axies

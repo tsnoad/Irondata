@@ -18,7 +18,7 @@
 */
 
 /**
- * Table.php
+ * Tablular.php
  *
  * The Table report template module.
  *
@@ -184,11 +184,11 @@ class Tabular extends Template {
 		$steps[0][3] = "";
 		if (empty($tabular_templates['c'])) {
 			$steps[0][0] = "Add Intersection";
-			$steps[0][2] = true;
+			$steps[0][2] = false;
 			$steps[0][3] = "disabled";
 		} else {
 			$steps[0][0] = "Edit Intersection";
-			$steps[0][2] = false;
+			$steps[0][2] = true;
 		}
 		$steps[0][1] = $this->webroot()."tabular/add/".$this->id."/c/source";
 		if ($this->subvar == "c") $steps[0][3] .= " current";
@@ -196,11 +196,11 @@ class Tabular extends Template {
 		$steps[1][3] = "";
 		if (empty($tabular_templates['x'])) {
 			$steps[1][0] = "Add X Axis";
-			$steps[1][2] = true;
+			$steps[1][2] = false;
 			$steps[1][3] = "disabled";
 		} else {
 			$steps[1][0] = "Edit X Axis";
-			$steps[1][2] = false;
+			$steps[1][2] = true;
 		}
 		$steps[1][1] = $this->webroot()."tabular/add/".$this->id."/x/type";
 		if ($this->subvar == "x") $steps[1][3] .= " current";
@@ -208,16 +208,16 @@ class Tabular extends Template {
 		$steps[2][3] = "";
 		if (empty($tabular_templates['y'])) {
 			$steps[2][0] = "Add Y Axis";
-			$steps[2][2] = true;
+			$steps[2][2] = false;
 			$steps[2][3] = "disabled";
 		} else {
 			$steps[2][0] = "Edit Y Axis";
-			$steps[2][2] = false;
+			$steps[2][2] = true;
 		}
 		$steps[2][1] = $this->webroot()."tabular/add/".$this->id."/y/type";
 		if ($this->subvar == "y") $steps[2][3] .= " current";
 		
-		$valid = empty($tabular_templates['c']) || empty($tabular_templates['x']) || empty($tabular_templates['y']);
+		$valid = !empty($tabular_templates['c']) && !empty($tabular_templates['x']) && !empty($tabular_templates['y']);
 		$parent_steps = parent::hook_menu($valid, $valid, $valid, $valid, $valid);
 		$steps = array_merge($steps, $parent_steps);
 		
@@ -245,7 +245,7 @@ class Tabular extends Template {
 	 * @see modules/template/Template::hook_javascript()
 	 */
 	function hook_javascript() {
-		$js = parent::hook_javascript("tabular");
+		$js = parent::hook_javascript();
 		return $js."
 		function update_join_display(o) {
 			var passContent = {};
@@ -425,6 +425,256 @@ class Tabular extends Template {
 				break;
 		}
 		
+		return $output;
+	}
+
+	/**
+	 * Called as the action on forms on almost every page when creating a tabular report.
+	 * Once complete, calls Tabular::view_add_next() to go to the next page.
+	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
+	 *
+	 * @return null
+	 */
+	function view_save() {
+		switch ($this->subvar) {
+			case "cancel":
+				break;
+			case "x":
+			case "y":
+				switch ($this->subid) {
+					case "typesubmit":
+						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
+
+						if ($update_query['tabular_template_id']) {
+							$this->dobj->db_query($this->dobj->update(array("axis_type"=>$_REQUEST['data']['axis_type']), "tabular_template_id", $update_query['tabular_template_id'], "tabular_templates"));
+						} else {
+							$this->dobj->db_query($this->dobj->insert(array("template_id"=>$this->id, "type"=>$this->subvar, "axis_type"=>$_REQUEST['data']['axis_type']), "tabular_templates"));
+						}
+						break;
+					case "autosourcesubmit":
+						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
+						$tabular_template_id = $tabular_template_query['tabular_template_id'];
+						$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
+						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
+						if ($update_query['tabular_templates_auto_id']) {
+							if (empty($_REQUEST['data']['table_join_id'])) $_REQUEST['data']['table_join_id'] = "";
+							$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_templates_auto_id", $update_query['tabular_templates_auto_id'], "tabular_templates_auto"));
+						} else {
+							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_auto"));
+						}
+						break;
+					case "trendsourcesubmit":
+						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
+
+						$tabular_template_id = $tabular_template_query['tabular_template_id'];
+						$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
+
+						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_trend ttt ON (ttt.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
+
+						if ($update_query['tabular_templates_trend_id']) {
+							$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_templates_trend_id", $update_query['tabular_templates_trend_id'], "tabular_templates_trend"));
+						} else {
+							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_trend"));
+						}
+						break;
+					case "singlesourcesubmit":
+						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
+
+						$tabular_template_id = $tabular_template_query['tabular_template_id'];
+						$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
+
+						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_single tts ON (tts.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
+
+						if ($update_query['tabular_templates_single_id']) {
+						} else {
+							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_single"));
+						}
+						break;
+					case "manualsourcesubmit":
+						break;
+					case "removesquidsubmit":
+						$this->dobj->db_query("DELETE FROM tabular_templates_manual_squids WHERE tabular_templates_manual_squid_id='{$this->aux1}';");
+						break;
+					case "squidnamesubmit":
+						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
+						$tabular_template_id = $tabular_template_query['tabular_template_id'];
+
+						$tabular_templates_manual_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates_manual ttm WHERE ttm.tabular_template_id='".$tabular_template_id."' LIMIT 1;"));
+						$tabular_templates_manual_id = $tabular_templates_manual_query['tabular_templates_manual_id'];
+
+						if (empty($tabular_templates_manual_id)) {
+							$tabular_templates_manual_id = $this->dobj->nextval("tabular_templates_manual");
+
+							$this->dobj->db_query($this->dobj->insert(array("tabular_templates_manual_id"=>$tabular_templates_manual_id, "tabular_template_id"=>$tabular_template_id), "tabular_templates_manual"));
+						}
+
+						if ($this->aux1 == "new") {
+							$tabular_templates_manual_squid_id = $this->dobj->nextval("tabular_templates_manual_squids");
+
+							$_REQUEST['data']['tabular_templates_manual_squid_id'] = $tabular_templates_manual_squid_id;
+							$_REQUEST['data']['tabular_templates_manual_id'] = $tabular_templates_manual_id;
+							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_manual_squids"));
+
+							$this->aux1 = $tabular_templates_manual_squid_id;
+						} else if (!empty($this->aux1)) {
+							$tabular_templates_manual_squid_id = $this->aux1;
+
+							$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_templates_manual_squid_id", $tabular_templates_manual_squid_id, "tabular_templates_manual_squids"));
+						}
+
+						break;
+					case "squidconstraintlogicsubmit":
+						if ($this->aux1) {
+							Tabular::view_constraintlogicsubmit();
+						}
+						break;
+					default:
+						break;
+				}
+				break;
+			case "c":
+				switch ($this->subid) {
+					case "sourcesubmit":
+						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
+
+						if ($update_query['tabular_template_id']) {
+						} else {
+							$this->dobj->db_query($this->dobj->insert(array("template_id"=>$this->id, "type"=>$this->subvar, "axis_type"=>"auto"), "tabular_templates"));
+						}
+
+						if ($update_query['tabular_templates_auto_id']) {
+							$tabular_template_id = $update_query['tabular_template_id'];
+
+							$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_template_id", $tabular_template_id, "tabular_templates_auto"));
+						} else {
+							$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
+
+							$tabular_template_id = $tabular_template_query['tabular_template_id'];
+							$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
+
+							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_auto"));
+						}
+						break;
+					default:
+						break;
+				}
+				break;
+			case "editsquidconstraintsubmit":
+				if ($this->aux1) {
+					Tabular::view_editconstraintsubmit();
+				}
+				break;
+			default:
+				parent::view_save();
+				break;
+		}
+		
+		$this->view_add_next();
+		return;
+	}
+
+	/**
+	 * View Add Next
+	 *
+	 * Called by Tabular::view_save() and others. Works out the present status of a report, if anything step needs to be performed (like add in axis), or if not, what is the next step after the current, then redirects accordingly
+	 *
+	 */
+	function view_add_next() {
+		if (empty($this->id)) {
+			$this->redirect("template/home/");
+			return;
+		}
+
+		$tabular_template_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_trend ttt ON (ttt.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."'"));
+
+		if (!empty($tabular_template_query)) {
+			foreach ($tabular_template_query as $tabular_template_tmp) {
+				$tabular_template[$tabular_template_tmp['type']] = $tabular_template_tmp;
+			}
+		}
+
+		if ($this->subvar == "x" && $this->subid == "typesubmit" && $tabular_template['x']['axis_type'] == "auto") {
+			$this->redirect("tabular/add/".$this->id."/x/autosource");
+
+		} else if ($this->subvar == "x" && $this->subid == "typesubmit" && $tabular_template['x']['axis_type'] == "trend") {
+			$this->redirect("tabular/add/".$this->id."/x/trendsource");
+
+		} else if ($this->subvar == "y" && $this->subid == "typesubmit" && $tabular_template['y']['axis_type'] == "auto") {
+			$this->redirect("tabular/add/".$this->id."/y/autosource");
+
+		} else if ($this->subvar == "y" && $this->subid == "typesubmit" && $tabular_template['y']['axis_type'] == "trend") {
+			$this->redirect("tabular/add/".$this->id."/y/trendsource");
+
+		} else if ($this->subvar == "y" && $this->subid == "typesubmit" && $tabular_template['y']['axis_type'] == "single") {
+			$this->redirect("tabular/save/".$this->id."/y/singlesourcesubmit");
+
+		} else if ($this->subvar == "y" && $this->subid == "typesubmit" && $tabular_template['y']['axis_type'] == "manual") {
+			$this->redirect("tabular/add/".$this->id."/y/manualsource");
+
+		} else if ($this->subvar == "y" && $this->subid == "removesquidsubmit" && $tabular_template['y']['axis_type'] == "manual") {
+			$this->redirect("tabular/add/".$this->id."/y/manualsource");
+
+		} else if ($this->subvar == "y" && $this->subid == "squidnamesubmit" && $tabular_template['y']['axis_type'] == "manual") {
+			$this->redirect("tabular/add/".$this->id."/y/squidconstraints/".$this->aux1);
+
+		} else if ($this->subvar == "y" && $this->subid == "squidconstraintlogicsubmit" && $tabular_template['y']['axis_type'] == "manual") {
+			$this->redirect("tabular/add/".$this->id."/y/squidconstraints/".$this->aux1);
+
+		//if no intersection is selected...
+		} else if (empty($tabular_template['c'])) {
+			//... go to the intersection page
+			$this->redirect("tabular/add/".$this->id."/c/source");
+
+		} else if (empty($tabular_template['c']['tabular_templates_auto_id'])) {
+			$this->redirect("tabular/add/".$this->id."/c/source");
+
+		//if no x axis is selected...
+		} else if (empty($tabular_template['x'])) {
+			//... go to the x axis page
+			$this->redirect("tabular/add/".$this->id."/x/type");
+
+		} else if ($tabular_template['x']['axis_type'] == "auto" && empty($tabular_template['x']['tabular_templates_auto_id'])) {
+			$this->redirect("tabular/add/".$this->id."/x/autosource");
+
+		} else if ($tabular_template['x']['axis_type'] == "trend" && empty($tabular_template['x']['tabular_templates_trend_id'])) {
+			$this->redirect("tabular/add/".$this->id."/x/trendsource");
+
+		//if no y axis is selected...
+		} else if (empty($tabular_template['y'])) {
+			//... go to the y axis page
+			$this->redirect("tabular/add/".$this->id."/y/type");
+
+		} else if ($tabular_template['y']['axis_type'] == "auto" && empty($tabular_template['y']['tabular_templates_auto_id'])) {
+			$this->redirect("tabular/add/".$this->id."/y/autosource");
+
+		} else if ($tabular_template['y']['axis_type'] == "trend" && empty($tabular_template['y']['tabular_templates_trend_id'])) {
+			$this->redirect("tabular/add/".$this->id."/y/trendsource");
+
+		} else if ($this->subvar == "editsquidconstraintsubmit") {
+			$this->redirect("tabular/add/".$this->id."/y/squidconstraints/".$this->subid);
+
+		} else if ($this->subvar == "editconstraintsubmit") {
+			$this->redirect("tabular/add/".$this->id."/constraints");
+
+		} else if ($this->subvar == "removeconstraintsubmit") {
+			$this->redirect("tabular/add/".$this->id."/constraints");
+
+		} else {
+			$this->redirect("tabular/add/".$this->id."/preview");
+
+		}
+		return;
+	}
+
+	/**
+	 * (non-PHPdoc)
+	 * @see modules/template/Template::view_table_join_ajax()
+	 */
+	function view_table_join_ajax($current_join=null) {
+		$intersection = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) INNER JOIN columns c ON (c.column_id=tta.column_id) WHERE tt.template_id='".$this->id."' AND tt.type='c' LIMIT 1;"));
+		if (empty($intersection)) die;
+		$intersection_column_id = $intersection['column_id'];
+		$output = parent::view_table_join_ajax($current_join, $intersection_column_id);
 		return $output;
 	}
 	
@@ -834,584 +1084,6 @@ class Tabular extends Template {
 	}
 
 	/**
-	 * Called as the action on forms on almost every page when creating a tabular report.
-	 * Once complete, calls Tabular::view_add_next() to go to the next page.
-	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
-	 *
-	 *@return null
-	 */
-	function view_save() {
-		switch ($this->subvar) {
-			case "cancel":
-				break;
-			case "x":
-			case "y":
-				switch ($this->subid) {
-					case "typesubmit":
-						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
-
-						if ($update_query['tabular_template_id']) {
-							$this->dobj->db_query($this->dobj->update(array("axis_type"=>$_REQUEST['data']['axis_type']), "tabular_template_id", $update_query['tabular_template_id'], "tabular_templates"));
-						} else {
-							$this->dobj->db_query($this->dobj->insert(array("template_id"=>$this->id, "type"=>$this->subvar, "axis_type"=>$_REQUEST['data']['axis_type']), "tabular_templates"));
-						}
-						break;
-					case "autosourcesubmit":
-						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
-
-						$tabular_template_id = $tabular_template_query['tabular_template_id'];
-						$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
-
-						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
-
-						if ($update_query['tabular_templates_auto_id']) {
-							if (empty($_REQUEST['data']['table_join_id'])) $_REQUEST['data']['table_join_id'] = "";
-							$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_templates_auto_id", $update_query['tabular_templates_auto_id'], "tabular_templates_auto"));
-						} else {
-							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_auto"));
-						}
-						break;
-					case "trendsourcesubmit":
-						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
-
-						$tabular_template_id = $tabular_template_query['tabular_template_id'];
-						$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
-
-						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_trend ttt ON (ttt.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
-
-						if ($update_query['tabular_templates_trend_id']) {
-							$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_templates_trend_id", $update_query['tabular_templates_trend_id'], "tabular_templates_trend"));
-						} else {
-							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_trend"));
-						}
-						break;
-					case "singlesourcesubmit":
-						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
-
-						$tabular_template_id = $tabular_template_query['tabular_template_id'];
-						$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
-
-						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_single tts ON (tts.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
-
-						if ($update_query['tabular_templates_single_id']) {
-						} else {
-							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_single"));
-						}
-						break;
-					case "manualsourcesubmit":
-						break;
-					case "removesquidsubmit":
-						$this->dobj->db_query("DELETE FROM tabular_templates_manual_squids WHERE tabular_templates_manual_squid_id='{$this->aux1}';");
-						break;
-					case "squidnamesubmit":
-						$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
-						$tabular_template_id = $tabular_template_query['tabular_template_id'];
-
-						$tabular_templates_manual_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates_manual ttm WHERE ttm.tabular_template_id='".$tabular_template_id."' LIMIT 1;"));
-						$tabular_templates_manual_id = $tabular_templates_manual_query['tabular_templates_manual_id'];
-
-						if (empty($tabular_templates_manual_id)) {
-							$tabular_templates_manual_id = $this->dobj->nextval("tabular_templates_manual");
-
-							$this->dobj->db_query($this->dobj->insert(array("tabular_templates_manual_id"=>$tabular_templates_manual_id, "tabular_template_id"=>$tabular_template_id), "tabular_templates_manual"));
-						}
-
-						if ($this->aux1 == "new") {
-							$tabular_templates_manual_squid_id = $this->dobj->nextval("tabular_templates_manual_squids");
-
-							$_REQUEST['data']['tabular_templates_manual_squid_id'] = $tabular_templates_manual_squid_id;
-							$_REQUEST['data']['tabular_templates_manual_id'] = $tabular_templates_manual_id;
-							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_manual_squids"));
-
-							$this->aux1 = $tabular_templates_manual_squid_id;
-						} else if (!empty($this->aux1)) {
-							$tabular_templates_manual_squid_id = $this->aux1;
-
-							$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_templates_manual_squid_id", $tabular_templates_manual_squid_id, "tabular_templates_manual_squids"));
-						}
-
-						break;
-					case "squidconstraintlogicsubmit":
-						if ($this->aux1) {
-							Tabular::view_constraintlogicsubmit();
-						}
-						break;
-					default:
-						break;
-				}
-				break;
-			case "c":
-				switch ($this->subid) {
-					case "sourcesubmit":
-						$update_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
-
-						if ($update_query['tabular_template_id']) {
-						} else {
-							$this->dobj->db_query($this->dobj->insert(array("template_id"=>$this->id, "type"=>$this->subvar, "axis_type"=>"auto"), "tabular_templates"));
-						}
-
-						if ($update_query['tabular_templates_auto_id']) {
-							$tabular_template_id = $update_query['tabular_template_id'];
-
-							$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_template_id", $tabular_template_id, "tabular_templates_auto"));
-						} else {
-							$tabular_template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates WHERE template_id='".$this->id."' AND type='".$this->subvar."' LIMIT 1;"));
-
-							$tabular_template_id = $tabular_template_query['tabular_template_id'];
-							$_REQUEST['data']['tabular_template_id'] = $tabular_template_id;
-
-							$this->dobj->db_query($this->dobj->insert($_REQUEST['data'], "tabular_templates_auto"));
-						}
-						break;
-					default:
-						break;
-				}
-				break;
-			case "editsquidconstraintsubmit":
-				if ($this->aux1) {
-					Tabular::view_editconstraintsubmit();
-				}
-				break;
-			case "constraintlogicsubmit":
-				Tabular::view_constraintlogicsubmit();
-				break;
-			case "editconstraintsubmit":
-				if ($this->subid) {
-					Tabular::view_editconstraintsubmit();
-				}
-				break;
-			case "removeconstraintsubmit":
-				$template_id = $this->id;
-				$constraint_id = $this->subid;
-
-				if (empty($template_id)) return;
-				if (empty($constraint_id)) return;
-
-				$constraint_logic = $this->get_constraint_logic($template_id);
-
-				//if the constraint to be removed is the only constraint in the logic: simply set logic to ''
-				if (preg_match("/^ ?($constraint_id) ?$/", $constraint_logic, &$matches)) {
-					$constraint_logic = "";
-
-// 				} else if (preg_match("/^ ?($constraint_id) ?\)/", $constraint_logic, &$matches)) {
-// 					var_dump($matches);
-// 					var_dump("INVALID");
-
-				//if the constrain to be be removed is at the start and is followed by an and/or, then remove the constraint and the and/or
-				} else if (preg_match("/^ ?($constraint_id) ?(AND|OR) ?/", $constraint_logic, &$matches)) {
-					$constraint_logic = preg_replace("/^ ?($constraint_id) ?(AND|OR) ?/", "", $constraint_logic);
-
-// 				} else if (preg_match("/\( ?($constraint_id) ?$/", $constraint_logic, &$matches)) {
-// 					var_dump($matches);
-// 					var_dump("INVALID");
-
-				//if the constraint to be removed is on it's own in a set of brackets, then remove the constraint only. This will make the logic invailid...
-				} else if (preg_match("/\( ?($constraint_id) ?\)/", $constraint_logic, &$matches)) {
-					$constraint_logic = preg_replace("/\( ?($constraint_id) ?\)/", "", $constraint_logic);
-
-				//if the constraint to be removed comes after a bracket and is followed by an and/or, then remove the constraint and the and/or
-				} else if (preg_match("/ ?\( ?($constraint_id) ?(AND|OR) ?/", $constraint_logic, &$matches)) {
-					$constraint_logic = preg_replace("/\( ?($constraint_id) ?(AND|OR) ?/", "(", $constraint_logic);
-
-				//if the constraint to be removed comes after an and/or and is at the end of the logic, then remove the and/or and the constraint
-				} else if (preg_match("/ ?(AND|OR) ?($constraint_id) ?$/", $constraint_logic, &$matches)) {
-					$constraint_logic = preg_replace("/ ?(AND|OR) ?($constraint_id) ?$/", "", $constraint_logic);
-
-				//if the constraint to be removed comes after an and/or and is followed by a bracket, then remove the and/or and the constraint
-				} else if (preg_match("/ ?(AND|OR) ?($constraint_id) ?\)/", $constraint_logic, &$matches)) {
-					$constraint_logic = preg_replace("/ ?(AND|OR) ?($constraint_id) ?\)/", ")", $constraint_logic);
-
-				//if the constraint to be removed comes after an and/or and is followed by another and/or, then remove the constraint and the second and/or
-				} else if (preg_match("/ ?(AND|OR) ?($constraint_id) ?(AND|OR) ?/", $constraint_logic, &$matches)) {
-					$constraint_logic = preg_replace("/ ?($constraint_id) ?(AND|OR) ?/", " ", $constraint_logic);
-
-				} else {
-				}
-
-				$this->dobj->db_query($this->dobj->update(array("logic"=>$constraint_logic), "template_id", $this->id, "template_constraint_logic"));
-
-				$this->dobj->db_query("DELETE FROM template_constraints WHERE template_constraints_id='$constraint_id';");
-				break;
-			case "publishsubmit":
-				if ($_REQUEST['data']['publish_table'] == "on") {
-					$_REQUEST['data']['publish_table'] = "t";
-				} else {
-					$_REQUEST['data']['publish_table'] = "f";
-				}
-
-				if ($_REQUEST['data']['publish_graph'] == "on") {
-					$_REQUEST['data']['publish_graph'] = "t";
-				} else {
-					$_REQUEST['data']['publish_graph'] = "f";
-				}
-
-				$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "templates"));
-				break;
-			case "executionsubmit":
-				$_REQUEST['data']['execute'] = "f";
-				$_REQUEST['data']['execute_hourly'] = "f";
-				$_REQUEST['data']['execute_daily'] = "f";
-				$_REQUEST['data']['execute_weekly'] = "f";
-				$_REQUEST['data']['execute_monthly'] = "f";
-
-				switch ($_REQUEST['data']['execution_interval']) {
-					case "manually":
-						break;
-					case "hourly":
-						$_REQUEST['data']['execute'] = "t";
-						$_REQUEST['data']['execute_hourly'] = "t";
-						break;
-					case "daily":
-						$_REQUEST['data']['execute'] = "t";
-						$_REQUEST['data']['execute_daily'] = "t";
-						break;
-					case "weekly":
-						$_REQUEST['data']['execute'] = "t";
-						$_REQUEST['data']['execute_weekly'] = "t";
-						break;
-					case "monthly":
-						$_REQUEST['data']['execute'] = "t";
-						$_REQUEST['data']['execute_monthly'] = "t";
-						break;
-				}
-
-				unset($_REQUEST['data']['execution_interval']);
-
-				if ($_REQUEST['data']['email_dissemination'] == "on") {
-					$_REQUEST['data']['email_dissemination'] = "t";
-				} else {
-					$_REQUEST['data']['email_dissemination'] = "f";
-				}
-
-				//TODO: I do not believe this is required. If I am wrong it should be moved to the LDAP module.
-				//$ldap_recipient_selector = ($_REQUEST['data']['ldap'] == "ldap");
-				//unset($_REQUEST['data']['ldap']);
-
-				$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "templates"));
-
-				//if ($ldap_recipient_selector) {
-				//	$this->redirect("ldap/recipient_selector/".$this->id);
-				//	die();
-				//}
-				break;
-			case "accesssubmit":
-				if (empty($_REQUEST['data'])) return;
-
-				$ids_r = json_decode(stripslashes($_REQUEST['data']['ids_r']), true);
-
-				$acls_tmp = $_REQUEST['data'];
-
-				foreach ($acls_tmp as $acl_key_tmp => $acl_tmp) {
-					if (substr($acl_key_tmp, 0, 7) != "access_") continue;
-
-					$acl_key = substr($acl_key_tmp, 7);
-					$break_pos = strrpos($acl_key, "_");
-					$role = substr($acl_key, 0, $break_pos);
-					$user_id_tmp = substr($acl_key, $break_pos + 1);
-					$user_id = $ids_r[$user_id_tmp][0];
-					$user_meta = $ids_r[$user_id_tmp][1];
-
-					$acls[$user_meta][$user_id][$role] = true;
-				}
-
-				$this->call_function("ALL", "hook_access_report_submit", array($acls, $this->id));
-
-				break;
-			default:
-				break;
-		}
-
-		$this->view_add_next();
-		return;
-	}
-
-	/**
-	 * View Add Next
-	 *
-	 * Called by Tabular::view_save() and others. Works out the present status of a report, if anything step needs to be performed (like add in axis), or if not, what is the next step after the current, then redirects accordingly
-	 *
-	 */
-	function view_add_next() {
-		if (empty($this->id)) {
-			$this->redirect("template/home/");
-			return;
-		}
-
-		$tabular_template_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_trend ttt ON (ttt.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."'"));
-
-		if (!empty($tabular_template_query)) {
-			foreach ($tabular_template_query as $tabular_template_tmp) {
-				$tabular_template[$tabular_template_tmp['type']] = $tabular_template_tmp;
-			}
-		}
-
-		if ($this->subvar == "x" && $this->subid == "typesubmit" && $tabular_template['x']['axis_type'] == "auto") {
-			$this->redirect("tabular/add/".$this->id."/x/autosource");
-
-		} else if ($this->subvar == "x" && $this->subid == "typesubmit" && $tabular_template['x']['axis_type'] == "trend") {
-			$this->redirect("tabular/add/".$this->id."/x/trendsource");
-
-		} else if ($this->subvar == "y" && $this->subid == "typesubmit" && $tabular_template['y']['axis_type'] == "auto") {
-			$this->redirect("tabular/add/".$this->id."/y/autosource");
-
-		} else if ($this->subvar == "y" && $this->subid == "typesubmit" && $tabular_template['y']['axis_type'] == "trend") {
-			$this->redirect("tabular/add/".$this->id."/y/trendsource");
-
-		} else if ($this->subvar == "y" && $this->subid == "typesubmit" && $tabular_template['y']['axis_type'] == "single") {
-			$this->redirect("tabular/save/".$this->id."/y/singlesourcesubmit");
-
-		} else if ($this->subvar == "y" && $this->subid == "typesubmit" && $tabular_template['y']['axis_type'] == "manual") {
-			$this->redirect("tabular/add/".$this->id."/y/manualsource");
-
-		} else if ($this->subvar == "y" && $this->subid == "removesquidsubmit" && $tabular_template['y']['axis_type'] == "manual") {
-			$this->redirect("tabular/add/".$this->id."/y/manualsource");
-
-		} else if ($this->subvar == "y" && $this->subid == "squidnamesubmit" && $tabular_template['y']['axis_type'] == "manual") {
-			$this->redirect("tabular/add/".$this->id."/y/squidconstraints/".$this->aux1);
-
-		} else if ($this->subvar == "y" && $this->subid == "squidconstraintlogicsubmit" && $tabular_template['y']['axis_type'] == "manual") {
-			$this->redirect("tabular/add/".$this->id."/y/squidconstraints/".$this->aux1);
-
-		//if no intersection is selected...
-		} else if (empty($tabular_template['c'])) {
-			//... go to the intersection page
-			$this->redirect("tabular/add/".$this->id."/c/source");
-
-		} else if (empty($tabular_template['c']['tabular_templates_auto_id'])) {
-			$this->redirect("tabular/add/".$this->id."/c/source");
-
-		//if no x axis is selected...
-		} else if (empty($tabular_template['x'])) {
-			//... go to the x axis page
-			$this->redirect("tabular/add/".$this->id."/x/type");
-
-		} else if ($tabular_template['x']['axis_type'] == "auto" && empty($tabular_template['x']['tabular_templates_auto_id'])) {
-			$this->redirect("tabular/add/".$this->id."/x/autosource");
-
-		} else if ($tabular_template['x']['axis_type'] == "trend" && empty($tabular_template['x']['tabular_templates_trend_id'])) {
-			$this->redirect("tabular/add/".$this->id."/x/trendsource");
-
-		//if no y axis is selected...
-		} else if (empty($tabular_template['y'])) {
-			//... go to the y axis page
-			$this->redirect("tabular/add/".$this->id."/y/type");
-
-		} else if ($tabular_template['y']['axis_type'] == "auto" && empty($tabular_template['y']['tabular_templates_auto_id'])) {
-			$this->redirect("tabular/add/".$this->id."/y/autosource");
-
-		} else if ($tabular_template['y']['axis_type'] == "trend" && empty($tabular_template['y']['tabular_templates_trend_id'])) {
-			$this->redirect("tabular/add/".$this->id."/y/trendsource");
-
-		} else if ($this->subvar == "editsquidconstraintsubmit") {
-			$this->redirect("tabular/add/".$this->id."/y/squidconstraints/".$this->subid);
-
-		} else if ($this->subvar == "editconstraintsubmit") {
-			$this->redirect("tabular/add/".$this->id."/constraints");
-
-		} else if ($this->subvar == "removeconstraintsubmit") {
-			$this->redirect("tabular/add/".$this->id."/constraints");
-
-		} else {
-			$this->redirect("tabular/add/".$this->id."/preview");
-
-		}
-		return;
-	}
-
-	/**
-	 * Called by x/y axis source and edit constraint. Given a selected column id and the insersection column id, shows all the possible table joins between them, and produces html form elements to allow the user so select one.
-	 *
-	 * @param int $current_join The id of the current join
-	 * @return The HTML string output
-	 */
-	function view_table_join_ajax($current_join=null) {
-		$intersection = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) INNER JOIN columns c ON (c.column_id=tta.column_id) WHERE tt.template_id='".$this->id."' AND tt.type='c' LIMIT 1;"));
-		if (empty($intersection)) die;
-
-		$selected_column_id = $_REQUEST['data']['column_id'];
-		$intersection_column_id = $intersection['column_id'];
-
-
-		$foobar = "<h3>Axis Relationship</h3>";
-		$foobar .= "<p class='h3attach'>The selected column may be linked to the intersection column, by one of a number of different routes.</p>";
-
-		//self referential joins
-		$sr_joins_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT c.*, t.*, c.name AS column_name, t.name AS table_name FROM columns c INNER JOIN tables t ON (t.table_id=c.table_id) WHERE c.column_id='".$selected_column_id."' OR c.column_id='".$intersection_column_id."';"));
-
-		foreach ($sr_joins_query as $sr_join_tmp) {
-			$sr_joins[$sr_join_tmp['column_id']] = $sr_join_tmp;
-		}
-
-		$selected_table_id = $sr_joins[$selected_column_id]['table_id'];
-		$intersection_table_id = $sr_joins[$intersection_column_id]['table_id'];
-
-		if ($selected_table_id == $intersection_table_id) {
-			$foobar .= "<div class='input radio'>";
-			$foobar .= "<input type='radio' name='data[table_join_id]' checked='true' disabled='true' />";
-			$foobar .= "<label>";
-			$foobar .= "<span style='font-weight: bold;'>";
-			$foobar .= $sr_joins[$selected_column_id]['table_name'];
-			$foobar .= ".";
-			$foobar .= $sr_joins[$selected_column_id]['column_name'];
-			$foobar .= "</span>";
-			$foobar .= " &#x21C4; ";
-			$foobar .= "<span style='font-weight: bold;'>";
-			$foobar .= $sr_joins[$intersection_column_id]['table_name'];
-			$foobar .= ".";
-			$foobar .= $sr_joins[$intersection_column_id]['column_name'];
-			$foobar .= "</span>";
-			$foobar .= "</label>";
-			$foobar .= "</div>";
-			
-			$explaination_tmp = "The selected column is linked, via a self referential join, to the intersection column.";
-			$foobar .= "<p>".$explaination_tmp."</p>";
-		}
-
-		$table_joins_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM table_joins WHERE table1='".$selected_table_id."' AND table2='".$intersection_table_id."';"));
-
-		if (empty($table_joins_query)) {
-			$output = Tabular_View::view_table_join_ajax($foobar);
-			return $output;
-		}
-
-		$columns_tmp = array($selected_column_id, $intersection_column_id);
-		foreach ($table_joins_query as $table_join_tmp) {
-			$columns_tmp = array_merge((array)$columns_tmp, (array)explode(",", $table_join_tmp['method']));
-			$table_joins[$table_join_tmp['table_join_id']] = $table_join_tmp;
-		}
-		$columns_tmp = array_unique($columns_tmp);
-
-		$columns_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT c.column_id, c.name as column_name, t.table_id, t.name as table_name FROM columns c INNER JOIN tables t ON (c.table_id=t.table_id) WHERE c.column_id='".implode("' OR c.column_id='", $columns_tmp)."';"));
-		foreach ($columns_query as $column_tmp) {
-			$columns[$column_tmp['column_id']] = $column_tmp;
-			$tables[$column_tmp['table_id']] = $column_tmp;
-		}
-
-		foreach ($table_joins as $table_join) {
-			$table_join_id = $table_join['table_join_id'];
-
-			$method_tmp = explode(",", $table_join['method']);
-
-			$method_start_table = $table_join['table1'];
-			$method_end_table = $table_join['table2'];
-
-			$this_pair_start_id = 0;
-			$this_pair_end_id = $this_pair_start_id + 1;
-
-			$last_pair_start_table = $method_start_table;
-
-			unset($method_reorg);
-
-			while (isset($method_tmp[$this_pair_start_id])) {
-				$this_pair_start_table = $columns[$method_tmp[$this_pair_start_id]]['table_id'];
-
-				if ($this_pair_start_id !== 0) $method_reorg[] = "internal join";
-
-				if ($last_pair_start_table != $this_pair_start_table) {
-					$method_reorg[] = $method_tmp[$this_pair_end_id];
-					$method_reorg[] = "referenced by";
-					$method_reorg[] = $method_tmp[$this_pair_start_id];
-				} else {
-					$method_reorg[] = $method_tmp[$this_pair_start_id];
-					$method_reorg[] = "references";
-					$method_reorg[] = $method_tmp[$this_pair_end_id];
-				}
-
-				$last_pair_start_table = isset($columns[$method_reorg[$this_pair_end_id]]['table_id']) ? $columns[$method_reorg[$this_pair_end_id]]['table_id'] : null;
-
-				$this_pair_start_id += 2;
-				$this_pair_end_id = $this_pair_start_id + 1;
-			}
-
-
-			$foobar .= "<div class='input'>";
-
-			$join_selected = $current_join == $table_join_id || count($table_joins) === 1;
-
-			$foobar .= "<input type='radio' name='data[table_join_id]' value='".$table_join_id."' ".($join_selected ? "checked=\"checked\"" : "")." /><label>";
-
-			$explaination_count = 0;
-			$explaination_sr_count = 0;;
-			$explaination_in_count = 0;
-			$explaination_tmp = "The selected column is linked, ";
-
-			if ($method_reorg[0] != $selected_column_id) {
-				$column = $columns[$selected_column_id];
-
-				$foobar .= "<span style='font-weight: bold;'>";
-				$foobar .= ucwords($column['table_name']);
-				$foobar .= ".";
-				$foobar .= ucwords($column['column_name']);
-				$foobar .= "</span>";
-
-				$foobar .= " &#x21C4; ";
-
-				$explaination_tmp .= "via a self referential join, ";
-				$explaination_count += 1;
-				$explaination_sr_count += 1;
-			}
-
-			foreach ($method_reorg as $method_step) {
-				if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "<span style='font-weight: bold;'>";
-
-				switch ($method_step) {
-					case "internal join":
-						$foobar .= " &#x21C4; ";
-
-						$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_sr_count > 0 ? "another" : "a")." self referential join, ";
-						$explaination_count += 1;
-						$explaination_sr_count += 1;
-						break;
-					case "references":
-					case "referenced by":
-						$foobar .= " <span style='font-style: italic;'>";
-						$foobar .= $method_step;
-						$foobar .= "</span> ";
-
-						$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_in_count > 0 ? "another" : "an")." inner join, ";
-						$explaination_count += 1;
-						$explaination_in_count += 1;
-						break;
-					default:
-						$column = $columns[$method_step];
-
-						$foobar .= ucwords($column['table_name']);
-						$foobar .= ".";
-						$foobar .= ucwords($column['column_name']);
-						break;
-				}
-
-				if ($method_step == $selected_column_id || $method_step == $intersection_column_id) $foobar .= "</span>";
-			}
-
-			if (end($method_reorg) != $intersection_column_id) {
-				$foobar .= " &#x21C4; ";
-
-				$column = $columns[$intersection_column_id];
-
-				$foobar .= "<span style='font-weight: bold;'>";
-				$foobar .= ucwords($column['table_name']);
-				$foobar .= ".";
-				$foobar .= ucwords($column['column_name']);
-				$foobar .= "</span>";
-
-				$explaination_tmp .= ($explaination_count > 0 ? "then " : "")."via ".($explaination_sr_count > 0 ? "another" : "a")." self referential join, ";
-				$explaination_count += 1;
-				$explaination_sr_count += 1;
-			}
-
-			$foobar .= "</label>";
-			$foobar .= "</div>";
-
-			$explaination_tmp .= "to the intersection column.";
-			$foobar .= "<p>".$explaination_tmp."</p>";
-		}
-
-		$output = Tabular_View::view_table_join_ajax($foobar);
-		return $output;
-	}
-
-	/**
 	 * Deprecated function: replaced by Tabular::execute()... I think
 	 *
 	 */
@@ -1650,12 +1322,6 @@ WHERE
 		$query = "SELECT l.*, t.template_id, t.name, t.draft, t.module, t.object_id, c.column_id, tb.table_id, c.human_name as chuman, tb.human_name as thuman, c.name as column, tb.name as table FROM template_constraints l, templates t, columns c, tables tb WHERE tb.table_id=c.table_id AND c.column_id=l.column_id AND t.template_id=l.template_id AND t.template_id=".$template_id.";";
 		$data = $this->dobj->db_fetch_all($this->dobj->db_query($query));
 		return $data;
-	}
-
-	function get_constraint_logic($template_id) {
-		$query = "SELECT * FROM template_constraint_logic WHERE template_id='$template_id' LIMIT 1;";
-		$data = $this->dobj->db_fetch($this->dobj->db_query($query));
-		return $data['logic'];
 	}
 
 	function view_add_axis() {
@@ -2006,9 +1672,8 @@ WHERE
 			$data = parent::hook_run_query($template[0]['object_id'], $query);
 		}
 		$end = time();
-
 		$saved_report_id = $this->save_results($template_id, $data, "f", ($demo ? "t" : "f"), ($end-$start), 1);
-
+		
 		return $saved_report_id;
 	}
 
@@ -2026,111 +1691,6 @@ WHERE
 		return "
 			<div class='input text' style='margin-left: 30px;'><input type='text' id='tabular_recipients' name='data[email_recipients]' value='".$recipients."' dojoType='dijit.form.TextBox' /><span id='tabular_recipients_count' style='padding-left: 20px; vertical-align: middle; color: #555753; font-size: 10pt; font-style: italic;'></span></div>
 			";
-	}
-
-	/**
-	 * Called by Tabular::view_add. Gets all data required to show the add/edit constraint page
-	 */
-	function view_editconstraint() {
-		$constraint_query = null;
-		$squid = false;
-		switch ($this->subvar) {
-			case "editconstraint":
-				$constraint_id = $this->subid;
-				break;
-			case "editsquidconstraint":
-				$squid = true;
-				$squid_id = $this->subid;
-				$constraint_id = $this->aux1;
-				break;
-		}
-
-		if ($constraint_id == "new") {
-		} else {
-			if (!$squid) {
-				$constraint_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM template_constraints WHERE template_constraints_id='".$constraint_id."' LIMIT 1;"));
-			} else {
-				$constraint_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates_manual_squid_constraints WHERE squid_constraints_id='".$constraint_id."' LIMIT 1;"));
-			}
-
-			$blah['data']['column_id'] = $constraint_query['column_id'];
-			$blah['data']['type'] = $constraint_query['type'];
-			$blah['data']['value'] = $constraint_query['value'];
-
-			$_REQUEST['data']['column_id'] = $constraint_query['column_id'];
-			$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
-			$table_join_ajax = $table_join_ajax->data;
-			unset($_REQUEST['data']['column_id']);
-		}
-
-		$this->current = $this->get_template($this->id);
-		$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
-
-		foreach ($tables['catalogue'] as $i => $column) {
-			foreach ($column as $j => $cell) {
-				$column_id = $cell['column_id'];
-
-				$blah['options']['column_id'][$column_id] = $cell['table_name'].".".$cell['column_name'];
-
-				switch ($cell['data_type']) {
-					default:
-						break;
-					case "timestamp":
-					case "timestamp with time zone":
-					case "timestamp without time zone":
-						$blah['column_types'][$column_id] = "date";
-						break;
-				}
-
-				if ($cell['dropdown'] == "t") {
-					$blah['column_options'][$column_id] = true;
-				}
-			}
-		}
-
-		$blah['options']['type'] = array(
-			"eq"=>"Equals",
-			"neq"=>"Does not Equal",
-			"lt"=>"Less Than",
-			"gt"=>"Greater Than",
-			"lte"=>"Less Than or Equal To",
-			"gte"=>"Greater Than or Equal To",
-			"like"=>"Contains"
-			);
-
-		if ($this->subid == "new") {
-			$_REQUEST['data']['column_id'] = reset(array_keys($blah['options']['column_id']));
-			$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
-			$table_join_ajax = $table_join_ajax->data;
-			unset($_REQUEST['data']['column_id']);
-		}
-
-		return array($blah, $table_join_ajax);
-	}
-
-	/**
-	 * Called by Tabular::view_save to create edit constraint. Also used to edit constaint logic on manual axies
-	 */
-	function view_constraintlogicsubmit() {
-		$logic = $_REQUEST['data']['constraint_logic'];
-		$constraints_id = json_decode(stripslashes($_REQUEST['data']['constraints_id']), true);
-		$constraints_ascii = json_decode(stripslashes($_REQUEST['data']['constraints_ascii']), true);
-
-		foreach ($constraints_ascii as $index_tmp => $ascii_tmp) {
-			$logic = str_replace($ascii_tmp, $constraints_id[$index_tmp], $logic);
-		}
-
-		unset($_REQUEST['data']['constraint_logic']);
-		unset($_REQUEST['data']['constraints_id']);
-		unset($_REQUEST['data']['constraints_ascii']);
-
-		$_REQUEST['data']['logic'] = $logic;
-
-		if ($this->subvar == "constraintlogicsubmit") {
-			$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "template_constraint_logic"));
-		} else if ($this->subid == "squidconstraintlogicsubmit") {
-			$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "tabular_templates_manual_squid_id", $this->aux1, "tabular_templates_manual_squid_constraint_logic"));
-		}
 	}
 
 	function view_data_preview_ajax() {
@@ -2246,41 +1806,6 @@ WHERE
 		} else {
 			$this->redirect("template/home");
 		}
-	}
-
-	function view_constraint_column_options_ajax() {
-		$template_id = $this->id;
-		$column_id = $this->subvar;
-
-		$this->current = $this->get_template($this->id);
-		$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
-
-		foreach ($tables['catalogue'] as $i => $column) {
-			foreach ($column as $j => $cell) {
-				if ($column_id != $cell['column_id']) continue;
-
-				if ($cell['dropdown'] != "t") return;
-
-				if (!isset($obj)) {
-					$obj = new Catalogue();
-				}
-
-				foreach ($obj->hook_query_source($this->current['object_id'], "SELECT ".$cell['column_sql_name']." FROM ".$cell['table_sql_name']." GROUP BY ".$cell['column_sql_name'].";") as $tmp) {
-					$column_options_json['items'][] = array("name"=>$tmp[$cell['column_sql_name']], "label"=>$tmp[$cell['column_sql_name']], "abbreviation"=>$tmp[$cell['column_sql_name']]);
-				}
-
-				break 2;
-			}
-		}
-
-		$column_options_json['identifier'] = "abbreviation";
-		$column_options_json['label'] = "name";
-
-
-		$column_options_json = json_encode($column_options_json);
-
-		$output = Tabular_View::view_constraint_column_options_ajax($column_options_json);
-		return $output;
 	}
 }
 
@@ -2541,19 +2066,6 @@ class Tabular_View extends Template_View {
 	function view_save($data, $template) {
 		$output->layout = "ajax";
 		$output->data = "";
-		return $output;
-	}
-
-	/**
-	 * Output the markup for the table join radio buttons (called via ajax)
-	 *
-	 * @param $table_join_markup
-	 * @return The HTML string output
-	 */
-	function view_table_join_ajax($table_join_markup) {
-		$output->layout = "ajax";
-		$output->data = $table_join_markup;
-		$output->data .= "<hr />";
 		return $output;
 	}
 
@@ -2977,14 +2489,6 @@ class Tabular_View extends Template_View {
 					<td colspan='4'>$message_tmp<span id='$processing_ind_id' class='loading_0'><span style='opacity: 0.25;'>...</span></span></td>
 					";
 		}
-
-		return $output;
-	}
-
-	function view_constraint_column_options_ajax($column_options_json) {
-		$output->layout = "ajax";
-
-		$output->data = $column_options_json;
 
 		return $output;
 	}
