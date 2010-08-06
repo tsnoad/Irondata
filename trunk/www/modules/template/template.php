@@ -361,8 +361,8 @@ class Template extends Modules {
 				var saved_report_id = window.document.getElementById('saved_report_id').innerHTML;
 				url = '".$this->webroot().$type."/data_preview_slow_ajax/".$this->id."/'+saved_report_id;
 				data = {};
-				div = 'data_preview';
-	
+				div = 'data_preview_first';
+				
 				var d = dojo.xhrPost({
 					url: url,
 					handleAs: 'text',
@@ -373,11 +373,9 @@ class Template extends Modules {
 						if (response == 'finished') {
 							return;
 						}
-	
 						if (div) {
 							dojo.byId(div).innerHTML = response;
 						}
-	
 						update_data_preview_slow();
 					},
 					// The ERROR function will be called in an error case.
@@ -919,6 +917,17 @@ class Template extends Modules {
 	}
 	
 	/**
+	 * Retrieve the templates constraints
+	 *
+	 * @param int $template_id The template id to extract the constraints for
+	 */
+	function get_constraints($template_id) {
+		$query = "SELECT l.*, t.template_id, t.name, t.draft, t.module, t.object_id, c.column_id, tb.table_id, c.human_name as chuman, tb.human_name as thuman, c.name as column, tb.name as table FROM template_constraints l, templates t, columns c, tables tb WHERE tb.table_id=c.table_id AND c.column_id=l.column_id AND t.template_id=l.template_id AND t.template_id=".$template_id.";";
+		$data = $this->dobj->db_fetch_all($this->dobj->db_query($query));
+		return $data;
+	}
+	
+	/**
 	 * Called anywhere a column is selected.
 	 * Given a selected column id and the insersection column id, shows all the possible table joins between them, and produces html form elements to allow the user so select one.
 	 *
@@ -1114,6 +1123,68 @@ class Template extends Modules {
 		return $output;
 	}
 	
+	/**
+	 * This is called by ajax to load the preview page
+	 */
+	function view_data_preview_first_ajax() {
+		$data_preview = "";
+		if ((int)$this->id) {
+			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
+			$saved_report_id = $this->execute_demo_outline($this->id);
+			$data_preview .= '<div id="saved_report_id" style="display: none;">'.$saved_report_id.'</div>';
+			$data_preview .= '<div id="data_preview">';
+			
+			if ($template['publish_table'] == "t") {
+				$data_preview .= "<h3>Tabular Data</h3>";
+				$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, true, true));
+				$data_preview .= $table['pdf']['object'];
+			}
+			
+			if ($template['publish_graph'] == "t") {
+				$data_preview .= "<h3>Graphic Data</h3>";
+				$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], true, false));
+				$data_preview .= $graph['graphing']['object'];
+			}
+			$data_preview .= '</div>';
+		}
+		
+		$output = Template_View::view_data_preview_ajax($data_preview);
+		return $output;
+	}
+	
+	/**
+	 * This is called to display the preview (cellwise) of this report
+	 */
+	function view_data_preview_slow_ajax() {
+		$data_preview = "";
+		if ((int)$this->id) {
+			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
+			$saved_report_id = $this->execute_demo_cellwise($this->id);
+			$data_preview .= '<div id="saved_report_id" style="display: none;">'.$saved_report_id.'</div>';
+			$data_preview .= '<div id="data_preview">';
+			if (!$saved_report_id) {
+				return Template_View::view_data_preview_ajax("finished");
+			}
+			
+			if ($template['publish_table'] == "t") {
+				$data_preview .= "<h3>Tabular Data</h3>";
+				$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, true, true));
+				$data_preview .= $table['pdf']['object'];
+			}
+			
+			if ($template['publish_graph'] == "t") {
+				$data_preview .= "<h3>Graphic Data</h3>";
+				$data_preview .= "<div style='height: 690px;'>";
+				$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], true, false));
+				$data_preview .= $graph['graphing']['object'];
+				$data_preview .= "</div>";
+			}
+			$data_preview .= '</div>';
+		}
+		$output = Template_View::view_data_preview_ajax($data_preview);
+		return $output;
+	}
+	
 	
 	
 	
@@ -1224,15 +1295,11 @@ class Template extends Modules {
 	
 	function save_results($template_id, $data, $draft='t', $demo='f', $runtime=0, $runby=0) {
 		$now = date("Y-m-d H:i:s");
-
 		$saved_report_id = $this->dobj->nextval("saved_reports");
-
 		if (strtolower($draft) == "t") {
 			$query = $this->dobj->db_query("DELETE FROM saved_reports WHERE template_id='$template_id' AND draft='t' AND demo='".$demo."'");
 		}
-
 		$query = $this->dobj->db_query("INSERT INTO saved_reports (saved_report_id, template_id, report, draft, demo, created, run_time, run_by, run_size) VALUES ('$saved_report_id', '$template_id', $$".json_encode($data)."$$, '$draft', '$demo', '$now', '$runtime', '$runby', '".count($data)."')");
-
 		return $saved_report_id;
 	}
 	
@@ -1315,6 +1382,9 @@ class Template extends Modules {
 		$s = "SELECT ";
 		$f = " FROM ";
 		$w = "";
+		$o = "";
+		$g = "";
+		$l = "";
 		foreach ($select as $i => $col) {
 			$s .= $col;
 			if (!is_numeric($i)) {
@@ -1322,7 +1392,7 @@ class Template extends Modules {
 			}
 			$s .= ",";
 		}
-
+		
 		if (count($from) == 1) {
 			foreach ($from as $i => $join) {
 				if (is_array($join)) {
@@ -1337,17 +1407,6 @@ class Template extends Modules {
 
 		if ($where) {
 			$w = " WHERE ";
-
-// 			foreach ($where as $w_tmp) {
-// 				if (!is_array($w_tmp)) {
-// 					$w_tmp = array($w_tmp);
-// 				}
-//
-// 				if (empty($w_tmp[1])) $w_tmp[1] = "AND";
-//
-// 				$w .= " ".$w_tmp[1]." ".$w_tmp[0]." ";
-// 			}
-
 			$w .= implode(" AND ", $where)." ";
 		}
 
@@ -1379,46 +1438,56 @@ class Template extends Modules {
 	function join($foobar) {
 		$tables = array();
 		$columns = array();
+		// We expect the first array entry, without a join_id, to be the primary intersect
+		reset($foobar);
+		$intersect_key = key($foobar);
+		
+		foreach ($foobar  as $i => $alias) {
+			if (!isset($alias['join_id']) || empty($alias['join_id'])) {
+				$intersect_key = $i;
+				break;
+			}
+		}
+		
+		$return = "";
 		//first things first: the intersection column's table
-		$table_tmp = $foobar['c']['table'];
-		$alias_tmp = $foobar['c']['alias'];
+		$table_tmp = $foobar[$intersect_key]['table'];
+		$alias_tmp = $foobar[$intersect_key]['alias'];
 		$return = "$table_tmp $alias_tmp ";
 
 		//create an associate array of alises, keyed by table id, so we can look them up when needed
-		$aliases[$foobar['c']['table_id']] = $foobar['c']['alias'];
+		$aliases[$foobar[$intersect_key]['table_id']] = $foobar[$intersect_key]['alias'];
 
 		//if we need to create aliases for joined columns, use this counter so we don't get two with the same name
 		$alias_counter = 1;
 
 		//create and array of keys for x and y axies, constraints, etc. then loop through
-		$axis_keys = array_combine(array_keys($foobar), array_keys($foobar));
-		unset($axis_keys['c']);
+		$keys = array_combine(array_keys($foobar), array_keys($foobar));
+		unset($keys[$intersect_key]);
 
-		foreach ($axis_keys as $axis) {
-			if (empty($foobar[$axis])) continue;
+		foreach ($keys as $alias) {
+			if (empty($foobar[$alias])) continue;
 
 			//hook_build_query has told us how to join this table
-			if (!empty($foobar[$axis]['manual_join'])) {
-				$table_tmp = $foobar[$axis]['table'];
-				$alias_tmp = $foobar[$axis]['alias'];
-				$manual_join_tmp = $foobar[$axis]['manual_join'];
-
+			if (!empty($foobar[$alias]['manual_join'])) {
+				$table_tmp = $foobar[$alias]['table'];
+				$alias_tmp = $foobar[$alias]['alias'];
+				$manual_join_tmp = $foobar[$alias]['manual_join'];
 				//use the join string hook_build_query gave us
 				$return .= "JOIN $table_tmp $alias_tmp $manual_join_tmp ";
-
 				//and that's all for this table... next!
 				continue;
 			}
-
-			//add this axis' alias to the array
-			$aliases[$foobar[$axis]['table_id']] = $foobar[$axis]['alias'];
-
+			
+			//add this alias to the array
+			$aliases[$foobar[$alias]['table_id']] = $foobar[$alias]['alias'];
+			
 			//this table id
-			$table1_tmp = $foobar[$axis]['table_id'];
+			$table1_tmp = $foobar[$alias]['table_id'];
 			//insersection column's table id: every table that is called must somehow be linked to the intersection column's table
-			$table2_tmp = $foobar['c']['table_id'];
+			$table2_tmp = $foobar[$intersect_key]['table_id'];
 			//table join id to be used to link this table to the intersection
-			$table_join_tmp = $foobar[$axis]['join_id'];
+			$table_join_tmp = $foobar[$alias]['join_id'];
 
 			//get the details of the table join
 			$table_join_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM table_joins WHERE table1=$table1_tmp AND table2=$table2_tmp AND table_join_id=$table_join_tmp LIMIT 1;"));
@@ -1470,12 +1539,12 @@ class Template extends Modules {
 				//if this step is the first step
 				if ($step == $first_step) {
 					//if column a's table is the intersection column's table
-					if ($step_a_table_id == $foobar['c']['table_id']) {
+					if ($step_a_table_id == $foobar[$intersect_key]['table_id']) {
 						//then column a is the start column
 						$step_start = $step_a;
 						$step_end = $step_b;
 					//else if column b's table is the intersection column's table
-					} else if ($step_b_table_id == $foobar['c']['table_id']) {
+					} else if ($step_b_table_id == $foobar[$intersect_key]['table_id']) {
 						//then column b is the start column
 						$step_start = $step_b;
 						$step_end = $step_a;
@@ -1483,12 +1552,12 @@ class Template extends Modules {
 				//if this step is the last step
 				} else if ($step == $last_step) {
 					//if column a's table is the axis column's table
-					if ($step_a_table_id == $foobar[$axis]['table_id']) {
+					if ($step_a_table_id == $foobar[$alias]['table_id']) {
 						$step_start = $step_b;
 						//then column a is the end column
 						$step_end = $step_a;
 					//else if column b's table is the axis column's table
-					} else if ($step_b_table_id == $foobar[$axis]['table_id']) {
+					} else if ($step_b_table_id == $foobar[$alias]['table_id']) {
 						$step_start = $step_a;
 						//then column a is the end column
 						$step_end = $step_b;
@@ -1566,14 +1635,14 @@ class Template extends Modules {
 				//if no alias has been set for the start column's table
 				if (empty($aliases[$step_start_table_id])) {
 					//then set one
-					$aliases[$step_start_table_id] = "j".$foobar[$axis]['alias'].$alias_counter;
+					$aliases[$step_start_table_id] = "j".$foobar[$alias]['alias'].$alias_counter;
 					$alias_counter ++;
 				}
 
 				//if no alias has been set for the end column's table
 				if (empty($aliases[$step_end_table_id])) {
 					//then set one
-					$aliases[$step_end_table_id] = "j".$foobar[$axis]['alias'].$alias_counter;
+					$aliases[$step_end_table_id] = "j".$foobar[$alias]['alias'].$alias_counter;
 					$alias_counter ++;
 				}
 
@@ -1589,7 +1658,6 @@ class Template extends Modules {
 				$return .= "JOIN $table_tmp $alias_tmp ON ($join_foo=$join_bar) ";
 			}
 		}
-
 		return $return;
 	}
 
@@ -2480,6 +2548,18 @@ class Template_View {
 	function view_constraint_column_options_ajax($column_options_json) {
 		$output->layout = "ajax";
 		$output->data = $column_options_json;
+		return $output;
+	}
+
+	/**
+	 * Display the preview output via ajax
+	 *
+	 * @param string $data_preview The preview HTML
+	 * @return The display object
+	 */
+	function view_data_preview_ajax($data_preview) {
+		$output->layout = "ajax";
+		$output->data = $data_preview;
 		return $output;
 	}
 	

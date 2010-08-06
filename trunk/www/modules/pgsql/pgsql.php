@@ -104,7 +104,7 @@ class Pgsql extends Catalogue {
 	 * How to query this modules database. Returns an array of all results.
 	 */
 	function hook_query($query) {
-		//echo $query;
+		//trigger_error($query);
 		$res = pg_query($this->conn, $query);
 		if ($res) {
 			$vals = pg_fetch_all($res);

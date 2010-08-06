@@ -339,15 +339,160 @@ class Listing extends Template {
 	}
 	
 	/**
+	 * Called by Listing::view_data_preview_first_ajax() to get values for axies only. Calls Listing::execute() with appropriate arguments to do so
+	 *
+	 * @return The display object
+	 */
+	function execute_demo_outline($template_id) {
+		return $this->execute($template_id, "normal");
+		return $this->execute($template_id, "axis");
+	}
+	
+	/**
+	 * Runs the query cell by cell
+	 *
+	 * @param int $template_id The template id
+	 */
+	function execute_demo_cellwise($template_id) {
+		return $this->execute($template_id, "normal");
+		return $this->execute($template_id, "cellwise");
+	}
+	
+	/**
+	 * Run the queries to run the report
+	 *
+	 * @param int $template_id The template id to run
+	 * @param string $type What type of query to execute, can be either cellwise (cell by cell), axis (only axes), demo (a full demo query) or normal (a complete run)
+	 * @return the saved report id
+	 */
+	function execute($template_id, $type="normal") {
+		$template = $this->get_columns($template_id);
+		$constraints = $this->get_constraints($template_id);
+		$constraint_logic = $this->get_constraint_logic($template_id);
+		$draft = 'f';
+		$demo = false;
+		$start = time();
+		
+		switch ($type) {
+		case "cellwise":
+			$draft = 't';
+			$demo = true;
+			$saved_report_id = $this->subvar;
+			$report = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM saved_reports r WHERE r.saved_report_id='$saved_report_id' LIMIT 1;"));
+			$data = json_decode($report['report'], true);
+			
+			// This has been run cellwise at least once
+			if (!empty($data['c'])) {
+				foreach ($data['c'] as $c_key => $c_tmp) {
+					$x_tmp = $c_tmp['x'];
+					$y_tmp = $c_tmp['y'];
+					$saved_report_translate[$x_tmp][$y_tmp] = $c_key;
+				}
+			}
+			
+			foreach ($data['y'] as $y_tmp) {
+				foreach ($data['x'] as $x_tmp) {
+					if (isset($saved_report_translate[$x_tmp['x']][$y_tmp['y']])) {
+						$c_key = $saved_report_translate[$x_tmp['x']][$y_tmp['y']];
+					} else {
+						$c_key = null;
+					}
+					if (!empty($data['c'][$c_key])) {
+						continue;
+					}
+					$x_limit = $x_tmp['x'];
+					$y_limit = $y_tmp['y'];
+					break 2;
+				}
+			}
+			
+			//if we've run out of cells to update, stop here. view_data_preview_slow_ajax will detect that we havn't sent back a saved_report_id, and stop sending ajax requests
+			if (empty($x_limit)) {
+				return null;
+			}
+			
+			if (!empty($data['c'])) {
+				// If this is a fast report, change to a quick demo
+				if ($report['run_time'] == 0) {
+					return $this->execute($template_id, "demo");
+					// This should go no further
+				}
+			}
+			
+			$query = $this->hook_query($template, $constraints, $constraint_logic, $demo, array("x"=>array($x_limit), "y"=>array($y_limit)));
+			$data_tmp = parent::hook_run_query($template[0]['object_id'], $query);
+			
+			if (empty($data_tmp['c'][0])) {
+				$data_tmp['c'][0] = array("c"=>"-", "x"=>$x_limit, "y"=>$y_limit);
+			}
+			$data['c'][] = array(
+				"c"=>$data_tmp['c'][0]['c'],
+				"x"=>$data_tmp['c'][0]['x'],
+				"y"=>$data_tmp['c'][0]['y']
+				);
+			break;
+		case "axis":
+			$demo = true;
+			/* Generate the query to run */
+			$query = $this->hook_query($template, $constraints, $constraint_logic, $demo);
+			unset($query['c']);
+			$data = parent::hook_run_query($template[0]['object_id'], $query);
+			break;
+		case "demo":
+			$demo = true;
+			/* Generate the query to run */
+			$query = $this->hook_query($template, $constraints, $constraint_logic, $demo);
+			unset($query['c']);
+			$data_tmp = parent::hook_run_query($template[0]['object_id'], $query);
+			foreach ($data_tmp['x'] as $x_tmp) {
+				$x_limit[] = $x_tmp['x'];
+			}
+			foreach ($data_tmp['y'] as $y_tmp) {
+				$y_limit[] = $y_tmp['y'];
+			}
+			$query = $this->hook_query($template, $constraints, $constraint_logic, $demo, array("x"=>$x_limit, "y"=>$y_limit));
+			unset($query['x']);
+			unset($query['y']);
+			$data = parent::hook_run_query($template[0]['object_id'], $query);
+			$data = array_merge((array)$data, (array)$data_tmp);
+			
+			foreach ($data['y'] as $y_tmp) {
+				foreach ($data['x'] as $x_tmp) {
+					$found = false;
+					foreach ($data['c'] as $c_tmp) {
+						if ($c_tmp['x'] == $x_tmp['x'] && $c_tmp['y'] == $y_tmp['y']) {
+							$found = true;
+						}
+					}
+					if ($found == false) {
+						$data['c'][] = array("x"=>$x_tmp['x'], "y"=>$y_tmp['y'], "c" => "-");
+					}
+				}
+			}
+			break;
+		default:
+			/* Generate the query to run */
+			$query = $this->hook_query($template, $constraints, $constraint_logic, $demo);
+			/* Run the query and get the results */
+			$data = parent::hook_run_query($template[0]['object_id'], $query);
+			break;
+		}
+		$end = time();
+		$saved_report_id = $this->save_results($template_id, $data, $draft, ($demo ? "t" : "f"), ($end-$start), 1);
+		
+		return $saved_report_id;
+	}
+	
+	/**
 	 * Called by Listing::execute. Given a template, generate the queries to get all the data for the report.
 	 *
 	 * @param $template int The template id
 	 * @param $constraints array Any constraints to apply
+	 * @param $constraint_logic string The constraint logic
 	 * @param $demo boolean Is this a demo (ie restrict to 10 results)
 	 * @return A SQL string
 	 */
-	function hook_query($template, $constraints, $demo=false) {
-		/* TODO: Change $$ to module specific */
+	function hook_query($template, $constraints, $constraint_logic=null, $demo=false) {
 		$cols = array();
 		$sort = array();
 		$tables = array();
@@ -355,39 +500,42 @@ class Listing extends Template {
 		$optional_tables = array();
 		$group = array();
 		$where = array();
-
-// 		print_r($template);
-
+		$alias_counter = 0;
+		$aliai = array();
+		$use_group = false;
+		$limit = null;
+		
+		if (!isset($post['table_join_id'])) {
+			$post['table_join_id'] = null;
+		}
+		
+		/* TODO: What does column index do?
 		foreach ($template as $column) {
 			if ($column['index'] != "t") continue;
-
 			$alias_tmp = "ac";
-
+			
 			$col = $alias_tmp.".".$column['column']."";
 			$group[] = $alias_tmp.".".$column['column'];
 			$sort[] = $alias_tmp.".".$column['column']." ".$column['sort'];
 			$cols[$column['label']] = $col;
 			$tables[$column['table']] = $column['table_id'];
-
+			
 			$join_tables['c'] = array(
 				"table"=>$column['table'],
 				"table_id"=>$column['table_id'],
 				"alias"=>"ac"
 				);
-
+			
 			$aliai[$column['table_id']] = $alias_tmp;
-
 			break;
 		}
-
+		*/
+		
 		/* SELECT Clause */
 		foreach ($template as $i => $post) {
-			if ($post['index'] == "t") continue;
-
-
-			/*if ($post['table_id'] == $join_tables['c']['table_id']) {
-				$alias_tmp = "ac";
-			} else */if (!empty($aliai[$post['table_id']])) {
+			//if ($post['index'] == "t") continue;
+			
+			if (!empty($aliai[$post['table_id']])) {
 				$alias_tmp = $aliai[$post['table_id']];
 			} else {
 				$alias_counter ++;
@@ -395,12 +543,12 @@ class Listing extends Template {
 					"table"=>$post['table'],
 					"table_id"=>$post['table_id'],
 					"alias"=>"a{$alias_counter}",
-					"join_id"=>"275"
+					"join_id"=>$post['table_join_id']
 					);
 				$alias_tmp = "a{$alias_counter}";
 				$aliai[$post['table_id']] = $alias_tmp;
 			}
-
+			
 			$col = "";
 			/* This is added to a. ensure all columns are unique and b. aggregates sort properly */
 			if (!$post['label']) {
@@ -420,39 +568,57 @@ class Listing extends Template {
 			}
 			$cols[$post['label']] = $col;
 			$tables[$post['table']] = $post['table_id'];
-// 			$join_tables[$post['table']] = $post['table_id'];
-			// TODO: Optional tables
-/*			if ($post['optional']) {
-				$optional_tables[$post['table']] = $post['table_id'];
-			}*/
-
-
 		}
+		
 		/* WHERE clause */
+		//now, we deal with the constraints
 		if (is_array($constraints)) {
-			foreach ($constraints as $i => $post) {
-				$join_tables[$post['table']] = $post['table_id'];
-				$where[] = $this->where($post);
-			}
-		}
+			//constraint logic contains the ands, ors, brackets, and constraint ids. Next we will replace the constraint ids with the constraints themselves
+			$where_logical = "($constraint_logic)";
+			foreach ($constraints as $constraint) {
+				//set these variables for easy access
+				$table_constraints_id_tmp = $constraint['template_constraints_id'];
+				$alias_tmp = "c".$table_constraints_id_tmp;
+				$table_id_tmp = $constraint['table_id'];
+				$table_name_tmp = $constraint['table'];
+				$table_join_id_tmp = $constraint['table_join_id'];
+				$column_name_tmp = $constraint['column'];
+				$type_tmp = $constraint['type'];
+				$value_tmp = $constraint['value'];
 
+				//is this constraint's column in the same table as the intersection column?
+				//TODO: if ($table_id_tmp == $intersection['auto_column']['table_id']) {
+					$alias_tmp = "ac";
+				//if not...
+				//TODO: } else if (!empty($table_join_id_tmp)) {
+					//...join this constraint's table to the query
+					$join_tables[$alias_tmp] = array(
+						"table"=>$table_name_tmp,
+						"table_id"=>$table_id_tmp,
+						"alias"=>$alias_tmp,
+						"join_id"=>$table_join_id_tmp);
+				//TODO: }
+				unset($where_tmp);
+				//generate the constraint SQL
+				$where_tmp = $this->where($alias_tmp, $column_name_tmp, $type_tmp, $value_tmp);
+				//place the constraint into the constraint logic
+				$where_logical = str_replace($table_constraints_id_tmp, $where_tmp, $where_logical);
+			}
+			//add the constraints to the query's where clause
+			$where[] = $where_logical;
+		}
+		
 		/* GROUP BY Clause */
 		if (!$use_group) {
 			$group = false;
 		}
-// 		$query = "SELECT ".implode(", ", $cols). " FROM ".$table_str." ".$where_string." ".$group_string." ORDER BY ".implode(", ", $sort). " ";
-
+		
 		/* LIMIT Clause */
 		if ($demo) {
 			$limit = 10;
 		}
-
-		print_r($join_tables);
-
+		
 		$query = $this->hook_build_query($cols, $join_tables, $where, $group, $sort, $limit);
-		var_dump($cols);
-		var_dump($query);
-		var_dump($aliai);
 		return $query;
 	}
 	
@@ -557,12 +723,6 @@ class Listing extends Template {
 		return $data;
 	}
 	
-	function get_constraints($template_id) {
-		$query = "SELECT l.*, t.template_id, t.name, t.draft, t.module, t.object_id, c.dropdown, c.example, c.column_id, tb.table_id, c.human_name as chuman, tb.human_name as thuman, c.name as column, tb.name as table FROM list_constraints l, templates t, columns c, tables tb WHERE tb.table_id=c.table_id AND c.column_id=l.column_id AND t.template_id=l.template_id AND t.template_id=".$template_id.";";
-		$data = $this->dobj->db_fetch_all($this->dobj->db_query($query));
-		return $data;
-	}
-	
 	function execute_manually($template_id) {
 		return $this->execute($template_id, false);
 	}
@@ -574,110 +734,7 @@ class Listing extends Template {
 	function execute_demo($template_id) {
 		return $this->execute($template_id, true);
 	}
-
-
-	/**
-	 * Called by Listing::view_data_preview_first_ajax() to get values for axies only. Calls Listing::execute() with appropriate arguments to do so
-	 *
-	 * @return The display object
-	 */
-	function execute_demo_quick($template_id) {
-		return $this->execute($template_id, true, true);
-	}
 	
-	/**
-	 * Small helper function to call the execute command for a demo
-	 *
-	 * @param int $template_id The template to run
-	 * @return The id of the saved report
-	 */
-	function execute_demo_cellwise($template_id) {
-		return $this->execute($template_id, true, false, true);
-	}
-	
-	function execute($template_id, $demo) {
-		$template = $this->get_columns($template_id);
-		$constraints = $this->get_constraints($template_id);
- 		$constraint_logic = $this->get_constraint_logic($template_id);
-
-		/* Generate the query to run */
-		$query = $this->hook_query($template, $constraints, $demo);
-
-		$start = time();
-		$data = parent::hook_run_query($template[0]['object_id'], $query);
-		$end = time();
-print_r($data);
-
-		$saved_report_id = $this->save_results($template_id, $data, "f", ($demo ? "t" : "f"), ($end-$start), 1);
-
-		return $saved_report_id;
-	}
-	
-	/**
-	 * This is called to display the preview (cellwise) of this report
-	 *
-	 * @return The display object
-	 */
-	function view_data_preview_slow_ajax() {
-		$data_preview = "";
-		if ((int)$this->id) {
-			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
-			$saved_report_id = $this->execute_demo_cellwise($this->id);
-			if (!$saved_report_id) {
-				return Listing_View::view_data_preview_ajax("finished");
-			}
-			
-			if ($template['publish_table'] == "t") {
-				$data_preview .= "<h3>Data</h3>";
-				$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, true, true));
-				$data_preview .= $table['pdf']['object'];
-			}
-			
-			if ($template['publish_graph'] == "t") {
-				$data_preview .= "<h3>Graphic Data</h3>";
-				$data_preview .= "<div style='height: 690px;'>";
-				$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], true, false));
-				$data_preview .= $graph['graphing']['object'];
-				$data_preview .= "</div>";
-			}
-		}
-		$output = Listing_View::view_data_preview_ajax($data_preview);
-		return $output;
-	}
-	
-	/**
-	 * This is to setup the preview process
-	 *
-	 * @return The display object
-	 */
-	function view_data_preview_first_ajax() {
-		$data_preview = "";
-		if ((int)$this->id) {
-			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
-			$saved_report_id = $this->execute_demo_quick($this->id);
-			$data_preview .= '<div id="saved_report_id" style="display: none;">'.$saved_report_id.'</div>';
-			$data_preview .= '<div id="data_preview">';
-			
-			if ($template['publish_table'] == "t") {
-				$data_preview .= "<h3>Data</h3>";
-				$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, true, true));
-				$data_preview .= $table['pdf']['object'];
-			}
-			
-			if ($template['publish_graph'] == "t") {
-				$data_preview .= "<h3>Graphic Data</h3>";
-				$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], true, false));
-				$data_preview .= $graph['graphing']['object'];
-			}
-			
-			$data_preview .= '</div>';
-		}
-		
-		$output = Listing_View::view_data_preview_ajax($data_preview);
-		return $output;
-	}
-	
-
 }
 
 
