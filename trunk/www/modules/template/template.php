@@ -385,6 +385,11 @@ class Template extends Modules {
 					}
 				});
 			}
+			function update_join_display(o) {
+				var passContent = {};
+				passContent[o.name] = o.value;
+				ajax_load('".$this->webroot().$type."/table_join_ajax/".$this->id."', passContent, 'join_display');
+			}
 			";
 		}
 		return $js;
@@ -674,6 +679,7 @@ class Template extends Modules {
 	function view_editconstraint() {
 		$constraint_query = null;
 		$squid = false;
+		$blah = $this->getSourceOptions(false);
 		switch ($this->subvar) {
 			case "editconstraint":
 				$constraint_id = $this->subid;
@@ -703,28 +709,6 @@ class Template extends Modules {
 			unset($_REQUEST['data']['column_id']);
 		}
 		
-		$this->current = $this->get_template($this->id);
-		$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
-		
-		foreach ($tables['catalogue'] as $i => $column) {
-			foreach ($column as $j => $cell) {
-				$column_id = $cell['column_id'];
-				$blah['options']['column_id'][$column_id] = $cell['table_name'].".".$cell['column_name'];
-				switch ($cell['data_type']) {
-					default:
-						break;
-					case "timestamp":
-					case "timestamp with time zone":
-					case "timestamp without time zone":
-						$blah['column_types'][$column_id] = "date";
-						break;
-				}
-				if ($cell['dropdown'] == "t") {
-					$blah['column_options'][$column_id] = true;
-				}
-			}
-		}
-		
 		$blah['options']['type'] = array(
 			"eq"=>"Equals",
 			"neq"=>"Does not Equal",
@@ -735,36 +719,46 @@ class Template extends Modules {
 			"like"=>"Contains"
 			);
 		
-		if ($this->subid == "new") {
+		$table_join_ajax = "";
+		/*if ($this->subid == "new") {
 			$_REQUEST['data']['column_id'] = reset(array_keys($blah['options']['column_id']));
 			$table_join_ajax = $this->view_table_join_ajax($constraint_query['table_join_id']);
 			$table_join_ajax = $table_join_ajax->data;
 			unset($_REQUEST['data']['column_id']);
-		}
+		}*/
 		
 		return array($blah, $table_join_ajax);
 	}
 	
 	function getSourceOptions($warnings = false) {
+		
 		if (!isset($this->current) || empty($this->current)) {
 			$this->current = $this->get_template($this->id);
 		}
 		$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
 		
 		$blah = array();
+		$blah['options'] = array();
+		$blah['option_warnings'] = null;
 		foreach ($tables['catalogue'] as $i => $column) {
 			foreach ($column as $j => $cell) {
-				$blah['options'][$cell['column_id']] = $cell;
-				if ($warnings) {
-					switch ($cell['data_type']) {
-						default:
-							break;
-						case "text":
+				$blah['options']['columns'][$cell['column_id']] = $cell;
+				switch ($cell['data_type']) {
+					case "timestamp":
+					case "timestamp with time zone":
+					case "timestamp without time zone":
+						$blah['column_types'][$cell['column_id']] = "date";
+						break;
+					case "text":
+						if ($warnings) {
 							$blah['option_warnings'][$cell['column_id']] = "Warning: The data type of the selected Source Column is ".ucwords($cell['data_type']).". This may cause unexpected results when calculating the Sum, Minimum, Maximum or Average values.";
-							break;
-					}
-				} else {
-					$blah['option_warnings'] = null;
+						}
+						break;
+					default:
+						break;
+				}
+				if ($cell['dropdown'] == "t") {
+					$blah['column_options'][$cell['column_id']] = true;
 				}
 			}
 		}
@@ -2107,8 +2101,7 @@ class Template_View {
 				$cancel = "<button value='Cancel' dojoType='dijit.form.Button' onclick='window.location=\"".$this->webroot().$type."/add/{$this->id}/y/squidconstraints/{$squid_id}\"; return false;' name='cancel' >Cancel</button>";
 				break;
 		}
-		
-		$output->data .= $this->i("data[column_id]", array("id"=>"data[column_id]", "label"=>"Column", "type"=>"select", "default"=>$blah['data']['column_id'], "options"=>$blah['options']['column_id'], "onchange"=>"update_join_display(this);", "dojoType"=>"dijit.form.FilteringSelect"));
+		$output->data .= $this->source_column_i("data[column_id]", $blah['options']['columns'], $blah['data']['column_id'], "constraint_input_toggle(this);");
 		$output->data .= $this->i("data[type]", array("id"=>"data[type]", "label"=>"&nbsp;", "type"=>"select", "default"=>$blah['data']['type'], "options"=>$blah['options']['type'], "dojoType"=>"dijit.form.FilteringSelect"));
 		$output->data .= $this->i("data[value_text]", array("id"=>"data[value_text]", "div_id"=>"value_text_div", "label"=>"&nbsp;", "type"=>"text", "value"=>$blah['data']['value'], "dojoType"=>"dijit.form.ValidationTextBox"));
 		$output->data .= $this->i("data[value_date]", array("id"=>"data[value_date]", "div_id"=>"value_date_div", "label"=>"&nbsp;", "type"=>"text", "value"=>$blah['data']['value'], "dojoType"=>"dijit.form.DateTextBox"));
@@ -2124,76 +2117,62 @@ class Template_View {
 		$output->data .= $this->i("data[value_input_selected]", array("id"=>"data[value_input_selected]", "type"=>"hidden", "default"=>""));
 		$output->data .= "
 			<script>
-				dojo.addOnLoad(constraint_input_toggle_init);
-
+				dojo.addOnLoad(hideAll);
 				var column_options = ".json_encode((array)$blah['column_options']).";
-
-				function constraint_input_toggle_init() {
-					dojo.connect(dijit.byId('data[column_id]'), 'onChange', 'constraint_input_toggle');
-					dojo.connect(dijit.byId('data[type]'), 'onChange', 'constraint_input_toggle');
-
-					constraint_input_toggle();
-				}
-
-				function constraint_input_toggle() {
-					var types = ".json_encode((array)$blah['column_types']).";
-
-					var value_text_div = dojo.byId('value_text_div');
-					var value_date_div = dojo.byId('value_date_div');
-
-					value_date_div.style.display = 'none';
+				var types = ".json_encode((array)$blah['column_types']).";
+				var value_text_div = dojo.byId('value_text_div');
+				var value_date_div = dojo.byId('value_date_div');
+				
+				var skoo = [];
+				skoo[skoo.length] = 'value_text';
+				skoo[skoo.length] = 'value_date';
+				
+				//function constraint_input_toggle_init() {
+				//	dojo.connect(dijit.byId('data[column_id]'), 'onChange', 'constraint_input_toggle');
+				//	dojo.connect(dijit.byId('data[type]'), 'onChange', 'constraint_input_toggle');
+				//	constraint_input_toggle();
+				//}
+				function hideAll() {
 					value_text_div.style.display = 'none';
-
-					var skoo = [];
-
-					skoo[skoo.length] = 'value_text';
-					skoo[skoo.length] = 'value_date';
-
+					value_date_div.style.display = 'none';
 					for (var i in column_options) {
 						dojo.byId('value_select_div_'+i).style.display = 'none';
-
 						skoo[skoo.length] = 'value_select_'+i;
 					}
-
+				}
+				
+				function constraint_input_toggle(o) {
+					hideAll();
+					update_join_display(o);
 					dojo.byId('data[value_inputs]').value = skoo;
-
+					
 					if (dijit.byId('data[type]').value != 'like') {
-						if (column_options[dijit.byId('data[column_id]').value]) {
-							dojo.byId('value_select_div_'+dijit.byId('data[column_id]').value).style.display = 'block';
-
+						if (column_options[o.value]) {
+							dojo.byId('value_select_div_'+o.value).style.display = 'block';
 							dojo.byId('dropdown_loading').style.display = 'block';
-
-							dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').setAttribute('disabled', true);
-
-							var pantryStore = new dojo.data.ItemFileReadStore({url: '".$this->webroot().$type."/constraint_column_options_ajax/".$this->id."/'+dijit.byId('data[column_id]').value});
-
+							dijit.byId('data[value_select_'+o.value+']').setAttribute('disabled', true);
+							var pantryStore = new dojo.data.ItemFileReadStore({url: '".$this->webroot().$type."/constraint_column_options_ajax/".$this->id."/'+o.value});
 							pantryStore.fetch({
 								onComplete: function () {
-									dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').setAttribute('disabled', false);
+									dijit.byId('data[value_select_'+o.value+']').setAttribute('disabled', false);
 									dojo.byId('dropdown_loading').style.display = 'none';
 									return true;
 								}
 							});
-							dijit.byId('data[value_select_'+dijit.byId('data[column_id]').value+']').store = pantryStore;
-
-							dojo.byId('data[value_input_selected]').value = 'value_select_'+dijit.byId('data[column_id]').value;
-
+							dijit.byId('data[value_select_'+o.value+']').store = pantryStore;
+							dojo.byId('data[value_input_selected]').value = 'value_select_'+o.value;
 							return;
 						}
-
-						if (types[dijit.byId('data[column_id]').value] == 'date') {
+						
+						if (types[o.value] == 'date') {
 							value_date_div.style.display = 'block';
-
 							dojo.byId('data[value_input_selected]').value = 'value_date';
-
 							return;
 						}
 					}
-
+					
 					value_text_div.style.display = 'block';
-
 					dojo.byId('data[value_input_selected]').value = 'value_text';
-
 					return;
 				}
 			</script>

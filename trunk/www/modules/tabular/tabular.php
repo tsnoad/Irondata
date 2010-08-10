@@ -240,21 +240,6 @@ class Tabular extends Template {
 	function hook_workspace() {
 		return null;
 	}
-
-	/**
-	 * (non-PHPdoc)
-	 * @see modules/template/Template::hook_javascript()
-	 */
-	function hook_javascript() {
-		$js = parent::hook_javascript();
-		return $js."
-		function update_join_display(o) {
-			var passContent = {};
-			passContent[o.name] = o.value;
-			ajax_load('".$this->webroot()."tabular/table_join_ajax/".$this->id."', passContent, 'join_display');
-		}
-		";
-	}
 	
 	/**
 	 * The Template hook function.
@@ -1738,7 +1723,7 @@ class Tabular_View extends Template_View {
 			case ("autosource"):
 				$output->data .= "<h3>Axis Source</h3>";
 				$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/autosourcesubmit", "dojoType='dijit.form.Form'");
-				$output->data .= $this->source_column_i("data[column_id]", $blah, $tabular_template_auto['column_id'], "update_join_display(this);");
+				$output->data .= $this->source_column_i("data[column_id]", $blah['columns'], $tabular_template_auto['column_id'], "update_join_display(this);");
 				$output->data .= $this->i("data[sort]", array("label"=>"Order", "type"=>"select", "default"=>$tabular_template_auto['sort'], "options"=>array("ASC"=>"Ascending", "DESC"=>"Descending"), "dojoType"=>"dijit.form.FilteringSelect"));
 				$output->data .= $this->i("data[human_name]", array("label"=>"Axis Name", "type"=>"text", "default"=>$tabular_template_auto['human_name'], "dojoType"=>"dijit.form.ValidationTextBox"));
 				$output->data .= "<hr />";
@@ -1851,7 +1836,7 @@ class Tabular_View extends Template_View {
 				$output->title = "Intersection Data Source";
 				$output->title_desc = "The intersection is a numerical column selected from the database. Values from this column will be indexed by unique values in two related colums (the X and Y axies), and will fill the area of the table.";
 				$output->data .= $this->f("tabular/save/".$this->id."/".$this->subvar."/sourcesubmit", "dojoType='dijit.form.Form'");
-				$output->data .= $this->source_column_i("data[column_id]", $blah['options'], $tabular_template_auto['column_id'], "intersection_source_type_warning(this);");
+				$output->data .= $this->source_column_i("data[column_id]", $blah['options']['columns'], $tabular_template_auto['column_id'], "intersection_source_type_warning(this);");
 				if (!empty($blah['option_warnings'][$tabular_template_auto['column_id']])) {
 					$output->data .= "<p class='warning' id='intersection_source_type_warning' style='display: block;'>".$blah['option_warnings'][$tabular_template_auto['column_id']]."</p>";
 				} else {

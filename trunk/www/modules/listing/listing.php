@@ -183,21 +183,6 @@ class Listing extends Template {
 	function hook_workspace() {
 		return null;
 	}
-	
-	/**
-	 * (non-PHPdoc)
-	 * @see modules/template/Template::hook_javascript()
-	 */
-	function hook_javascript() {
-		$js = parent::hook_javascript();
-		return $js."
-		function update_join_display(o) {
-			var passContent = {};
-			passContent[o.name] = o.value;
-			ajax_load('".$this->webroot()."listing/table_join_ajax/".$this->id."', passContent, 'join_display');
-		}
-		";
-	}
 
 	/**
 	 * The Template hook function.
@@ -413,6 +398,7 @@ class Listing extends Template {
 		$where = array();
 		$alias_counter = 0;
 		$aliai = array();
+		$aliai_table = array();
 		$use_group = false;
 		$limit = null;
 		
@@ -436,6 +422,7 @@ class Listing extends Template {
 					);
 				$alias_tmp = "a{$alias_counter}";
 				$aliai[$post['table_id']] = $alias_tmp;
+				$aliai_table[$alias_tmp] = $post['table_id'];
 			}
 			
 			$col = "";
@@ -476,17 +463,16 @@ class Listing extends Template {
 				$value_tmp = $constraint['value'];
 
 				//is this constraint's column in the same table as the intersection column?
-				//TODO: if ($table_id_tmp == $intersection['auto_column']['table_id']) {
-					$alias_tmp = "ac";
-				//if not...
-				//TODO: } else if (!empty($table_join_id_tmp)) {
+				if ($table_id_tmp == $aliai_table['a1']) {
+					$alias_tmp = "a1";
+				} else if (!empty($table_join_id_tmp)) {
 					//...join this constraint's table to the query
 					$join_tables[$alias_tmp] = array(
 						"table"=>$table_name_tmp,
 						"table_id"=>$table_id_tmp,
 						"alias"=>$alias_tmp,
 						"join_id"=>$table_join_id_tmp);
-				//TODO: }
+				}
 				unset($where_tmp);
 				//generate the constraint SQL
 				$where_tmp = $this->where($alias_tmp, $column_name_tmp, $type_tmp, $value_tmp);
@@ -588,12 +574,12 @@ class Listing extends Template {
 		}
 		
 		// TODO: What is this for?
-		if ($this->subid == "new" && isset($column_query['list_template_id'])) {
+		/*if ($this->subid == "new" && isset($column_query['list_template_id'])) {
 			$_REQUEST['data']['column_id'] = reset(array_keys($blah['options']['column_id']));
 			$table_join_ajax = $this->view_table_join_ajax($column_query['table_join_id']);
 			$table_join_ajax = $table_join_ajax->data;
 			unset($_REQUEST['data']['column_id']);
-		}
+		}*/
 
 		return array($blah, $table_join_ajax);
 	}
@@ -701,7 +687,7 @@ class Listing_View extends Template_View {
 				break;
 		}
 		
-		$output->data .= $this->source_column_i("data[column_id]", $blah['options'], $blah['data']['column_id'], "update_join_display(this);");
+		$output->data .= $this->source_column_i("data[column_id]", $blah['options']['columns'], $blah['data']['column_id'], "update_join_display(this);");
 		$output->data .= $this->i("data[label]", array("id"=>"data[label]", "label"=>"Column Label", "type"=>"text", "default"=>$blah['data']['label'], "dojoType"=>"dijit.form.TextBox"));
 		$output->data .= $this->i("data[display_label]", array("id"=>"data[display_label]", "label"=>"Show the Column Label", "type"=>"checkbox", "default"=>$blah['data']['display_label'], "dojoType"=>"dijit.form.CheckBox"));
 		$output->data .= $this->i("data[duplicates]", array("id"=>"data[duplicates]", "label"=>"Allow Duplicates", "type"=>"checkbox", "default"=>$blah['data']['duplicates'], "dojoType"=>"dijit.form.CheckBox"));

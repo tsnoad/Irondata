@@ -15,7 +15,7 @@ CREATE TABLE observations (
 	site BIGINT REFERENCES sites (site_id) ON UPDATE CASCADE ON DELETE CASCADE,
 	observation_type BIGINT REFERENCES observation_types (observation_type_id) ON UPDATE CASCADE ON DELETE CASCADE,
 	date TIMESTAMP,
-	data TEXT,
+	data NUMERIC,
 	UNIQUE (site, observation_type, date)
 );
 

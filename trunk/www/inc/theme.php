@@ -730,7 +730,7 @@ class Theme {
 			}
 
 			$output .= "<div class='input radio'>";
-			$output .= "<input type='radio' name='data[column_id]' value='".$option['column_id']."' ".($default_column_id == $option['column_id'] ? "checked" : "")." onchange='$onchange' />";
+			$output .= "<input type='radio' name='data[column_id]' value='".$option['column_id']."' onchange='$onchange' />";
 			$output .= "<label for='data[column_id]' >".$option['column_name']."</label>";
 			$output .= "</div>";
 
@@ -748,6 +748,20 @@ class Theme {
 		
 		$output .= "</div>";
 		$output .= "</div>";
+		if ($default_column_id != null) {
+			$output .= "<script>
+				dojo.addOnLoad(selectSourceColumnDefault);
+				function selectSourceColumnDefault() {
+					inputs = document.getElementsByName('data[column_id]');
+					for (i = 0; i<inputs.length; i++) {
+						if (inputs[i].value == '".$default_column_id."') {
+							inputs[i].checked = true;
+							inputs[i].onchange();
+						}
+					}
+				}
+			</script>";
+		}
 
 		return $output;
 	}
