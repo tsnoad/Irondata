@@ -50,7 +50,7 @@ class DB {
 	}
 
 	function db_query($query) {
-		//file_put_contents("/tmp/foo.txt", $query."\n", FILE_APPEND);
+		//trigger_error($query);
 		if ($this->conf['metabase']['type'] == "postgres") {
 			$res = pg_query($this->conn, $query);
 		}

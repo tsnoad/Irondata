@@ -295,7 +295,7 @@ class Theme {
 				$input .= "</select></div>";
 				break;
 			case 'checkbox':
-				if ($data['default'] === true || $data['default'] === $name) {
+				if ($data['default'] === true || $data['default'] === $name || $data['default'] === 't') {
 					$check = "checked";
 				} else {
 					$check = "";

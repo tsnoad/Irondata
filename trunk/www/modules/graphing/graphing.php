@@ -153,7 +153,7 @@ class Graphing extends Template {
 		$saved_report = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM saved_reports r LEFT OUTER JOIN graph_documents g ON (g.saved_report_id=r.saved_report_id) WHERE r.saved_report_id='$saved_report_id' LIMIT 1;"));
 
 		//if the graph document does not exist, create it, and return data about where it can be found
-		if (empty($saved_report['graph_document_id']) || !is_file($saved_report['svg_path']) || !is_file($saved_report['pdf_path'])) {
+		if (empty($saved_report['saved_report_id']) || !is_file($saved_report['svg_path']) || !is_file($saved_report['pdf_path'])) {
 			if (empty($graph_type)) {
 				$graph_type = "Lines";
 			}
@@ -241,11 +241,11 @@ class Graphing extends Template {
 		//datapoints
 		$svg_data .= $this->generate_datapoints("line", $results, $area);
 
-		$this->export_pdf($paths, $svg_data, $area['graph_w'], $area['graph_h']);
 
 		$this->export_svg($paths['svg_path'], $svg_data, $area['graph_w'], $area['graph_h']);
 
 		if ($pdf) {
+			$this->export_pdf($paths, $svg_data, $area['graph_w'], $area['graph_h']);
 			return $paths;
 		}
 
@@ -302,11 +302,10 @@ class Graphing extends Template {
 		//datapoints
 		$svg_data .= $this->generate_datapoints("area", $results, $area);
 
-		$this->export_pdf($paths, $svg_data, $area['graph_w'], $area['graph_h']);
-
 		$this->export_svg($paths['svg_path'], $svg_data, $area['graph_w'], $area['graph_h']);
 
 		if ($pdf) {
+			$this->export_pdf($paths, $svg_data, $area['graph_w'], $area['graph_h']);
 			return $paths;
 		}
 
@@ -363,11 +362,10 @@ class Graphing extends Template {
 		//datapoints
 		$svg_data .= $this->generate_datapoints("bar", $results, $area);
 
-		$this->export_pdf($paths, $svg_data, $area['graph_w'], $area['graph_h']);
-
 		$this->export_svg($paths['svg_path'], $svg_data, $area['graph_w'], $area['graph_h']);
 
 		if ($pdf) {
+			$this->export_pdf($paths, $svg_data, $area['graph_w'], $area['graph_h']);
 			return $paths;
 		}
 
@@ -531,18 +529,15 @@ class Graphing extends Template {
 		$path_base = $this->sw_path.$this->tmp_path;
 		$url_base = $this->web_path.$this->tmp_path;
 
-		$graph_document_id = $this->dobj->nextval("graph_documents");
+		$svg_path = $path_base."graph_$saved_report_id.svg";
+		$svg_url = $url_base."graph_$saved_report_id.svg";
 
-		$svg_path = $path_base."graph_$graph_document_id.svg";
-		$svg_url = $url_base."graph_$graph_document_id.svg";
+		$pdf_tmp_path = $path_base."graph_".$saved_report_id."_tmp.svg";
 
-		$pdf_tmp_path = $path_base."graph_".$graph_document_id."_tmp.svg";
-
-		$pdf_path = $path_base."graph_$graph_document_id.pdf";
-		$pdf_url = $url_base."graph_$graph_document_id.pdf";
+		$pdf_path = $path_base."graph_$saved_report_id.pdf";
+		$pdf_url = $url_base."graph_$saved_report_id.pdf";
 
 		$insert = array(
-			"graph_document_id" => $graph_document_id,
 			"saved_report_id" => $saved_report_id,
 			"created" => "now()",
 			"svg_path" => $svg_path,
@@ -554,7 +549,6 @@ class Graphing extends Template {
 		$this->dobj->db_query($this->dobj->insert($insert, "graph_documents"));
 
 		return array(
-			"graph_document_id" => $graph_document_id,
 			"saved_report_id" => $saved_report_id,
 			"svg_path" => $svg_path,
 			"svg_url" => $svg_url,

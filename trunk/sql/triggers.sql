@@ -128,42 +128,6 @@ CREATE TRIGGER squid_constraints_update AFTER UPDATE ON tabular_templates_manual
   FOR EACH ROW EXECUTE PROCEDURE squid_constraints_update();
 
 
---If a new graph is generated for an existing saved report, overwrite the old graph
-CREATE OR REPLACE FUNCTION graph_documents_insert_duplicate() RETURNS trigger AS $$
-  BEGIN
-    DELETE FROM graph_documents WHERE saved_report_id=NEW.saved_report_id AND graph_document_id!=NEW.graph_document_id;
-    RETURN null;
-  END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER graph_documents_insert_duplicate AFTER INSERT ON graph_documents
-  FOR EACH ROW EXECUTE PROCEDURE graph_documents_insert_duplicate();
-
-
---If a new table is generated for an existing saved report, overwrite the old table
-CREATE OR REPLACE FUNCTION table_documents_insert_duplicate() RETURNS trigger AS $$
-  BEGIN
-    DELETE FROM table_documents WHERE saved_report_id=NEW.saved_report_id AND table_document_id!=NEW.table_document_id;
-    RETURN null;
-  END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER table_documents_insert_duplicate AFTER INSERT ON table_documents
-  FOR EACH ROW EXECUTE PROCEDURE table_documents_insert_duplicate();
-
-
---If a new csv data file is generated for an existing saved report, overwrite the old csv data file
-CREATE OR REPLACE FUNCTION csv_documents_insert_duplicate() RETURNS trigger AS $$
-  BEGIN
-    DELETE FROM csv_documents WHERE saved_report_id=NEW.saved_report_id AND csv_document_id!=NEW.csv_document_id;
-    RETURN null;
-  END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER csv_documents_insert_duplicate AFTER INSERT ON csv_documents
-  FOR EACH ROW EXECUTE PROCEDURE csv_documents_insert_duplicate();
-
-
 --When a new report is created, grant the owner and the admin user and group access
 CREATE OR REPLACE FUNCTION template_create_acl() RETURNS trigger AS $$
   DECLARE

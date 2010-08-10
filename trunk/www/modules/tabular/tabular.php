@@ -127,7 +127,7 @@ class Tabular extends Template {
 	function hook_permission_check($data) {
 	function hook_query($template, $constraints, $constraint_logic=null, $demo=false, $axis_limits=null) {
 	function hook_recipients($template_id, $template_recipients=null) {
-	function hook_run($demo=false, $data_only=false, $draft=true, $template_id=null) {
+	function hook_run($demo=false, $data_only=false, $template_id=null) {
 	function view_add_axis() {
 	function view_add_axis($type, $columns) {
 	function view_add_intersection() {
@@ -137,8 +137,6 @@ class Tabular extends Template {
 	function view_constraintlogicsubmit() {
 	function view_constraints() {
 	function view_constraints($blah) {
-	function view_display_table() {
-	function view_display_table($tables, $template) {
 	function view_editconstraint() {
 	function view_editconstraint($blah) {
 	function view_editconstraintsubmit() {
@@ -171,6 +169,10 @@ class Tabular extends Template {
 	 */
 	function hook_menu() {
 		//Steps: what steps have been competed, and what step are we at
+		$steps = array();
+		if ($this->action == "history") {
+			return $steps;;
+		}
 		$tabular_templates_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT tt.*, tta.tabular_templates_auto_id, ttt.tabular_templates_trend_id, tts.tabular_templates_single_id, ttm.tabular_templates_manual_id FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_trend ttt ON (ttt.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_single tts ON (tts.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_manual ttm ON (ttm.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND ((tt.axis_type = 'auto' AND tta.tabular_templates_auto_id IS NOT NULL) OR (tt.axis_type = 'trend' AND ttt.tabular_templates_trend_id IS NOT NULL) OR (tt.axis_type = 'single' AND tts.tabular_templates_single_id IS NOT NULL) OR (tt.axis_type = 'manual' AND ttm.tabular_templates_manual_id IS NOT NULL));"));
 		
 		if (!empty($tabular_templates_query)) {
@@ -179,7 +181,6 @@ class Tabular extends Template {
 			}
 		}
 		
-		$steps = array();
 		//put all step data in a usable array
 		$steps[0][3] = "";
 		if (empty($tabular_templates['c'])) {
@@ -313,15 +314,8 @@ class Tabular extends Template {
 					case "autosource":
 					case "trendsource":
 						if ((int)$this->id) {
-							$this->current = $this->get_template($this->id);
-							$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
-
-							$blah = array();
-							foreach ($tables['catalogue'] as $i => $column) {
-								foreach ($column as $j => $cell) {
-									$blah[$cell['column_id']] = $cell;
-								}
-							}
+							$blah = $this->getSourceOptions(true);
+							$blah = $blah['options'];
 
 							if ($this->subid == "autosource") {
 								$tabular_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='".$this->subvar."' LIMIT 1;"));
@@ -378,24 +372,7 @@ class Tabular extends Template {
 						break;
 					case "source":
 						if ((int)$this->id) {
-							$this->current = $this->get_template($this->id);
-							$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
-
-							$blah = array();
-							foreach ($tables['catalogue'] as $i => $column) {
-								foreach ($column as $j => $cell) {
-									$blah['options'][$cell['column_id']] = $cell;
-
-									switch ($cell['data_type']) {
-										default:
-											break;
-										case "text":
-											$blah['option_warnings'][$cell['column_id']] = "Warning: The data type of the selected Source Column is ".ucwords($cell['data_type']).". This may cause unexpected results when calculating the Sum, Minimum, Maximum or Average values.";
-											break;
-									}
-								}
-							}
-							
+							$blah = $this->getSourceOptions(true);
 							$tabular_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM tabular_templates tt INNER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND tt.type='c' LIMIT 1;"));
 							
 							if (!empty($tabular_templates_query)) {
@@ -706,13 +683,11 @@ class Tabular extends Template {
 		$template = $this->get_columns($template_id);
 		$constraints = $this->get_constraints($template_id);
 		$constraint_logic = $this->get_constraint_logic($template_id);
-		$draft = 'f';
 		$demo = false;
 		$start = time();
 		
 		switch ($type) {
 		case "cellwise":
-			$draft = 't';
 			$demo = true;
 			$saved_report_id = $this->subvar;
 			$report = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM saved_reports r WHERE r.saved_report_id='$saved_report_id' LIMIT 1;"));
@@ -815,11 +790,11 @@ class Tabular extends Template {
 			break;
 		}
 		$end = time();
-		$saved_report_id = $this->save_results($template_id, $data, $draft, ($demo ? "t" : "f"), ($end-$start), 1);
-		
+		$saved_report_id = $this->save_results($template_id, $data, ($demo ? "t" : "f"), ($end-$start), 1);
+		//$table_document = $this->save_document($data, $template, $saved_report_id, $demo);
 		return $saved_report_id;
 	}
-	
+		
 	/**
 	 * Called by Tabular::execute. Given a template, generate the queries to get all the data for the report.
 	 *
@@ -1182,22 +1157,22 @@ class Tabular extends Template {
 	 */
 	function hook_output($results) {
 		$template = $results[1];
+		if ($template == null) {
+			$template = $this->id;
+		}
+		if (!is_array($template)) {
+			$template = $this->get_columns($template);
+		}
 		$demo = $results[2];
 		$now = $results[3];
 		$pdf = $results[4];
-
+		
 		$results = $results[0];
-
-		$output = Tabular_View::hook_output($results, $template, $demo, $now, $pdf);
-		return $output;
-	}
-
-	function view_display_table() {
-		/* Get all the tables and create the wrapped columns */
-		$template = $this->get_columns($this->id);
-		$object = $this->dobj->db_fetch($this->dobj->db_query("SELECT object_id FROM templates WHERE template_id='".$this->id."'"));
-		$tables = $this->call_function("catalogue", "get_structure", array($object['object_id'], $constraints));
-		$output = Tabular_View::view_display_table($tables, $template);
+		if (!is_array($results)) {
+			$results = $this->get_saved_report($template[0]['template_id'], $results);
+		}
+		
+		$output = Tabular_View::hook_output(json_decode($results['report'], true), $template, $demo, $now, $pdf);
 		return $output;
 	}
 
@@ -1229,7 +1204,7 @@ class Tabular extends Template {
 	 * Deprecated function: replaced by Tabular::execute()... I think
 	 *
 	 */
-	function hook_run($demo=false, $data_only=false, $draft=true, $template_id=null) {
+	function hook_run($demo=false, $data_only=false, $template_id=null) {
 		if (!empty($template_id)) {
 			$this->id = $template_id;
 		}
@@ -1262,9 +1237,9 @@ class Tabular extends Template {
 			/* Only update the run statistics if this is a complete run, not a preview run */
 			$update_query = "UPDATE templates SET last_run=now(), last_time='".($end-$start)."', last_by=1, last_size=".count($data)." WHERE template_id=".$this->id."";
 			$update = $this->dobj->db_query($update_query);
-			$saved_report_id = $this->save_results($this->id, $data, ($draft ? "t" : "f"), 'f', ($end-$start), 1);
+			$saved_report_id = $this->save_results($this->id, $data, 'f', ($end-$start), 1);
 		} else {
-			$saved_report_id = $this->save_results($this->id, $data, ($draft ? "t" : "f"), 't', ($end-$start), 1);
+			$saved_report_id = $this->save_results($this->id, $data, 't', ($end-$start), 1);
 		}
 
 		if ($data_only) {
@@ -1575,7 +1550,7 @@ WHERE
 
 		if (empty($template_id)) die;
 
-		$saved_reports = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND demo=false AND draft=false ORDER BY created DESC;"));
+		$saved_reports = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND demo=false ORDER BY created DESC;"));
 
 		$processing_report = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='$template_id' AND (execution_queued=true OR execution_executing=true);"));
 
@@ -1598,7 +1573,7 @@ WHERE
 		if (empty($saved_report_id)) die;
 
 		//check that the saved report id matches the template_id
-		$saved_report_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND saved_report_id='$saved_report_id' AND demo=false AND draft=false;"));
+		$saved_report_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND saved_report_id='$saved_report_id' AND demo=false;"));
 
 		if (empty($saved_report_query)) die;
 
@@ -1703,7 +1678,7 @@ WHERE
 			$template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='$template_id' AND (execution_queued=true OR execution_executing=true);"));
 
 			if (empty($template_query)) {
-				$report_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND demo=false AND draft=false ORDER BY created DESC LIMIT 1;"));
+				$report_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND demo=false ORDER BY created DESC LIMIT 1;"));
 			}
 		}
 
@@ -1948,36 +1923,6 @@ class Tabular_View extends Template_View {
 	}
 
 	function view_add_intersection($columns) {
-	}
-
-	function view_display_table($tables, $template) {
-		$output->layout = 'ajax';
-		$output->data .= "<div dojoType='dojo.data.ItemFileReadStore' url='".$this->webroot()."tabular/tables_json/".$this->id."' jsId='template'></div>";
-		#$output->data = "<div style='display:none;' id='holding_cellA'>";
-		#foreach ($tables['catalogue'] as $i => $columns) {
-		#	foreach ($columns as $i => $column) {
-		#		$output->data .= "".$this->wrap_table_column($column['column_id'], $column['column_name'])."";
-		#	}
-		#}
-		#$output->data .= "</div>";
-		$output->data .= "<table id='demo' style='width: 150px;'>
-		<thead>
-		<tr>
-		";
-		#if (is_array($template)) {
-		#	foreach ($template as $i => $temp) {
-		#		$output->data .= "<th class='columns' dojoType='dojo.dnd.Target' id='th_".$i."' ><li class='dojoDndItem'>".$this->wrap_table_column($temp['column_id'], $temp['chuman'], $temp)."</li></th>";
-		#	}
-		#}
-		$output->data .= "<th class='columns' dojoType='dojo.dnd.Source' id='th_".($i+1)."' ></th>
-		</tr>
-		</thead>
-		<tbody id='demo_body' >
-		</tbody>
-		</table>
-		<script>create_cells();save_template();</script>";
-		$output->data .= $this->f_close();
-		return $output;
 	}
 
 	function view_save($data, $template) {

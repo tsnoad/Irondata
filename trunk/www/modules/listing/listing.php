@@ -137,6 +137,11 @@ class Listing extends Template {
 	 * @see inc/Modules::hook_menu()
 	 */
 	function hook_menu() {
+		$steps = array();
+		if ($this->action == "history") {
+			return $steps;;
+		}
+		
 		//Steps: what steps have been competed, and what step are we at
 		$valid = false;
 		$listing_templates_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT count(*) as count FROM list_templates WHERE template_id='".$this->id."';"));
@@ -344,7 +349,6 @@ class Listing extends Template {
 	 * @return The display object
 	 */
 	function execute_demo_outline($template_id) {
-		return $this->execute($template_id, "normal");
 		return $this->execute($template_id, "axis");
 	}
 	
@@ -354,7 +358,6 @@ class Listing extends Template {
 	 * @param int $template_id The template id
 	 */
 	function execute_demo_cellwise($template_id) {
-		return $this->execute($template_id, "normal");
 		return $this->execute($template_id, "cellwise");
 	}
 	
@@ -369,107 +372,15 @@ class Listing extends Template {
 		$template = $this->get_columns($template_id);
 		$constraints = $this->get_constraints($template_id);
 		$constraint_logic = $this->get_constraint_logic($template_id);
-		$draft = 'f';
 		$demo = false;
 		$start = time();
 		
 		switch ($type) {
 		case "cellwise":
-			$draft = 't';
-			$demo = true;
-			$saved_report_id = $this->subvar;
-			$report = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM saved_reports r WHERE r.saved_report_id='$saved_report_id' LIMIT 1;"));
-			$data = json_decode($report['report'], true);
-			
-			// This has been run cellwise at least once
-			if (!empty($data['c'])) {
-				foreach ($data['c'] as $c_key => $c_tmp) {
-					$x_tmp = $c_tmp['x'];
-					$y_tmp = $c_tmp['y'];
-					$saved_report_translate[$x_tmp][$y_tmp] = $c_key;
-				}
-			}
-			
-			foreach ($data['y'] as $y_tmp) {
-				foreach ($data['x'] as $x_tmp) {
-					if (isset($saved_report_translate[$x_tmp['x']][$y_tmp['y']])) {
-						$c_key = $saved_report_translate[$x_tmp['x']][$y_tmp['y']];
-					} else {
-						$c_key = null;
-					}
-					if (!empty($data['c'][$c_key])) {
-						continue;
-					}
-					$x_limit = $x_tmp['x'];
-					$y_limit = $y_tmp['y'];
-					break 2;
-				}
-			}
-			
-			//if we've run out of cells to update, stop here. view_data_preview_slow_ajax will detect that we havn't sent back a saved_report_id, and stop sending ajax requests
-			if (empty($x_limit)) {
-				return null;
-			}
-			
-			if (!empty($data['c'])) {
-				// If this is a fast report, change to a quick demo
-				if ($report['run_time'] == 0) {
-					return $this->execute($template_id, "demo");
-					// This should go no further
-				}
-			}
-			
-			$query = $this->hook_query($template, $constraints, $constraint_logic, $demo, array("x"=>array($x_limit), "y"=>array($y_limit)));
-			$data_tmp = parent::hook_run_query($template[0]['object_id'], $query);
-			
-			if (empty($data_tmp['c'][0])) {
-				$data_tmp['c'][0] = array("c"=>"-", "x"=>$x_limit, "y"=>$y_limit);
-			}
-			$data['c'][] = array(
-				"c"=>$data_tmp['c'][0]['c'],
-				"x"=>$data_tmp['c'][0]['x'],
-				"y"=>$data_tmp['c'][0]['y']
-				);
-			break;
+			return;
 		case "axis":
-			$demo = true;
-			/* Generate the query to run */
-			$query = $this->hook_query($template, $constraints, $constraint_logic, $demo);
-			unset($query['c']);
-			$data = parent::hook_run_query($template[0]['object_id'], $query);
-			break;
 		case "demo":
 			$demo = true;
-			/* Generate the query to run */
-			$query = $this->hook_query($template, $constraints, $constraint_logic, $demo);
-			unset($query['c']);
-			$data_tmp = parent::hook_run_query($template[0]['object_id'], $query);
-			foreach ($data_tmp['x'] as $x_tmp) {
-				$x_limit[] = $x_tmp['x'];
-			}
-			foreach ($data_tmp['y'] as $y_tmp) {
-				$y_limit[] = $y_tmp['y'];
-			}
-			$query = $this->hook_query($template, $constraints, $constraint_logic, $demo, array("x"=>$x_limit, "y"=>$y_limit));
-			unset($query['x']);
-			unset($query['y']);
-			$data = parent::hook_run_query($template[0]['object_id'], $query);
-			$data = array_merge((array)$data, (array)$data_tmp);
-			
-			foreach ($data['y'] as $y_tmp) {
-				foreach ($data['x'] as $x_tmp) {
-					$found = false;
-					foreach ($data['c'] as $c_tmp) {
-						if ($c_tmp['x'] == $x_tmp['x'] && $c_tmp['y'] == $y_tmp['y']) {
-							$found = true;
-						}
-					}
-					if ($found == false) {
-						$data['c'][] = array("x"=>$x_tmp['x'], "y"=>$y_tmp['y'], "c" => "-");
-					}
-				}
-			}
-			break;
 		default:
 			/* Generate the query to run */
 			$query = $this->hook_query($template, $constraints, $constraint_logic, $demo);
@@ -478,7 +389,7 @@ class Listing extends Template {
 			break;
 		}
 		$end = time();
-		$saved_report_id = $this->save_results($template_id, $data, $draft, ($demo ? "t" : "f"), ($end-$start), 1);
+		$saved_report_id = $this->save_results($template_id, $data, ($demo ? "t" : "f"), ($end-$start), 1);
 		
 		return $saved_report_id;
 	}
@@ -509,28 +420,6 @@ class Listing extends Template {
 			$post['table_join_id'] = null;
 		}
 		
-		/* TODO: What does column index do?
-		foreach ($template as $column) {
-			if ($column['index'] != "t") continue;
-			$alias_tmp = "ac";
-			
-			$col = $alias_tmp.".".$column['column']."";
-			$group[] = $alias_tmp.".".$column['column'];
-			$sort[] = $alias_tmp.".".$column['column']." ".$column['sort'];
-			$cols[$column['label']] = $col;
-			$tables[$column['table']] = $column['table_id'];
-			
-			$join_tables['c'] = array(
-				"table"=>$column['table'],
-				"table_id"=>$column['table_id'],
-				"alias"=>"ac"
-				);
-			
-			$aliai[$column['table_id']] = $alias_tmp;
-			break;
-		}
-		*/
-		
 		/* SELECT Clause */
 		foreach ($template as $i => $post) {
 			//if ($post['index'] == "t") continue;
@@ -552,7 +441,7 @@ class Listing extends Template {
 			$col = "";
 			/* This is added to a. ensure all columns are unique and b. aggregates sort properly */
 			if (!$post['label']) {
-				$post['label'] = $alias_tmp.".".$post['column'];
+				$post['label'] = $post['thuman'].".".$post['chuman'];
 			}
 			if ($post['aggregate'] && $post['aggregate'] != "none") {
 				$use_group = true;
@@ -628,13 +517,22 @@ class Listing extends Template {
 	 */
 	function hook_output($results) {
 		$template = $results[1];
+		if ($template == null) {
+			$template = $this->id;
+		}
+		if (!is_array($template)) {
+			$template = $this->get_columns($template);
+		}
 		$demo = $results[2];
 		$now = $results[3];
 		$pdf = $results[4];
-
+		
 		$results = $results[0];
-
-		$output = Listing_View::hook_output($results, $template, $demo, $now, $pdf);
+		if (!is_array($results)) {
+			$results = $this->get_saved_report($template[0]['template_id'], $results);
+		}
+		
+		$output = Listing_View::hook_output(json_decode($results['report'], true), $template, $demo, $now, $pdf);
 		return $output;
 	}
 	
@@ -651,7 +549,8 @@ class Listing extends Template {
 		$column_query = null;
 		$table_join_ajax = null;
 		$list_template_id = $this->subid;
-
+		$blah = $this->getSourceOptions(false);
+		
 		if ($list_template_id == "new") {
 			$blah['data']['index'] = false;
 			$blah['data']['duplicates'] = false;
@@ -687,17 +586,7 @@ class Listing extends Template {
 			$table_join_ajax = $table_join_ajax->data;
 			unset($_REQUEST['data']['column_id']);
 		}
-
-		$this->current = $this->get_template($this->id);
-		$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
-
-		foreach ($tables['catalogue'] as $i => $column) {
-			foreach ($column as $j => $cell) {
-				$column_id = $cell['column_id'];
-				$blah['options']['column_id'][$column_id] = $cell['table_name'].".".$cell['column_name'];
-			}
-		}
-
+		
 		// TODO: What is this for?
 		if ($this->subid == "new" && isset($column_query['list_template_id'])) {
 			$_REQUEST['data']['column_id'] = reset(array_keys($blah['options']['column_id']));
@@ -793,7 +682,7 @@ class Listing_View extends Template_View {
 	 * @param array $blah The parameters that describe how to display the form elements
 	 * @return The HTML string output
 	 */
-		function view_add_editcolumn($blah=null) {
+	function view_add_editcolumn($blah=null) {
 		$output->title = "Add/Edit Column";
 		$output->title_desc = "";
 		$output->data = "";
@@ -812,7 +701,7 @@ class Listing_View extends Template_View {
 				break;
 		}
 		
-		$output->data .= $this->i("data[column_id]", array("id"=>"data[column_id]", "label"=>"Column", "type"=>"select", "default"=>$blah['data']['column_id'], "options"=>$blah['options']['column_id'], "onchange"=>"update_join_display(this);", "dojoType"=>"dijit.form.FilteringSelect"));
+		$output->data .= $this->source_column_i("data[column_id]", $blah['options'], $blah['data']['column_id'], "update_join_display(this);");
 		$output->data .= $this->i("data[label]", array("id"=>"data[label]", "label"=>"Column Label", "type"=>"text", "default"=>$blah['data']['label'], "dojoType"=>"dijit.form.TextBox"));
 		$output->data .= $this->i("data[display_label]", array("id"=>"data[display_label]", "label"=>"Show the Column Label", "type"=>"checkbox", "default"=>$blah['data']['display_label'], "dojoType"=>"dijit.form.CheckBox"));
 		$output->data .= $this->i("data[duplicates]", array("id"=>"data[duplicates]", "label"=>"Allow Duplicates", "type"=>"checkbox", "default"=>$blah['data']['duplicates'], "dojoType"=>"dijit.form.CheckBox"));
@@ -855,7 +744,7 @@ class Listing_View extends Template_View {
 		foreach ($template as $i => $tpl) {
 			$row_cols++;
 			if (!$tpl['label']) {
-				$tpl['label'] = $tpl['table'].".".$tpl['column'];
+				$tpl['label'] = $tpl['thuman'].".".$tpl['chuman'];
 			}
 			$col[$tpl['label']] = $tpl['duplicates'];
 			$col_st[$tpl['label']] = $tpl['subtotal'];
@@ -874,27 +763,27 @@ class Listing_View extends Template_View {
 			$col_dl[$tpl['label']] = $tpl['display_label'];
 			$col_style[$tpl['label']] = $tpl['style'];
 		}
-		$output->data = "";
+		$output->data = "<div class='tabular_data'>";
 
 		$output->data .= "<table class='results'>";
 		$n = $num_cols;
 		/* Create the header */
 		if (is_array($results)) {
-			$header = "<tr>";
+			$header = "<tr class='x-index'>";
 			$curlevel = false;
 			$multi = false;
 			foreach ($results[0] as $i => $cell) {
 				/* The results are broken into multiple lines here */
 				if ($curlevel !== false && $col_lv[$i] != $curlevel) {
 					if (trim($header, "<trh/>") == "") {
-						$header = "<tr>";
+						$header = "<tr class='x-index'>";
 					} else {
 						$multi = true;
 						$td = strrpos($header, "<th");
 						$header = substr_replace($header, "<th colspan='".$n."'", $td, 3);
 						$header .= "</tr>";
 						$output->data .= $header;
-						$header = "<tr>";
+						$header = "<tr class='x-index'>";
 					}
 				}
 				$curlevel = $col_lv[$i];
@@ -926,6 +815,9 @@ class Listing_View extends Template_View {
 				$prow_go = false;
 				$level = false;
 				foreach ($row as $j => $cell) {
+					if (!isset($subtotal[$j])) {
+						$subtotal[$j] = 0;
+					}
 					$output_cell = "";
 					/* The results are broken into multiple lines here */
 					if ($level !== false && $col_lv[$j] != $level) {
@@ -950,9 +842,9 @@ class Listing_View extends Template_View {
 					} else {
 						$output->data .= "<td class='".$col_style[$j]."' >".$cell."</td>";
 					}
-					if ($cell == $prev[$j] || !$prev[$j]) {
+					if (!isset($prev[$j]) || $cell == $prev[$j]) {
 						$prow .= "<td></td>";
-					} elseif ($col_st[$j] == 't') {
+					} elseif (isset($col_st[$j]) && $col_st[$j] == 't') {
 						$prow_go = true;
 						$prow .= "<td><span class='subtotal'>".$subtotal[$j]."</span></td>";
 						$subtotal[$j] = 0;
@@ -974,7 +866,8 @@ class Listing_View extends Template_View {
 				$output->data .= "<tr>".$prow."</tr>";
 			}
 		}
-		$output->data .= "</table>";
+		$output->data .= "</table>
+		</div>";
 
 		if ($show_header_footer) {
 			/* Setup the header and footer */

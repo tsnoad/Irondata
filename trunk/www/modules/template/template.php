@@ -745,6 +745,32 @@ class Template extends Modules {
 		return array($blah, $table_join_ajax);
 	}
 	
+	function getSourceOptions($warnings = false) {
+		if (!isset($this->current) || empty($this->current)) {
+			$this->current = $this->get_template($this->id);
+		}
+		$tables = $this->call_function("catalogue", "get_structure", array($this->current['object_id']));
+		
+		$blah = array();
+		foreach ($tables['catalogue'] as $i => $column) {
+			foreach ($column as $j => $cell) {
+				$blah['options'][$cell['column_id']] = $cell;
+				if ($warnings) {
+					switch ($cell['data_type']) {
+						default:
+							break;
+						case "text":
+							$blah['option_warnings'][$cell['column_id']] = "Warning: The data type of the selected Source Column is ".ucwords($cell['data_type']).". This may cause unexpected results when calculating the Sum, Minimum, Maximum or Average values.";
+							break;
+					}
+				} else {
+					$blah['option_warnings'] = null;
+				}
+			}
+		}
+		return $blah;
+	}
+	
 	/**
 	 * Called as the action on forms on almost every page when creating a report.
 	 * Takes aguments about which page from the url in the id, subvar, subid, etc variables
@@ -922,7 +948,7 @@ class Template extends Modules {
 	 * @param int $template_id The template id to extract the constraints for
 	 */
 	function get_constraints($template_id) {
-		$query = "SELECT l.*, t.template_id, t.name, t.draft, t.module, t.object_id, c.column_id, tb.table_id, c.human_name as chuman, tb.human_name as thuman, c.name as column, tb.name as table FROM template_constraints l, templates t, columns c, tables tb WHERE tb.table_id=c.table_id AND c.column_id=l.column_id AND t.template_id=l.template_id AND t.template_id=".$template_id.";";
+		$query = "SELECT l.*, t.template_id, t.name, t.module, t.object_id, c.column_id, tb.table_id, c.human_name as chuman, tb.human_name as thuman, c.name as column, tb.name as table FROM template_constraints l, templates t, columns c, tables tb WHERE tb.table_id=c.table_id AND c.column_id=l.column_id AND t.template_id=l.template_id AND t.template_id=".$template_id.";";
 		$data = $this->dobj->db_fetch_all($this->dobj->db_query($query));
 		return $data;
 	}
@@ -1134,16 +1160,15 @@ class Template extends Modules {
 			$data_preview .= '<div id="saved_report_id" style="display: none;">'.$saved_report_id.'</div>';
 			$data_preview .= '<div id="data_preview">';
 			
-			if ($template['publish_table'] == "t") {
-				$data_preview .= "<h3>Tabular Data</h3>";
-				$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, true, true));
-				$data_preview .= $table['pdf']['object'];
-			}
+			$data_preview .= "<h3>Tabular Data</h3>";
+			$data_preview .= $this->hook_output(array($saved_report_id, $this->id, true, null, false))->data;
 			
 			if ($template['publish_graph'] == "t") {
 				$data_preview .= "<h3>Graphic Data</h3>";
+				$data_preview .= "<div style='height: 690px;'>";
 				$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], true, false));
 				$data_preview .= $graph['graphing']['object'];
+				$data_preview .= "</div>";
 			}
 			$data_preview .= '</div>';
 		}
@@ -1166,11 +1191,8 @@ class Template extends Modules {
 				return Template_View::view_data_preview_ajax("finished");
 			}
 			
-			if ($template['publish_table'] == "t") {
-				$data_preview .= "<h3>Tabular Data</h3>";
-				$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, true, true));
-				$data_preview .= $table['pdf']['object'];
-			}
+			$data_preview .= "<h3>Tabular Data</h3>";
+			$data_preview .= $this->hook_output(array($saved_report_id, $this->id, true, null, false))->data;
 			
 			if ($template['publish_graph'] == "t") {
 				$data_preview .= "<h3>Graphic Data</h3>";
@@ -1183,6 +1205,38 @@ class Template extends Modules {
 		}
 		$output = Template_View::view_data_preview_ajax($data_preview);
 		return $output;
+	}
+	
+	/**
+	 * Convert and save the results as a HTML page
+	 *
+	 * @param $data The report data
+	 * @param $template The complete template information
+	 * @param $saved_report_id The id of the saved data
+	 * @return The HTML output
+	 */
+	function save_document($data, $template, $saved_report_id, $demo) {
+		$html = true;
+		
+		$path_base = $this->sw_path.$this->tmp_path;
+		$url_base = $this->web_path.$this->tmp_path;
+		
+		$html_path = $path_base."table_$saved_report_id.html";
+		$html_url = $url_base."table_$saved_report_id.html";
+		$insert = array(
+			"saved_report_id" => $saved_report_id,
+			"created" => "now()",
+			"html_path" => $html_path,
+			"html_url" => $html_url,
+		);
+		
+		$this->dobj->db_query($this->dobj->insert($insert, "table_documents"));
+		$output = $this->hook_output(array($data, $template, null, null, false));
+		$table_html = $output->data;
+		
+		file_put_contents($html_path, $table_html);
+		
+		return $table_html;
 	}
 	
 	
@@ -1284,28 +1338,27 @@ class Template extends Modules {
 	}
 		
 	function get_reports() {
-		$query = "SELECT t.*, (SELECT count(*) from saved_reports r WHERE t.template_id=r.template_id AND r.draft='f') as saved FROM templates t ORDER BY name;";
+		$query = "SELECT t.*, (SELECT count(*) from saved_reports r WHERE t.template_id=r.template_id) as saved FROM templates t ORDER BY name;";
 		return $this->dobj->db_fetch_all($this->dobj->db_query($query));
 	}
 		
 	function get_report() {
-		$query = "SELECT t.*, (SELECT count(*) from saved_reports r WHERE t.template_id=r.template_id AND r.draft='f') as saved FROM templates t WHERE template_id='".$this->id."';";
+		$query = "SELECT t.*, (SELECT count(*) from saved_reports r WHERE t.template_id=r.template_id) as saved FROM templates t WHERE template_id='".$this->id."';";
 		return $this->dobj->db_fetch($this->dobj->db_query($query));
 	}
 	
-	function save_results($template_id, $data, $draft='t', $demo='f', $runtime=0, $runby=0) {
+	function save_results($template_id, $data, $demo='f', $runtime=0, $runby=0) {
 		$now = date("Y-m-d H:i:s");
 		$saved_report_id = $this->dobj->nextval("saved_reports");
-		if (strtolower($draft) == "t") {
-			$query = $this->dobj->db_query("DELETE FROM saved_reports WHERE template_id='$template_id' AND draft='t' AND demo='".$demo."'");
+		$data = json_encode($data);
+		if (strtolower($demo) == "t") {
+			$query = $this->dobj->db_query("DELETE FROM saved_reports WHERE template_id='$template_id' AND demo='t'");
 		}
-		$query = $this->dobj->db_query("INSERT INTO saved_reports (saved_report_id, template_id, report, draft, demo, created, run_time, run_by, run_size) VALUES ('$saved_report_id', '$template_id', $$".json_encode($data)."$$, '$draft', '$demo', '$now', '$runtime', '$runby', '".count($data)."')");
+		$query = $this->dobj->db_query("INSERT INTO saved_reports (saved_report_id, template_id, report, demo, created, run_time, run_by, run_size) VALUES ('$saved_report_id', '$template_id', $$".$data."$$, '$demo', '$now', '$runtime', '$runby', '".count($data)."')");
 		return $saved_report_id;
 	}
 	
 	function view_save_reports() {
-		$query = "UPDATE saved_reports SET draft='f' WHERE template_id='".$this->id."'";
-		$query = $this->dobj->db_query($query);
 		$output = Template_View::view_save_reports();
 		return $output;
 	}
@@ -1343,20 +1396,20 @@ class Template extends Modules {
 			$where_template_id = $where_saved_report_id;
 		}
 
-		if ($this->subvar == "preview") {
-			$query = "SELECT t.*, r.* FROM templates t, saved_reports r WHERE t.template_id=r.template_id AND $where_template_id AND r.demo='t' ORDER BY r.created LIMIT 1";
-		} else {
-			$query = "SELECT t.*, r.* FROM templates t, saved_reports r WHERE t.template_id=r.template_id AND $where_template_id AND r.demo='f' ORDER BY r.created LIMIT 1";
-// 			$query = "SELECT t.*, r.* FROM templates t, saved_reports r WHERE t.template_id=r.template_id AND r.template_id='".$template_id."' AND r.created='".$this->subvar."'";
-		}
-
+		//if ($this->subvar == "preview") {
+		//	$query = "SELECT t.*, r.* FROM templates t, saved_reports r WHERE t.template_id=r.template_id AND $where_template_id AND r.demo='t' ORDER BY r.created LIMIT 1";
+		//} else {
+		//	$query = "SELECT t.*, r.* FROM templates t, saved_reports r WHERE t.template_id=r.template_id AND $where_template_id AND r.demo='f' ORDER BY r.created LIMIT 1";
+		//}
+		$query = "SELECT t.*, r.* FROM templates t, saved_reports r WHERE t.template_id=r.template_id AND $where_template_id ORDER BY r.created DESC LIMIT 1";
+		
 		$res = $this->dobj->db_fetch($this->dobj->db_query($query));
 
 		return $res;
 	}
 
 	function view_saved_list() {
-		$query = "SELECT t.*, r.* FROM templates t, saved_reports r WHERE t.template_id=r.template_id AND r.template_id='".$this->id."' AND r.draft='f' ORDER BY r.created DESC";
+		$query = "SELECT t.*, r.* FROM templates t, saved_reports r WHERE t.template_id=r.template_id AND r.template_id='".$this->id."' ORDER BY r.created DESC";
 		$res = $this->dobj->db_fetch_all($this->dobj->db_query($query));
 		$output = Template_View::view_saved_list($res);
 		return $output;
@@ -1678,12 +1731,6 @@ class Template extends Modules {
 		$output = Template_View::view_dd_json($values);
 		return $output;
 	}
-
-	function view_add_details() {
-		$template = $this->get_template($this->id);
-		$output = Template_View::view_add_details($template);
-		return $output;
-	}
 	
 	/**
 	 * Can the current user see the given report. The user must have at least one
@@ -1711,15 +1758,17 @@ class Template extends Modules {
 	function view_home() {
 		$reports = $this->get_reports();
 		$my_reports = array();
-		foreach ($reports as $i => $report) {
-			$edit = isset($_SESSION['acls']['report'][$report['template_id']]['edit']);
-			$histories = isset($_SESSION['acls']['report'][$report['template_id']]['histories']);
-			$execute = isset($_SESSION['acls']['report'][$report['template_id']]['execute']);
-			if ($edit || $histories || $execute) {
-				$report['permission_edit'] = $edit;
-				$report['permission_histories'] = $histories;
-				$report['permission_execute'] = $execute;
-				$my_reports[] = $report;
+		if (is_array($reports)) {
+			foreach ($reports as $i => $report) {
+				$edit = isset($_SESSION['acls']['report'][$report['template_id']]['edit']);
+				$histories = isset($_SESSION['acls']['report'][$report['template_id']]['histories']);
+				$execute = isset($_SESSION['acls']['report'][$report['template_id']]['execute']);
+				if ($edit || $histories || $execute) {
+					$report['permission_edit'] = $edit;
+					$report['permission_histories'] = $histories;
+					$report['permission_execute'] = $execute;
+					$my_reports[] = $report;
+				}
 			}
 		}
 		return Template_View::view_workspace_display($my_reports);
@@ -2379,7 +2428,7 @@ class Template_View {
 
 		$output->data .= $this->l("template/add", "Create Report");
 
-		if (is_array($reports)) {
+		if (is_array($reports) && count($reports) > 0) {
 			$output->data .= "
 				<div class='reports'>
 					<table cellpadding='0' cellspacing='0'>
@@ -2425,7 +2474,6 @@ class Template_View {
 		$themeroot = $webroot.'themes/'.$theme.'/';
 		$output = "";
 
-		$draft = $report['draft']=='t' ? "draft" : "";
 		$run = $report['last_run'] ? date("Y-m-d H:i:s", strtotime($report['last_run'])) : 'never run';
 		$time = $report['last_run'] ? $report['last_time']." seconds" : 'never run';
 		$by = $report['last_by'] ? $report['last_by'] : 'never run';
@@ -2499,27 +2547,6 @@ class Template_View {
 	$output->data .= "]
 }
 		";
-		return $output;
-	}
-
-	function view_add_details($template) {
-		if (!$template['header']) {
-			$template['header'] = $this->default_header();
-		}
-		if (!$template['footer']) {
-			$template['footer'] = $this->default_footer();
-		}
-		$output->layout = 'ajax';
-		$output->title = "Report Details";
-		$output->data = "<p class='description'>When you finish a report you can change it from draft to production. You can also add a description and change the report name here.</p>\n";
-		$output->data .= "<div id='details template'>";
-		$output->data .= $this->i("data[name]", array("label"=>"Name", "default"=>$template['name'], "dojo"=>"dijit.form.TextBox",  "onChange"=>"ajax_load(\"".$this->webroot()."template/save_template/".$this->id."\", {\"data[name]\":this.value} );"));
-		$output->data .= $this->i("data[description]", array("label"=>"Description", "default"=>$template['description'], "dojo"=>"dijit.form.Textarea",  "onChange"=>"ajax_load(\"".$this->webroot()."template/save_template/".$this->id."\", {\"data[description]\":this.value} );"));
-		$output->data .= $this->i("data[draft]", array("label"=>"Draft", "default"=>$template['draft'], 'type'=>'checkbox',  "dojo"=>"dijit.form.CheckBox",  "onClick"=>"ajax_load(\"".$this->webroot()."template/save_template/".$this->id."\", {\"data[draft]\":this.getValue()} );"));
-		$output->data .= $this->i("data[header]", array("type"=>"wysiwyg", "label"=>"Report Header", "default"=>$template['header'], "dojo"=>"dijit.Editor",  "onChange"=>"ajax_load(\"".$this->webroot()."template/save_template/".$this->id."\", {\"data[header]\":this.getValue()} );"));
-		$output->data .= $this->i("data[footer]", array("type"=>"wysiwyg", "label"=>"Report Footer", "default"=>$template['footer'], "dojo"=>"dijit.Editor",  "onChange"=>"ajax_load(\"".$this->webroot()."template/save_template/".$this->id."\", {\"data[footer]\":this.getValue()} );"));
-		$output->data .= "<p class='description'>The following placeholders can be used to dynamically update the header and footer at runtime. %logo, %name, %desc, %run, %by, %size</p>";
-		$output->data .= "</div>";
 		return $output;
 	}
 

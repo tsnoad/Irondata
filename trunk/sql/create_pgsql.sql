@@ -114,7 +114,6 @@ CREATE TABLE table_joins (
 CREATE TABLE templates (
 	template_id BIGSERIAL PRIMARY KEY,
 	name TEXT,
-	draft BOOL DEFAULT 't',
 	module TEXT,
 	type TEXT,
 	last_run TIMESTAMP,
@@ -156,7 +155,6 @@ CREATE TABLE saved_reports (
 	template_id BIGINT REFERENCES templates ON DELETE CASCADE ON UPDATE CASCADE,
 	report TEXT,
 	demo BOOL DEFAULT 'f',
-	draft BOOL DEFAULT 't',
 	created TIMESTAMP,
 	run_time BIGINT,
 	run_by BIGINT,
@@ -297,7 +295,6 @@ CREATE TABLE settings (
 );
 
 CREATE TABLE graph_documents (
-	graph_document_id BIGSERIAL PRIMARY KEY,
 	saved_report_id BIGINT REFERENCES saved_reports ON DELETE CASCADE ON UPDATE CASCADE,
 	created TIMESTAMP DEFAULT now(),
 	svg_path TEXT,
@@ -307,7 +304,6 @@ CREATE TABLE graph_documents (
 );
 
 CREATE TABLE table_documents (
-	table_document_id BIGSERIAL PRIMARY KEY,
 	saved_report_id BIGINT REFERENCES saved_reports ON DELETE CASCADE ON UPDATE CASCADE,
 	created TIMESTAMP DEFAULT now(),
 	html_path TEXT,
@@ -317,7 +313,6 @@ CREATE TABLE table_documents (
 );
 
 CREATE TABLE csv_documents (
-	csv_document_id BIGSERIAL PRIMARY KEY,
 	saved_report_id BIGINT REFERENCES saved_reports ON DELETE CASCADE ON UPDATE CASCADE,
 	created TIMESTAMP DEFAULT now(),
 	txt_path TEXT,

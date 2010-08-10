@@ -255,7 +255,6 @@ class Etl extends Listing {
 		#$template = $this->get_columns($this->id);
 		#$constraints = $this->get_constraints($this->id);
 		#$query = $this->hook_query($template, $constraints, true);
-		#$data = parent::hook_run_query($template[0]['object_id'], $query);
 		#$output = Etl_View::view_save($data, $template);
 		return $output;
 	}
