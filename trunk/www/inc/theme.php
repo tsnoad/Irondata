@@ -41,7 +41,10 @@ class Theme {
 	function webroot() {
 		$url = isset($_REQUEST['url']) ? $_REQUEST['url'] : "";
 		$count = strlen($url);
-		$webroot = substr(urldecode($_SERVER['REQUEST_URI']), 0, ($count*-1));
+		$webroot = null;
+		if (isset($_SERVER['REQUEST_URI'])) {
+			$webroot = substr(urldecode($_SERVER['REQUEST_URI']), 0, ($count*-1));
+		}
 
 		if (!empty($webroot)) {
 			//cull extra slashes from the url

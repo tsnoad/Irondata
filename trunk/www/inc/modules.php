@@ -119,14 +119,6 @@ class Modules extends Theme {
 	function hook_javascript($type=null) {
 		return null;
 	}
-	
-	/**
-	 * What does this function do?
-	 * TODO: Update this comment
-	 */
-	function hook_output() {
-		return null;
-	}
 
 	/**
 	 * Each module will check whether a user can access a given function

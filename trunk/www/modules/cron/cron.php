@@ -104,7 +104,7 @@ class Cron extends Template {
 
 		$this->dobj->db_query($this->dobj->update(array("execute_now"=>"f", "execution_queued"=>"f", "execution_executing"=>"t"), "template_id", $templates['template_id'], "templates"));
 
-		$this->call_function("tabular", "view_execute_scheduled", array($templates));
+		$this->call_function($templates['module'], "hook_execute_scheduled", array($templates));
 
 		$this->dobj->db_query($this->dobj->update(array("execute_now"=>"f", "execution_executing"=>"f"), "template_id", $templates['template_id'], "templates"));
 

@@ -87,7 +87,7 @@ class Catalogue extends Modules {
 	 * Sends the query from the report generator to the source database.
 	 */
 	function hook_query_source($object_id, $query) {
-		trigger_error($query);
+		//trigger_error($query);
 		$object = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM objects WHERE object_id='".$object_id."'; "));
 		include_once($this->dir.$object['type']."/".$object['type'].".php");
 		$obj = new $object['type']();

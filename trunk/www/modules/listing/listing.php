@@ -110,16 +110,6 @@ class Listing extends Template {
 				break;
 		}
 		return false;
-/*
-	function execute_demo($template_id) {
-	function execute_manually($template_id) {
-	function execute_scheduled($template_id) {
-	function execute($template_id, $demo) {
-	function get_constraints($template_id) {
-	function hook_query($template, $constraints, $demo=false) {
-	function sortByColumn($results) {
-
-*/
 	}
 	
 	/**
@@ -138,7 +128,7 @@ class Listing extends Template {
 	 */
 	function hook_menu() {
 		$steps = array();
-		if ($this->action == "history") {
+		if ($this->action == "history" || $this->action == "histories") {
 			return $steps;;
 		}
 		
@@ -409,20 +399,16 @@ class Listing extends Template {
 		/* SELECT Clause */
 		foreach ($template as $i => $post) {
 			//if ($post['index'] == "t") continue;
-			
-			if (!empty($aliai[$post['table_id']])) {
-				$alias_tmp = $aliai[$post['table_id']];
-			} else {
-				$alias_counter ++;
-				$join_tables[$alias_counter] = array(
+			$table_id = $post['table_id'];
+			$alias_tmp = "a{$table_id}";
+			if (empty($aliai[$post['table_id']])) {
+				$join_tables[$alias_tmp] = array(
 					"table"=>$post['table'],
 					"table_id"=>$post['table_id'],
-					"alias"=>"a{$alias_counter}",
+					"alias"=>$alias_tmp,
 					"join_id"=>$post['table_join_id']
 					);
-				$alias_tmp = "a{$alias_counter}";
-				$aliai[$post['table_id']] = $alias_tmp;
-				$aliai_table[$alias_tmp] = $post['table_id'];
+				$aliai[$table_id] = $alias_tmp;
 			}
 			
 			$col = "";
@@ -453,9 +439,9 @@ class Listing extends Template {
 			$where_logical = "($constraint_logic)";
 			foreach ($constraints as $constraint) {
 				//set these variables for easy access
-				$table_constraints_id_tmp = $constraint['template_constraints_id'];
-				$alias_tmp = "c".$table_constraints_id_tmp;
 				$table_id_tmp = $constraint['table_id'];
+				$alias_tmp = "a{$table_id_tmp}";
+				$table_constraints_id_tmp = $constraint['template_constraints_id'];
 				$table_name_tmp = $constraint['table'];
 				$table_join_id_tmp = $constraint['table_join_id'];
 				$column_name_tmp = $constraint['column'];
@@ -463,9 +449,7 @@ class Listing extends Template {
 				$value_tmp = $constraint['value'];
 
 				//is this constraint's column in the same table as the intersection column?
-				if ($table_id_tmp == $aliai_table['a1']) {
-					$alias_tmp = "a1";
-				} else if (!empty($table_join_id_tmp)) {
+				if (!empty($table_join_id_tmp)) {
 					//...join this constraint's table to the query
 					$join_tables[$alias_tmp] = array(
 						"table"=>$table_name_tmp,
@@ -522,6 +506,17 @@ class Listing extends Template {
 		return $output;
 	}
 	
+	/**
+	 * Retrieve the appropriate columns (from list_templates) for a given template
+	 * @param id $template_id The id of the template
+	 * @return An array of columns
+	 */
+	function get_columns($template_id) {
+		$query = "SELECT l.*, t.*, c.column_id, tb.table_id, c.human_name as chuman, tb.human_name as thuman, c.name as column, tb.name as table FROM list_templates l, templates t, columns c, tables tb WHERE tb.table_id=c.table_id AND c.column_id=l.column_id AND t.template_id=l.template_id AND t.template_id=".$template_id." ORDER BY l.level, l.col_order;";
+		$data = $this->dobj->db_fetch_all($this->dobj->db_query($query));
+		return $data;
+	}
+
 	function view_columns() {
 		$this->current = $this->get_template($this->id);
 		$blah['columns'] = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT ll.*, c.name AS column_name, t.name AS table_name, c.human_name AS column_human_name, t.human_name AS table_human_name FROM list_templates ll, columns c, tables t WHERE c.table_id=t.table_id AND ll.column_id=c.column_id AND ll.template_id='".$this->id."';"));
@@ -582,32 +577,6 @@ class Listing extends Template {
 		}*/
 
 		return array($blah, $table_join_ajax);
-	}
-	
-	private function sortByColumn($results) {
-		$new_results = array();
-		foreach ($results as $i => $result) {
-			$new_results[$result['column_id']] = $result;
-		}
-		return $new_results;
-	}
-	
-	function get_columns($template_id) {
-		$query = "SELECT l.*, t.*, c.column_id, tb.table_id, c.human_name as chuman, tb.human_name as thuman, c.name as column, tb.name as table FROM list_templates l, templates t, columns c, tables tb WHERE tb.table_id=c.table_id AND c.column_id=l.column_id AND t.template_id=l.template_id AND t.template_id=".$template_id." ORDER BY l.level, l.col_order;";
-		$data = $this->dobj->db_fetch_all($this->dobj->db_query($query));
-		return $data;
-	}
-	
-	function execute_manually($template_id) {
-		return $this->execute($template_id, false);
-	}
-
-	function execute_scheduled($template_id) {
-		return $this->execute($template_id, false);
-	}
-
-	function execute_demo($template_id) {
-		return $this->execute($template_id, true);
 	}
 	
 }
@@ -710,12 +679,6 @@ class Listing_View extends Template_View {
 			</div>
 			";
 		$output->data .= $this->f_close();
-		return $output;
-	}
-	
-	function view_save($data, $template) {
-		$output->layout = "ajax";
-		$output->data = "";
 		return $output;
 	}
 	

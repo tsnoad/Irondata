@@ -93,10 +93,40 @@ class Csv extends Template {
 		return null;
 	}
 
-	function get_or_generate($data=array()) {
-		$saved_report_id = $data[0];
-
+	/**
+	 * Does this module extend the publish functionality
+	 */
+	function hook_publish($data=array()) {
+		if (!isset($this->id)) {
+			$this->id = $data["template_id"];
+		}
+		if (isset($data['demo']) && $data['demo'] == true) {
+			return null;
+		} else {
+			$default = $this->dobj->db_fetch("SELECT publish_csv FROM templates WHERE template_id='".$this->id."'");
+			$default = $default['publish_csv'] == 't' ? true: false;
+			return array("name"=>$this->name, "default"=>$default);
+		}
+	}
+	
+	function hook_save_publish() {
+		$save = array();
+		if (isset($_REQUEST['data']['publish_csv'])) {
+			$save['publish_csv'] = "t";
+		} else {
+			$save['publish_csv'] = "f";
+		}
+		unset($_REQUEST['data']['publish_csv']);
+		$this->dobj->db_query($this->dobj->update($save, "template_id", $this->id, "templates"));
+	}
+	
+	function hook_get_or_generate($data=array()) {
+		$saved_report_id = $data["saved_report_id"];
+		$demo = $data["demo"];
+		$template = $data['template'];
+		
 		if (empty($saved_report_id)) return;
+		if ($demo) return;
 
 		if (!is_dir($this->sw_path.$this->tmp_path)) {
 			mkdir($this->sw_path.$this->tmp_path);
@@ -107,28 +137,26 @@ class Csv extends Template {
 
 		//if the csv document does not exist, create it, and return data about where it can be found
 		if (empty($saved_report['csv_document_id']) || !is_file($saved_report['txt_path'])) {
-			return $this->view_export(array($saved_report['report'], $saved_report_id));
+			$saved_report = $this->view_export(array($saved_report['report'], $saved_report_id));
 		}
 
 		//if it does, simply return data about where it can be found
-		return $saved_report;
+		return array('object'=>null, 'url'=>$saved_report['txt_url']);
 	}
 	
 	function view_export($data=array()) {
 		$results_foo = array();
 		$foo_json = $data[0];
 		$saved_report_id = $data[1];
+		$csv_data = "";
 
 		$path_base = $this->sw_path.$this->tmp_path;
 		$url_base = $this->web_path.$this->tmp_path;
 
-		$csv_document_id = $this->dobj->nextval("csv_documents");
-
-		$txt_path = $path_base."csv_$csv_document_id.txt";
-		$txt_url = $url_base."csv_$csv_document_id.txt";
+		$txt_path = $path_base."csv_$saved_report_id.txt";
+		$txt_url = $url_base."csv_$saved_report_id.txt";
 
 		$insert = array(
-			"csv_document_id" => $csv_document_id,
 			"saved_report_id" => $saved_report_id,
 			"created" => "now()",
 			"txt_path" => $txt_path,

@@ -110,47 +110,6 @@ class Tabular extends Template {
 				break;
 		}
 		return false;
-/*
-
-	function add_axis_automatic($type, $columns) {
-	function add_axis_manual($type, $columns) {
-	function add_axis_trend($type, $columns) {
-	function execute_demo_cellwise($template_id) {
-	function execute_demo_quick($template_id) {
-	function execute_demo($template_id) {
-	function execute_manually($template_id) {
-	function execute_scheduled($template_id) {
-	function execute($template_id, $demo, $quick=false, $cellwise=false) {
-	function get_constraint_logic($template_id) {
-	function get_constraints($template_id) {
-	function hook_menu() {
-	function hook_permission_check($data) {
-	function hook_query($template, $constraints, $constraint_logic=null, $demo=false, $axis_limits=null) {
-	function hook_recipients($template_id, $template_recipients=null) {
-	function hook_run($demo=false, $data_only=false, $template_id=null) {
-	function view_add_axis() {
-	function view_add_axis($type, $columns) {
-	function view_add_intersection() {
-	function view_add_intersection($columns) {
-	function view_add_next() {
-	function view_clone() {
-	function view_constraintlogicsubmit() {
-	function view_constraints() {
-	function view_constraints($blah) {
-	function view_editconstraint() {
-	function view_editconstraint($blah) {
-	function view_editconstraintsubmit() {
-	function view_execute_manually() {
-	function view_execute_scheduled() {
-	function view_execute_scheduled($data=array()) {
-	function view_interval_dd_json() {
-	function view_remove() {
-	function view_remove_constraint() {
-	function view_run() {
-	function view_run($template, $constraints) {
-	function view_tables_json() {
-	function view_tables_json($tables) {
-*/
 	}
 	
 	/**
@@ -170,7 +129,7 @@ class Tabular extends Template {
 	function hook_menu() {
 		//Steps: what steps have been competed, and what step are we at
 		$steps = array();
-		if ($this->action == "history") {
+		if ($this->action == "history" || $this->action == "histories") {
 			return $steps;;
 		}
 		$tabular_templates_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT tt.*, tta.tabular_templates_auto_id, ttt.tabular_templates_trend_id, tts.tabular_templates_single_id, ttm.tabular_templates_manual_id FROM tabular_templates tt LEFT OUTER JOIN tabular_templates_auto tta ON (tta.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_trend ttt ON (ttt.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_single tts ON (tts.tabular_template_id=tt.tabular_template_id) LEFT OUTER JOIN tabular_templates_manual ttm ON (ttm.tabular_template_id=tt.tabular_template_id) WHERE tt.template_id='".$this->id."' AND ((tt.axis_type = 'auto' AND tta.tabular_templates_auto_id IS NOT NULL) OR (tt.axis_type = 'trend' AND ttt.tabular_templates_trend_id IS NOT NULL) OR (tt.axis_type = 'single' AND tts.tabular_templates_single_id IS NOT NULL) OR (tt.axis_type = 'manual' AND ttm.tabular_templates_manual_id IS NOT NULL));"));
@@ -793,6 +752,7 @@ class Tabular extends Template {
 	function hook_query($template, $constraints, $constraint_logic=null, $demo=false, $axis_limits=null) {
 		//$templates contains information about how we show each axis, and how we show the intersection
 		$templates_tmp = $template;
+		$limit = null;
 		unset($template);
 		
 		//order by type: x, y or c for the intersection
@@ -1160,95 +1120,13 @@ class Tabular extends Template {
 		$output = Tabular_View::hook_output(json_decode($results['report'], true), $template, $demo, $now, $pdf);
 		return $output;
 	}
-
-	/*
-	 * View Remove
-	 *
-	 * Used to delete a column from automatic fields.
-	 *
-	 */
-	function view_remove() {
-		//The url that this was called through will tell us two things: the template id and the column id.
-		//We need to delete the entry for this column in the tabular_templates table. BUT, column id is not stored in this table. So, we have to query the tabular_templates_auto table to work out exactly which entry to delete
-		$query = "SELECT * FROM tabular_templates t INNER JOIN tabular_templates_auto ta ON (ta.tabular_template_id=t.tabular_template_id) WHERE t.template_id='".$this->id."' AND ta.column_id='".$this->subvar."';";
-		$cur = $this->dobj->db_fetch($this->dobj->db_query($query));
-		if ($cur) {
-			//delete the entry by it's tabular_template_id. This will cascade down to the tabular_templates_auto table
-			$this->dobj->db_query("DELETE FROM tabular_templates WHERE tabular_template_id='".$cur['tabular_template_id']."';");
-		}
-		die();
-	}
-
-	function view_remove_constraint() {
-		$query = "DELETE FROM template_constraints WHERE template_id=".$this->id." AND column_id='".$this->subvar."';";
-		$cur = $this->dobj->db_query($query);
-		die();
-	}
-
+	
 	/**
-	 * Deprecated function: replaced by Tabular::execute()... I think
-	 *
+	 * Retrieve the appropriate columns (from tabular_templates) for a given template
+	 * @param id $template_id The id of the template
+	 * @param boolean $type All columns or only columns of a specific type
+	 * @return An array of columns
 	 */
-	function hook_run($demo=false, $data_only=false, $template_id=null) {
-		if (!empty($template_id)) {
-			$this->id = $template_id;
-		}
-
-		$template = $this->get_columns($this->id);
-		$constraints = $this->get_constraints($this->id);
-		$constraint_logic = $this->get_constraint_logic($this->id);
-
-// 		/* Concatenate the predefined constraints and the user defined constraints */
-// 		if ($_REQUEST['data']['constraint']) {
-// 			foreach ($_REQUEST['data']['constraint'] as $i => $cons) {
-// 				foreach ($constraints as $j => $cons2) {
-// 					if ($cons2['template_constraints_id'] == $i) {
-// 						$constraints[$j]['value'] = $cons;
-// 						break(2);
-// 					}
-// 				}
-// 			}
-// 		}
-
-		/* Generate the query to run */
-		$query = $this->hook_query($template, $constraints, $constraint_logic, $demo);
-
-		/* Run the query and get the results */
-		$start = time();
-		$data = parent::hook_run_query($template[0]['object_id'], $query);
-		$end = time();
-
-		if (!$demo) {
-			/* Only update the run statistics if this is a complete run, not a preview run */
-			$update_query = "UPDATE templates SET last_run=now(), last_time='".($end-$start)."', last_by=1, last_size=".count($data)." WHERE template_id=".$this->id."";
-			$update = $this->dobj->db_query($update_query);
-			$saved_report_id = $this->save_results($this->id, $data, 'f', ($end-$start), 1);
-		} else {
-			$saved_report_id = $this->save_results($this->id, $data, 't', ($end-$start), 1);
-		}
-
-		if ($data_only) {
-			return $saved_report_id;
-		} else {
-			$foo_json = $this->get_saved_report();
-			$foo_json = $foo_json['report'];
-
-			return Tabular_View::hook_run($data, $template, $demo, $now, $foo_json);
-		}
-	}
-
-	function view_tables_json() {
-		$template = $this->get_columns($this->id);
-		$output = Tabular_View::view_tables_json($template);
-		return $output;
-	}
-
-	function view_interval_dd_json() {
-		$values = array("daily"=>"Daily", "weekly"=>"Weekly", "monthly"=>"Monthly", "quarterly"=>"Quarterly", "yearly"=>"Yearly");
-		$output = Tabular_View::view_dd_json($values);
-		return $output;
-	}
-
 	function get_columns($template_id, $type=false) {
 		if ($type) {
 			$type = " AND l.type='".$type."'";
@@ -1382,19 +1260,11 @@ WHERE
 
 		return $data;
 	}
-
-	function view_add_axis() {
-		$columns = $this->get_columns($this->id, $this->subvar);
-		$output = Tabular_View::view_add_axis($this->subvar, $columns);
-		return $output;
-	}
-
-	function view_add_intersection() {
-		$columns = $this->get_columns($this->id, 'c');
-		$output = Tabular_View::view_add_intersection($columns);
-		return $output;
-	}
-
+	
+	/**
+	 * TODO: This function is very incomplete
+	 * Enter description here ...
+	 */
 	function view_clone() {
 		$template = "SELECT * FROM templates WHERE template_id='".$this->id."';";
 		$template = $this->dobj->db_fetch($this->dobj->db_query($template));
@@ -1417,272 +1287,6 @@ WHERE
 			$this->dobj->db_query($this->dobj->insert($temp, "template_constraints"));
 		}
 		$this->redirect('tabular/add/'.$template_id);
-	}
-
-	/**
-	 * View Execute Scheduled
-	 *
-	 * Called by Cron::view_executor() to run a report, generate graphs, and email them. Calls Tabular::execute_scheduled() to do the heavy lifting
-	 *
-	 */
-	function view_execute_scheduled($data=array()) {
-		$template = (array)$data[0];
-		$template_id = $template['template_id'];
-
-		if (empty($template_id)) return;
-
-		$saved_report_id = $this->execute_scheduled($template_id);
-
-		//get the table pdf
-		if ($template['publish_table'] == "t") {
-			$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, false, false));
-			$table = $table['pdf'];
-		}
-
-		//get the graph pdf
-		if ($template['publish_graph'] == "t") {
-			$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], false, true));
-			$graph = $graph['graphing'];
-		}
-
-		//get the csv file
-		if (true) {
-			$csv = $this->call_function("csv", "get_or_generate", array($saved_report_id));
-			$csv = $csv['csv'];
-		}
-
-		if ($template['email_dissemination'] == "t") {
-			$recipients_query = $this->call_function("ALL", "hook_recipients", array($template_id, $template['email_recipients']));
-
-			foreach ($recipients_query as $recipients_tmp) {
-				$recipients = array_merge((array)$recipients_tmp, (array)$recipients);
-			}
-		}
-
-		if ($template['email_dissemination'] == "t" && !empty($recipients)) {
-
-			require_once($this->conf['paths']['phpmailer_path']."class.phpmailer.php");
-			
-			if (!isset($mail)) {
-				$mail = new PHPMailer();
-			}
-	
-			$mail->IsSMTP();
-			$mail->Host = $this->conf['email']['host'];
-			$mail->SMTPAuth = true;
-			$mail->Username = $this->conf['email']['username'];
-			$mail->Password = $this->conf['email']['password'];
-
-			$mail->From = $this->conf['email']['from_address'];
-			$mail->FromName = $this->conf['email']['from_name'];
-			$mail->AddReplyTo($this->conf['email']['from_address'], $this->conf['email']['from_name']);
-
-			foreach ($recipients as $recipient) {
-				$mail->AddAddress($recipient[1], $recipient[0]);
-			}
-
-			if (!empty($table)) {
-				$mail->AddAttachment($table['pdf_path'], "Table.pdf");
-			}
-
-			if (!empty($graph)) {
-				$mail->AddAttachment($graph['pdf_path'], "Graph.pdf");
-			}
-
-			if (!empty($csv)) {
-				$mail->AddAttachment($csv['txt_path'], "CSV.txt");
-			}
-
-			$mail->IsHTML(true);
-
-			$template['email_subject'] = str_replace("%name", $template['name'], $template['email_subject']);
-			$template['email_subject'] = str_replace("%desc", $template['description'], $template['email_subject']);
-			$template['email_subject'] = str_replace("%run", date("Y-m-d H:i:s", strtotime($template['email_subject'])), $template['email_subject']);
-			$template['email_subject'] = str_replace("%by", $template['last_by'], $template['email_subject']);
-			$template['email_subject'] = str_replace("%size", $template['last_size'], $template['email_subject']);
-
-			$mail->Subject = $template['email_subject'];
-
-			$template['email_body'] = str_replace("%name", $template['name'], $template['email_body']);
-			$template['email_body'] = str_replace("%desc", $template['description'], $template['email_body']);
-			$template['email_body'] = str_replace("%run", date("Y-m-d H:i:s", strtotime($template['last_run'])), $template['email_body']);
-			$template['email_body'] = str_replace("%by", $template['last_by'], $template['email_body']);
-			$template['email_body'] = str_replace("%size", $template['last_size'], $template['email_body']);
-
-			$mail->Body = stripslashes($template['email_body']);
-			
-			if(!$mail->Send()) {
-				echo "Message could not be sent.\n";
-				echo "Mailer Error: ".$mail->ErrorInfo."\n";
-				exit;
-			}
-			
-			echo "Message has been sent\n";
-		}
-
-		$output = Tabular_View::view_execute_scheduled();
-		return $output;
-	}
-
-	/**
-	 * View Histories
-	 *
-	 * Fetches all saved reports for a given report, for the histories page
-	 *
-	 */
-	function view_histories() {
-		$template_id = $this->id;
-
-		if (empty($template_id)) die;
-
-		$saved_reports = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND demo=false ORDER BY created DESC;"));
-
-		$processing_report = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='$template_id' AND (execution_queued=true OR execution_executing=true);"));
-
-		return Tabular_View::view_histories($saved_reports, $processing_report);
-	}
-
-	/**
-	 * View History
-	 *
-	 * Gets data and table/graph files for the history page
-	 *
-	 */
-	function view_history() {
-		$tmp_table = null;
-		$tmp_graph = null;
-		$template_id = $this->id;
-		$saved_report_id = $this->subvar;
-
-		if (empty($template_id)) die;
-		if (empty($saved_report_id)) die;
-
-		//check that the saved report id matches the template_id
-		$saved_report_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND saved_report_id='$saved_report_id' AND demo=false;"));
-
-		if (empty($saved_report_query)) die;
-
-		if (true) {
-			$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, false, true));
-			$tmp_table .= $table['pdf']['object'];
-		}
-
-		if (true) {
-			$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, null, true, false));
-			$tmp_graph .= $graph['graphing']['object'];
-		}
-
-		if (true) {
-			$csv = $this->call_function("csv", "get_or_generate", array($saved_report_id));
-		}
-
-		if (!empty($table['pdf']['pdf_url'])) {
-			$downloads['Download Table'] = $table['pdf']['pdf_url'];
-		}
-
-		if (!empty($graph['graphing']['pdf_url'])) {
-			$downloads['Download Graph'] = $graph['graphing']['pdf_url'];
-		}
-
-		if (!empty($csv['csv']['txt_url'])) {
-			$downloads['Download CSV'] = $csv['csv']['txt_url'];
-		}
-	
-		return Tabular_View::view_history($tmp_table, $tmp_graph, $downloads);
-	}
-
-	/**
-	 * Execute Manually
-	 *
-	 * Calls Tabular::execute() with appropriate arguments to execute full (as opposed to execute demo)
-	 *
-	 */
-	function execute_manually($template_id) {
-		return $this->execute($template_id);
-	}
-
-	/**
-	 * Execute Scheduled
-	 *
-	 * Calls Tabular::execute() with appropriate arguments to execute full (as opposed to execute demo)
-	 *
-	 */
-	function execute_scheduled($template_id) {
-		return $this->execute($template_id);
-	}
-	
-	function execute_demo($template_id) {
-		return $this->execute($template_id, "demo");
-	}
-
-	function hook_recipients($template_id, $template_recipients=null) {
-		if (empty($template_recipients)) return null;
-
-		foreach (explode(",", $template_recipients) as $recipient_tmp) {
-			$recipients[] = array("", trim($recipient_tmp));
-		}
-
-		return $recipients;
-	}
-
-	function hook_recipient_selector($recipients) {
-		return "
-			<div class='input text' style='margin-left: 30px;'><input type='text' id='tabular_recipients' name='data[email_recipients]' value='".$recipients."' dojoType='dijit.form.TextBox' /><span id='tabular_recipients_count' style='padding-left: 20px; vertical-align: middle; color: #555753; font-size: 10pt; font-style: italic;'></span></div>
-			";
-	}
-
-	function view_data_preview_ajax() {
-		if ((int)$this->id) {
-			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
-			$saved_report_id = $this->execute_demo($this->id);
-
-			if ($template['publish_table'] == "t") {
-				$data_preview .= "<h3>Tabular Data</h3>";
-
-				$table = $this->call_function("pdf", "get_or_generate", array($saved_report_id, true, true));
-				$data_preview .= $table['pdf']['object'];
-			}
-
-			if ($template['publish_graph'] == "t") {
-				$data_preview .= "<h3>Graphic Data</h3>";
-
-				$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], true, false));
-				$data_preview .= $graph['graphing']['object'];
-			}
-		}
-
-		$output = Tabular_View::view_data_preview_ajax($data_preview);
-		return $output;
-	}
-
-	function view_processing_history_ajax() {
-		$template_id = $this->id;
-		$report_query = null;
-
-		if (!empty($template_id)) {
-			$template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='$template_id' AND (execution_queued=true OR execution_executing=true);"));
-
-			if (empty($template_query)) {
-				$report_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND demo=false ORDER BY created DESC LIMIT 1;"));
-			}
-		}
-
-		$output = Tabular_View::view_processing_history_ajax($report_query, $template_query);
-		return $output;
-	}
-
-	function view_execute_manually() {
-		$template_id = $this->id;
-
-		if (empty($template_id)) return;
-
-		$this->dobj->db_query($this->dobj->update(array("execute_now"=>"t", "execution_queued"=>"t"), "template_id", $template_id, "templates"));
-
-		if ($_SESSION['acls']['report'][$template_id]['histories']) {
-			$this->redirect("tabular/histories/".$template_id);
-		} else {
-			$this->redirect("template/home");
-		}
 	}
 }
 
@@ -1894,20 +1498,11 @@ class Tabular_View extends Template_View {
 		$output = Template_view::view_add_editconstraints($blah);
 		return $output;
 	}
-	
-	function view_add_axis($type, $columns) {
-	}
-
-	function add_axis_manual($type, $columns) {
-	}
 
 	function add_axis_automatic($type, $columns) {
 	}
 
 	function add_axis_trend($type, $columns) {
-	}
-
-	function view_add_intersection($columns) {
 	}
 
 	function view_save($data, $template) {
@@ -2071,228 +1666,6 @@ class Tabular_View extends Template_View {
 					$page_counter ++;
 				}
 			}
-		}
-
-		return $output;
-	}
-
-	function view_tables_json($tables) {
-		$output->layout = 'ajax';
-		$output->data = "{
-	identifier:'tabular_template_id',
-	items: [";
-	$opt = array();
-	foreach ($tables as $i => $option) {
-		$opt[] = "{tabular_template_id: '".$option['tabular_template_id']."', column_id: '".$option['column_id']."', type: '".$option['type']."', sort: '".$option['sort']."', aggregate: '".$option['aggregate']."', label: '".$option['label']."', col_order: '".$option['col_order']."', chuman: '".$option['chuman']."', column: '".$option['column']."'}";
-	}
-	$output->data .= implode(",", $opt);
-	$output->data .= "]
-}
-		";
-		return $output;
-	}
-
-	function view_execute_scheduled() {
-		$output->layout = "ajax";
-
-		return $output;
-	}
-
-	function view_histories($saved_reports, $processing_report) {
-		$output->title = "Histories";
-		$output->title_desc = "All occasions when the report has been executed.";
-
-		if (!empty($saved_reports) || !empty($processing_report)) {
-			$output->data .= "
-				<div class='reports'>
-					<table cellpadding='0' cellspacing='0'>
-						<tr>
-							<th>Time</th>
-							<th>Format</th>
-							<th>Dissemination</th>
-							<th>&nbsp;</th>
-						</tr>
-						";
-
-			if (!empty($processing_report)) {
-				$processing_id = $processing_report['template_id'];
-				$processing_tr_id = "processing_$processing_id";
-				$processing_ind_id = $processing_tr_id."_indicator";
-
-				if ($processing_report['execution_queued'] == "t") {
-					$message_tmp = "Report Queued for Execution";
-				} else if ($processing_report['execution_executing'] == "t") {
-					$message_tmp = "Executing Report";
-				}
-
-				$output->data .= "
-						<tr id='$processing_tr_id'>
-							<td colspan='4'>$message_tmp<span id='$processing_ind_id' class='loading_3'>...</span></td>
-						</tr>
-						";
-			}
-
-
-			if (!empty($saved_reports)) {
-				foreach ($saved_reports as $report_tmp) {
-					$dissemination = null;
-	// 				$dissemination = rand(-10, 20);
-	// 				if ($dissemination < 0) $dissemination = 0;
-	// 				$dissemination = "$dissemination user".($dissemination === 1 ? "" : "s");
-
-					$output->data .= "
-							<tr>
-								<td>".$report_tmp['created']."</td>
-								<td>Table, Graph and CSV</td>
-								<td>$dissemination</td>
-								<td>
-									<ul>
-										<li>".$this->l("tabular/history/".$report_tmp['template_id']."/".$report_tmp['saved_report_id'], "View/Download")."</li>
-									</ul>
-								</td>
-							</tr>
-							";
-				}
-			}
-			$output->data .= "
-					</table>
-				</div>
-				";
-
-			if (!empty($processing_report)) {
-				$output->data .= "
-					<script>
-						dojo.addOnLoad(loading_update);
-
-						function loading_update() {
-							var target = window.document.getElementById('$processing_ind_id');
-							if (!target) return;
-
-							if (target.className == 'loading_3') {
-								var d = dojo.xhrPost({
-									url: '".$this->webroot()."tabular/processing_history_ajax/$processing_id',
-									handleAs: 'text',
-									sync: false,
-									content: {},
-									// The LOAD function will be called on a successful response.
-									load: function(response, ioArgs) {
-										if (response) {
-											console.log(response);
-											if (dojo.byId('$processing_tr_id')) {
-												dojo.byId('$processing_tr_id').innerHTML = response;
-											}
-										} else {
-											console.log('no response');
-										}
-										return response;
-									},
-									// The ERROR function will be called in an error case.
-									error: function(response, ioArgs) {
-										console.error('HTTP status code: ', ioArgs.xhr.status);
-										return response;
-									}
-								});
-							}
-
-							if (!target) return;
-
-							if (target.className == 'loading_0') {
-								target.innerHTML = '.<span style=\"opacity: 0.25;\">..</span>';
-								target.className = 'loading_1';
-
-								setTimeout('loading_update();', 500);
-								return;
-							}
-
-							if (target.className == 'loading_1') {
-								target.innerHTML = '<span style=\"opacity: 0.25;\">.</span>.<span style=\"opacity: 0.25;\">.</span>';
-								target.className = 'loading_2';
-
-								setTimeout('loading_update();', 500);
-								return;
-							}
-
-							if (target.className == 'loading_2') {
-								target.innerHTML = '<span style=\"opacity: 0.25;\">..</span>.';
-								target.className = 'loading_3';
-
-								setTimeout('loading_update();', 500);
-								return;
-							}
-
-							if (target.className == 'loading_3') {
-								target.innerHTML = '<span style=\"opacity: 0.25;\">...</span>';
-								target.className = 'loading_0';
-
-								setTimeout('loading_update();', 500);
-								return;
-							}
-						}
-					</script>
-					";
-			}
-		}
-
-		return $output;
-	}
-
-	function view_history($tmp_table, $tmp_graph, $downloads) {
-		if (!empty($downloads)) {
-			$output->data .= "
-				<ul>
-				";
-			foreach ($downloads as $download_text => $download_link) {
-				$output->data .= "
-					<li>".$this->l($download_link, $download_text, null, false)."</li>
-					";
-			}
-			$output->data .= "
-				</ul>
-				";
-		}
-
-		if (!empty($tmp_table)) {
-			$output->data .= '<h3>Tabular Data</h3>';
-			$output->data .= $tmp_table;
-		}
-
-		if (!empty($tmp_graph)) {
-			$output->data .= '<h3>Graphic Data</h3>';
-			$output->data .= $tmp_graph;
-		}
-
-		return $output;
-	}
-
-	function view_processing_history_ajax($report_query, $template_query) {
-		$output->layout = "ajax";
-		$dissemination = null;
-
-		if (!empty($report_query)) {
-			$output->data = "
-				<td>".$report_query['created']."</td>
-				<td>Table, Graph and CSV</td>
-				<td>$dissemination</td>
-				<td>
-					<ul>
-						<li>".$this->l("tabular/history/".$report_query['template_id']."/".$report_query['saved_report_id'], "View/Download")."</li>
-					</ul>
-				</td>
-				";
-		} else if (!empty($template_query)) {
-			$processing_id = $template_query['template_id'];
-			$processing_tr_id = "processing_$processing_id";
-			$processing_ind_id = $processing_tr_id."_indicator";
-
-			if ($template_query['execution_queued'] == "t") {
-				$message_tmp = "Report Queued for Execution";
-			} else if ($template_query['execution_executing'] == "t") {
-				$message_tmp = "Executing Report";
-			}
-
-			$output->data = "
-					<td colspan='4'>$message_tmp<span id='$processing_ind_id' class='loading_0'><span style='opacity: 0.25;'>...</span></span></td>
-					";
 		}
 
 		return $output;

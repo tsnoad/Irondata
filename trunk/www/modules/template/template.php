@@ -470,7 +470,8 @@ class Template extends Modules {
 					break;
 				case "publish":
 					$template = $this->get_template($this->id);
-					$output = Template_View::view_add_publish($template);
+					$publish_modules = $this->call_function("ALL", "hook_publish");
+					$output = Template_View::view_add_publish($template, $publish_modules);
 					break;
 				case "execution":
 					$template = $this->get_template($this->id);
@@ -818,17 +819,7 @@ class Template extends Modules {
 				$this->dobj->db_query("DELETE FROM template_constraints WHERE template_constraints_id='$constraint_id';");
 				break;
 			case "publishsubmit":
-				if ($_REQUEST['data']['publish_table'] == "on") {
-					$_REQUEST['data']['publish_table'] = "t";
-				} else {
-					$_REQUEST['data']['publish_table'] = "f";
-				}
-				
-				if ($_REQUEST['data']['publish_graph'] == "on") {
-					$_REQUEST['data']['publish_graph'] = "t";
-				} else {
-					$_REQUEST['data']['publish_graph'] = "f";
-				}
+				$this->call_function("ALL", "hook_save_publish");
 					
 				$this->dobj->db_query($this->dobj->update($_REQUEST['data'], "template_id", $this->id, "templates"));
 				break;
@@ -1149,7 +1140,7 @@ class Template extends Modules {
 	function view_data_preview_first_ajax() {
 		$data_preview = "";
 		if ((int)$this->id) {
-			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
+			$template = $this->get_template($this->id);
 			$saved_report_id = $this->execute_demo_outline($this->id);
 			$data_preview .= '<div id="saved_report_id" style="display: none;">'.$saved_report_id.'</div>';
 			$data_preview .= '<div id="data_preview">';
@@ -1157,12 +1148,13 @@ class Template extends Modules {
 			$data_preview .= "<h3>Tabular Data</h3>";
 			$data_preview .= $this->hook_output(array($saved_report_id, $this->id, true, null, false))->data;
 			
-			if ($template['publish_graph'] == "t") {
-				$data_preview .= "<h3>Graphic Data</h3>";
-				$data_preview .= "<div style='height: 690px;'>";
-				$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], true, false));
-				$data_preview .= $graph['graphing']['object'];
-				$data_preview .= "</div>";
+			$publish_modules = $this->call_function("ALL", "hook_publish", array("demo"=>true));
+			$published = array();
+			foreach ($publish_modules as $i => $module) {
+				if ($module['default']) {
+					$output = $this->call_function($i, "hook_get_or_generate", array("saved_report_id"=>$saved_report_id, "demo"=>true, "template"=>$template));
+					$data_preview .= $output[$i];
+				}
 			}
 			$data_preview .= '</div>';
 		}
@@ -1177,7 +1169,7 @@ class Template extends Modules {
 	function view_data_preview_slow_ajax() {
 		$data_preview = "";
 		if ((int)$this->id) {
-			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
+			$template = $this->get_template($this->id);
 			$saved_report_id = $this->execute_demo_cellwise($this->id);
 			$data_preview .= '<div id="saved_report_id" style="display: none;">'.$saved_report_id.'</div>';
 			$data_preview .= '<div id="data_preview">';
@@ -1188,12 +1180,50 @@ class Template extends Modules {
 			$data_preview .= "<h3>Tabular Data</h3>";
 			$data_preview .= $this->hook_output(array($saved_report_id, $this->id, true, null, false))->data;
 			
-			if ($template['publish_graph'] == "t") {
+			$publish_modules = $this->call_function("ALL", "hook_publish", array("demo"=>true));
+			$published = array();
+			foreach ($publish_modules as $i => $module) {
+				if ($module['default']) {
+					$output = $this->call_function($i, "hook_get_or_generate", array("saved_report_id"=>$saved_report_id, "demo"=>true, "template"=>$template));
+					$data_preview .= $output[$i];
+				}
+			}
+			
+			
+			/*if ($template['publish_graph'] == "t") {
 				$data_preview .= "<h3>Graphic Data</h3>";
 				$data_preview .= "<div style='height: 690px;'>";
 				$graph = $this->call_function("graphing", "get_or_generate", array($saved_report_id, $template['graph_type'], true, false));
 				$data_preview .= $graph['graphing']['object'];
 				$data_preview .= "</div>";
+			}*/
+			$data_preview .= '</div>';
+		}
+		$output = Template_View::view_data_preview_ajax($data_preview);
+		return $output;
+	}
+	
+	/**
+	 * This is called to display the preview (complete) of this report
+	 */
+	function view_data_preview_ajax() {
+		$data_preview = "";
+		if ((int)$this->id) {
+			$template = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='".$this->id."';"));
+			$saved_report_id = $this->execute_demo($this->id);
+			$data_preview .= '<div id="saved_report_id" style="display: none;">'.$saved_report_id.'</div>';
+			$data_preview .= '<div id="data_preview">';
+			
+			$data_preview .= "<h3>Tabular Data</h3>";
+			$data_preview .= $this->hook_output(array($saved_report_id, $this->id, true, null, false))->data;
+			
+			$publish_modules = $this->call_function("ALL", "hook_publish", array("demo"=>true));
+			$published = array();
+			foreach ($publish_modules as $i => $module) {
+				if ($module['default']) {
+					$output = $this->call_function($i, "hook_get_or_generate", array("saved_report_id"=>$saved_report_id, "demo"=>true, "template"=>$template));
+					$data_preview .= $output[$i];
+				}
 			}
 			$data_preview .= '</div>';
 		}
@@ -1209,8 +1239,9 @@ class Template extends Modules {
 	 * @param $saved_report_id The id of the saved data
 	 * @return The HTML output
 	 */
-	function save_document($data, $template, $saved_report_id, $demo) {
+	function save_document($data, $template_id, $saved_report_id, $demo=false) {
 		$html = true;
+		$template_info = $this->get_template($template_id);
 		
 		$path_base = $this->sw_path.$this->tmp_path;
 		$url_base = $this->web_path.$this->tmp_path;
@@ -1225,12 +1256,219 @@ class Template extends Modules {
 		);
 		
 		$this->dobj->db_query($this->dobj->insert($insert, "table_documents"));
-		$output = $this->hook_output(array($data, $template, null, null, false));
-		$table_html = $output->data;
+		$output = $this->call_function($template_info['module'], "hook_output", array($data, $template_id, null, null, false));
+		$table_html = $output[$template_info['module']]->data;
 		
 		file_put_contents($html_path, $table_html);
 		
 		return $table_html;
+	}
+		
+	/**
+	 * Called by Cron::view_executor() to run a report, generate graphs, and email them. Calls List::execute_scheduled() to do the heavy lifting
+	 *
+	 * @param $data Passed in parameters
+	 */
+	function hook_execute_scheduled($data=array()) {
+		$template = (array)$data[0];
+		$template_id = $template['template_id'];
+		if (empty($template_id)) return;
+		$saved_report_id = $this->execute_scheduled($template_id);
+		
+		//$data_preview = "<h3>Tabular Data</h3>";
+		//$data_preview .= $this->hook_output(array($saved_report_id, $template_id, true, true, true))->data;
+		
+		$publish_modules = $this->call_function("ALL", "hook_publish", array("demo"=>false, "template_id"=>$template_id));
+		$published = array();
+		foreach ($publish_modules as $i => $module) {
+			if ($module['default']) {
+				$output = $this->call_function($i, "hook_get_or_generate", array("saved_report_id"=>$saved_report_id, "demo"=>false, "template"=>$template));
+				$published[$i] = $output[$i];
+			}
+		}
+
+		if ($template['email_dissemination'] == "t") {
+			$recipients_query = $this->call_function("ALL", "hook_recipients", array($template_id, $template['email_recipients']));
+
+			foreach ($recipients_query as $recipients_tmp) {
+				$recipients = array_merge((array)$recipients_tmp, (array)$recipients);
+			}
+		}
+
+		if ($template['email_dissemination'] == "t" && !empty($recipients)) {
+
+			require_once($this->conf['paths']['phpmailer_path']."class.phpmailer.php");
+			
+			if (!isset($mail)) {
+				$mail = new PHPMailer();
+			}
+	
+			$mail->IsSMTP();
+			$mail->Host = $this->conf['email']['host'];
+			$mail->SMTPAuth = true;
+			$mail->Username = $this->conf['email']['username'];
+			$mail->Password = $this->conf['email']['password'];
+
+			$mail->From = $this->conf['email']['from_address'];
+			$mail->FromName = $this->conf['email']['from_name'];
+			$mail->AddReplyTo($this->conf['email']['from_address'], $this->conf['email']['from_name']);
+
+			foreach ($recipients as $recipient) {
+				$mail->AddAddress($recipient[1], $recipient[0]);
+			}
+			
+			foreach ($published as $i => $file) {
+				$ext = substr($file['path'], strrpos($file['path'], ".")+1);
+				$mail->AddAttachment($file['path'], $saved_report_id."_".$i.".".$ext);
+			}
+
+			$mail->IsHTML(true);
+
+			$template['email_subject'] = str_replace("%name", $template['name'], $template['email_subject']);
+			$template['email_subject'] = str_replace("%desc", $template['description'], $template['email_subject']);
+			$template['email_subject'] = str_replace("%run", date("Y-m-d H:i:s", strtotime($template['email_subject'])), $template['email_subject']);
+			$template['email_subject'] = str_replace("%by", $template['last_by'], $template['email_subject']);
+			$template['email_subject'] = str_replace("%size", $template['last_size'], $template['email_subject']);
+
+			$mail->Subject = $template['email_subject'];
+
+			$template['email_body'] = str_replace("%name", $template['name'], $template['email_body']);
+			$template['email_body'] = str_replace("%desc", $template['description'], $template['email_body']);
+			$template['email_body'] = str_replace("%run", date("Y-m-d H:i:s", strtotime($template['last_run'])), $template['email_body']);
+			$template['email_body'] = str_replace("%by", $template['last_by'], $template['email_body']);
+			$template['email_body'] = str_replace("%size", $template['last_size'], $template['email_body']);
+
+			$mail->Body = stripslashes($template['email_body']);
+			
+			if(!$mail->Send()) {
+				echo "Message could not be sent.\n";
+				echo "Mailer Error: ".$mail->ErrorInfo."\n";
+				exit;
+			}
+			
+			echo "Message has been sent\n";
+		}
+		return true;
+	}
+
+	/**
+	 * View Histories
+	 *
+	 * Fetches all saved reports for a given report, for the histories page
+	 *
+	 */
+	function view_histories() {
+		$template_id = $this->id;
+		if (empty($template_id)) die;
+		$saved_reports = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND demo=false ORDER BY created DESC;"));
+		$processing_report = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='$template_id' AND (execution_queued=true OR execution_executing=true);"));
+		return Template_View::view_histories($saved_reports, $processing_report);
+	}
+
+	/**
+	 * View History
+	 *
+	 * Gets data and table/graph files for the history page
+	 *
+	 */
+	function view_history() {
+		$tmp_table = null;
+		$tmp_graph = null;
+		$template_id = $this->id;
+		$saved_report_id = $this->subvar;
+		$template = $this->get_template($this->id);
+		
+		if (empty($template_id)) die;
+		if (empty($saved_report_id)) die;
+
+		//check that the saved report id matches the template_id
+		$saved_report_query = $this->dobj->db_fetch_all($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND saved_report_id='$saved_report_id' AND demo=false;"));
+		if (empty($saved_report_query)) die;
+		
+		$output = "<h3>Tabular Data</h3>";
+		$output .= $this->hook_output(array($saved_report_id, $this->id, true, null, false))->data;
+		
+		$display_modules = $this->call_function("ALL", "hook_publish", array("demo"=>true));
+		foreach ($display_modules as $i => $module) {
+			if ($module['default']) {
+				$res = $this->call_function($i, "hook_get_or_generate", array("saved_report_id"=>$saved_report_id, "demo"=>true, "template"=>$template));
+				if (isset($res[$i])) {
+					$output .= $res[$i];
+				}
+			}
+		}
+		
+		$publish_modules = $this->call_function("ALL", "hook_publish", array("demo"=>false));
+		$downloads = array();
+		foreach ($publish_modules as $i => $module) {
+			if ($module['default']) {
+				$res = $this->call_function($i, "hook_get_or_generate", array("saved_report_id"=>$saved_report_id, "demo"=>false, "template"=>$template));
+				if (isset($res[$i])) {
+					$downloads[$i] = $res[$i];
+				}
+			}
+		}
+		return Template_View::view_history($output, $downloads);
+	}
+
+	/**
+	 * Calls Tabular::execute() with appropriate arguments to execute full (as opposed to execute demo)
+	 */
+	function execute_manually($template_id) {
+		return $this->execute($template_id);
+	}
+
+	/**
+	 * Calls Tabular::execute() with appropriate arguments to execute full (as opposed to execute demo)
+	 */
+	function execute_scheduled($template_id) {
+		return $this->execute($template_id);
+	}
+
+	function hook_recipients($template_id, $template_recipients=null) {
+		if (empty($template_recipients)) return null;
+
+		foreach (explode(",", $template_recipients) as $recipient_tmp) {
+			$recipients[] = array("", trim($recipient_tmp));
+		}
+
+		return $recipients;
+	}
+
+	function hook_recipient_selector($recipients) {
+		return "
+			<div class='input text' style='margin-left: 30px;'><input type='text' id='template_recipients' name='data[email_recipients]' value='".$recipients."' dojoType='dijit.form.TextBox' /><span id='tabular_recipients_count' style='padding-left: 20px; vertical-align: middle; color: #555753; font-size: 10pt; font-style: italic;'></span></div>
+			";
+	}
+
+	function view_processing_history_ajax() {
+		$template_id = $this->id;
+		$report_query = null;
+
+		if (!empty($template_id)) {
+			$template_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM templates WHERE template_id='$template_id' AND (execution_queued=true OR execution_executing=true);"));
+
+			if (empty($template_query)) {
+				$report_query = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM saved_reports WHERE template_id='$template_id' AND demo=false ORDER BY created DESC LIMIT 1;"));
+			}
+		}
+
+		$output = Template_View::view_processing_history_ajax($report_query, $template_query);
+		return $output;
+	}
+
+	function view_execute_manually() {
+		$template_id = $this->id;
+
+		if (empty($template_id)) return;
+
+		$this->dobj->db_query($this->dobj->update(array("execute_now"=>"t", "execution_queued"=>"t"), "template_id", $template_id, "templates"));
+
+		if ($_SESSION['acls']['report'][$template_id]['histories']) {
+			$this->redirect($this->module."/histories/".$template_id);
+		} else {
+			$this->redirect("template/home");
+		}
 	}
 	
 	
@@ -2023,7 +2261,7 @@ class Template_View {
 	 *
 	 * @param array $template The generic template information
 	 */
-	function view_add_publish($template) {
+	function view_add_publish($template, $publish_modules=array()) {
 		$type = $this->module;
 		//prevent the editor from adding more escapes than neccessary
 		$template['header'] = stripslashes($template['header']);
@@ -2036,11 +2274,13 @@ class Template_View {
 		$output->data .= $this->i("data[description]", array("label"=>"Description", "default"=>$template['description'], "dojo"=>"dijit.form.Textarea"));
 		$output->data .= "<hr />";
 		
-		$output->data .= "<h3>Publishing</h3>";
-		$output->data .= $this->i("data[publish_table]", array("label"=>"Publish Tabular Data", "type"=>"checkbox", "default"=>$template['publish_table']));
-		$output->data .= $this->i("data[publish_graph]", array("label"=>"Publish Graphic Data", "type"=>"checkbox", "default"=>$template['publish_graph']));
-		$output->data .= $this->i("data[publish_csv]", array("label"=>"Publish CSV Data", "type"=>"checkbox", "default"=>true, "disabled"=>true));
-		$output->data .= "<hr />";
+		if (!empty($publish_modules)) {
+			$output->data .= "<h3>Publishing</h3>";
+			foreach ($publish_modules as $i => $module) {
+				$output->data .= $this->i("data[publish_".$i."]", array("label"=>"Publish ".$module['name'], "type"=>"checkbox", "default"=>$module['default']));
+			}
+			$output->data .= "<hr />";
+		}
 		
 		$output->data .= "<h3>Graph</h3>";
 		$output->data .= $this->i("data[graph_type]", array("label"=>"Scatter Graph", "type"=>"radio", "value"=>"Scatter", "default"=>($template['graph_type'] == "Scatter"), "disabled"=>true));
@@ -2566,6 +2806,196 @@ class Template_View {
 	function view_data_preview_ajax($data_preview) {
 		$output->layout = "ajax";
 		$output->data = $data_preview;
+		return $output;
+	}
+
+	function view_histories($saved_reports, $processing_report) {
+		$output->title = "Histories";
+		$output->title_desc = "All occasions when the report has been executed.";
+
+		if (!empty($saved_reports) || !empty($processing_report)) {
+			$output->data .= "
+				<div class='reports'>
+					<table cellpadding='0' cellspacing='0'>
+						<tr>
+							<th>Time</th>
+							<th>Format</th>
+							<th>Dissemination</th>
+							<th>&nbsp;</th>
+						</tr>
+						";
+
+			if (!empty($processing_report)) {
+				$processing_id = $processing_report['template_id'];
+				$processing_tr_id = "processing_$processing_id";
+				$processing_ind_id = $processing_tr_id."_indicator";
+
+				if ($processing_report['execution_queued'] == "t") {
+					$message_tmp = "Report Queued for Execution";
+				} else if ($processing_report['execution_executing'] == "t") {
+					$message_tmp = "Executing Report";
+				}
+
+				$output->data .= "
+						<tr id='$processing_tr_id'>
+							<td colspan='4'>$message_tmp<span id='$processing_ind_id' class='loading_3'>...</span></td>
+						</tr>
+						";
+			}
+
+
+			if (!empty($saved_reports)) {
+				foreach ($saved_reports as $report_tmp) {
+					$dissemination = null;
+	// 				$dissemination = rand(-10, 20);
+	// 				if ($dissemination < 0) $dissemination = 0;
+	// 				$dissemination = "$dissemination user".($dissemination === 1 ? "" : "s");
+
+					$output->data .= "
+							<tr>
+								<td>".$report_tmp['created']."</td>
+								<td>Table, Graph and CSV</td>
+								<td>$dissemination</td>
+								<td>
+									<ul>
+										<li>".$this->l($this->module."/history/".$report_tmp['template_id']."/".$report_tmp['saved_report_id'], "View/Download")."</li>
+									</ul>
+								</td>
+							</tr>
+							";
+				}
+			}
+			$output->data .= "
+					</table>
+				</div>
+				";
+
+			if (!empty($processing_report)) {
+				$output->data .= "
+					<script>
+						dojo.addOnLoad(loading_update);
+
+						function loading_update() {
+							var target = window.document.getElementById('$processing_ind_id');
+							if (!target) return;
+
+							if (target.className == 'loading_3') {
+								var d = dojo.xhrPost({
+									url: '".$this->webroot().$this->module."/processing_history_ajax/$processing_id',
+									handleAs: 'text',
+									sync: false,
+									content: {},
+									// The LOAD function will be called on a successful response.
+									load: function(response, ioArgs) {
+										if (response) {
+											console.log(response);
+											if (dojo.byId('$processing_tr_id')) {
+												dojo.byId('$processing_tr_id').innerHTML = response;
+											}
+										} else {
+											console.log('no response');
+										}
+										return response;
+									},
+									// The ERROR function will be called in an error case.
+									error: function(response, ioArgs) {
+										console.error('HTTP status code: ', ioArgs.xhr.status);
+										return response;
+									}
+								});
+							}
+
+							if (!target) return;
+
+							if (target.className == 'loading_0') {
+								target.innerHTML = '.<span style=\"opacity: 0.25;\">..</span>';
+								target.className = 'loading_1';
+
+								setTimeout('loading_update();', 500);
+								return;
+							}
+
+							if (target.className == 'loading_1') {
+								target.innerHTML = '<span style=\"opacity: 0.25;\">.</span>.<span style=\"opacity: 0.25;\">.</span>';
+								target.className = 'loading_2';
+
+								setTimeout('loading_update();', 500);
+								return;
+							}
+
+							if (target.className == 'loading_2') {
+								target.innerHTML = '<span style=\"opacity: 0.25;\">..</span>.';
+								target.className = 'loading_3';
+
+								setTimeout('loading_update();', 500);
+								return;
+							}
+
+							if (target.className == 'loading_3') {
+								target.innerHTML = '<span style=\"opacity: 0.25;\">...</span>';
+								target.className = 'loading_0';
+
+								setTimeout('loading_update();', 500);
+								return;
+							}
+						}
+					</script>
+					";
+			}
+		}
+
+		return $output;
+	}
+
+	function view_history($content, $downloads) {
+		if (!empty($downloads)) {
+			$output->data .= "
+				<ul>
+				";
+			foreach ($downloads as $download_text => $download_link) {
+				$output->data .= "
+					<li>".$this->l($download_link['url'], $download_text, null, false)."</li>
+					";
+			}
+			$output->data .= "
+				</ul>
+				";
+		}
+		$output->data .= $content;
+		return $output;
+	}
+
+	function view_processing_history_ajax($report_query, $template_query) {
+		$output->layout = "ajax";
+		$dissemination = null;
+
+		if (!empty($report_query)) {
+			$output->data = "
+				<td>".$report_query['created']."</td>
+				<td>Table, Graph and CSV</td>
+				<td>$dissemination</td>
+				<td>
+					<ul>
+						<li>".$this->l($this->module."/history/".$report_query['template_id']."/".$report_query['saved_report_id'], "View/Download")."</li>
+					</ul>
+				</td>
+				";
+		} else if (!empty($template_query)) {
+			$processing_id = $template_query['template_id'];
+			$processing_tr_id = "processing_$processing_id";
+			$processing_ind_id = $processing_tr_id."_indicator";
+
+			if ($template_query['execution_queued'] == "t") {
+				$message_tmp = "Report Queued for Execution";
+			} else if ($template_query['execution_executing'] == "t") {
+				$message_tmp = "Executing Report";
+			}
+
+			$output->data = "
+					<td colspan='4'>$message_tmp<span id='$processing_ind_id' class='loading_0'><span style='opacity: 0.25;'>...</span></span></td>
+					";
+		}
+
 		return $output;
 	}
 	

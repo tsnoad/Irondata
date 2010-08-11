@@ -130,6 +130,35 @@ class Graphing extends Template {
 	}
 
 	/**
+	 * Does this module extend the publish functionality
+	 */
+	function hook_publish($data=array()) {
+		if (!isset($this->id)) {
+			$this->id = $data["template_id"];
+		}
+		
+		// We do not care if this is a demo or not
+		if ($this->module == "tabular") {
+				$default = $this->dobj->db_fetch("SELECT publish_graphing FROM templates WHERE template_id='".$this->id."'");
+				$default = $default['publish_graphing'] == 't' ? true: false;
+				return array("name"=>$this->name, "default"=>$default);
+		} else {
+			return null;
+		}
+	}
+	
+	function hook_save_publish() {
+		$save = array();
+		if (isset($_REQUEST['data']['publish_graphing'])) {
+			$save['publish_graphing'] = "t";
+		} else {
+			$save['publish_graphing'] = "f";
+		}
+		unset($_REQUEST['data']['publish_graphing']);
+		$this->dobj->db_query($this->dobj->update($save, "template_id", $this->id, "templates"));
+	}
+	
+	/**
 	 * Get Or Generate
 	 *
 	 * Called by Template to generate graphs of various kinds
@@ -137,39 +166,39 @@ class Graphing extends Template {
 	 * @param $data Graph type and data in JSON format
 	 * @return Completed html for insertion into page
 	 */
-	function get_or_generate($data=array()) {
-		$saved_report_id = $data[0];
-		$graph_type = $data[1];
-		$svg = $data[2];
-		$pdf = $data[3];
-
+	function hook_get_or_generate($data=array()) {
+		$saved_report_id = $data["saved_report_id"];
+		$demo = $data["demo"];
+		$template = $data['template'];
+		$graph_type = $template['graph_type'];
+		$export = !$demo;
 		if (empty($saved_report_id)) return;
-
 		if (!is_dir($this->sw_path.$this->tmp_path)) {
 			mkdir($this->sw_path.$this->tmp_path);
 		}
-
+		
 		//check if the graph document exists
 		$saved_report = $this->dobj->db_fetch($this->dobj->db_query("SELECT * FROM saved_reports r LEFT OUTER JOIN graph_documents g ON (g.saved_report_id=r.saved_report_id) WHERE r.saved_report_id='$saved_report_id' LIMIT 1;"));
-
+		
 		//if the graph document does not exist, create it, and return data about where it can be found
 		if (empty($saved_report['saved_report_id']) || !is_file($saved_report['svg_path']) || !is_file($saved_report['pdf_path'])) {
 			if (empty($graph_type)) {
 				$graph_type = "Lines";
 			}
-
-			return $this->hook_graph($saved_report['template_id'], $saved_report_id, $graph_type, $saved_report['report'], $svg, $pdf);
-		}
-
-		if ($svg) {
+			$output = $this->hook_graph($saved_report['template_id'], $saved_report_id, $graph_type, $saved_report['report'], $export);
+			$graph = $output['object'];
+			$url = $output['pdf_url'];
+		} else {
 			$area = $this->define_area();
-			return array("object"=>Graphing_View::line_graph($saved_report['svg_url'], $area['graph_w'], $area['graph_h']+90), "pdf_url"=>$saved_report['pdf_url']);
+			$graph = Graphing_View::line_graph($saved_report['svg_url'], $area['graph_w'], $area['graph_h']+90);
+			$url = $saved_report['pdf_url'];
 		}
-
-		if ($pdf) {
-			return $saved_report;
+		
+		if ($demo) {
+			return $graph;
+		} else {
+			return array("object"=>$graph, "url"=>$url);
 		}
-
 	}
 
 	/**
@@ -180,18 +209,18 @@ class Graphing extends Template {
 	 * @param $data Graph type and data in JSON format
 	 * @return Completed html for insertion into page
 	 */
-	function hook_graph($template_id, $saved_report_id, $graph_type, $graph_data, $svg, $pdf) {
+	function hook_graph($template_id, $saved_report_id, $graph_type="Lines", $graph_data, $pdf) {
 		switch ($graph_type) {
 			case "Lines":
-				return $this->line_graph($template_id, $saved_report_id, $graph_data, false, $svg, $pdf);
+				return $this->line_graph($template_id, $saved_report_id, $graph_data, false, $pdf);
 			case "Areas":
 				return;
 			case "StackedAreas":
-				return $this->area_graph($template_id, $saved_report_id, $graph_data, true, $svg, $pdf);
+				return $this->area_graph($template_id, $saved_report_id, $graph_data, true, $pdf);
 			case "Columns":
 				return;
 			case "StackedColumns":
-				return $this->bar_graph($template_id, $saved_report_id, $graph_data, true, $svg, $pdf);
+				return $this->bar_graph($template_id, $saved_report_id, $graph_data, true, $pdf);
 			case "ClusteredColumns":
 				return;
 		}
@@ -205,7 +234,7 @@ class Graphing extends Template {
 	 * @param $graph_data Graph data in JSON format
 	 * @return Completed html for insertion into page
 	 */
-	function line_graph($template_id, $saved_report_id, $graph_data, $stacked=false, $svg=true, $pdf=false) {
+	function line_graph($template_id, $saved_report_id, $graph_data, $stacked=false, $pdf=false) {
 		$template = $this->call_function("tabular", "get_columns", $template_id);
 		$template = $template['tabular'];
 
@@ -246,15 +275,12 @@ class Graphing extends Template {
 
 		if ($pdf) {
 			$this->export_pdf($paths, $svg_data, $area['graph_w'], $area['graph_h']);
-			return $paths;
 		}
 
-		if ($svg) {
-			return array(
-				"object" => Graphing_View::line_graph($paths['svg_url'], $area['graph_w'], $area['graph_h']),
-				"pdf_url" => $paths['pdf_url']
-			);
-		}
+		return array(
+			"object" => Graphing_View::line_graph($paths['svg_url'], $area['graph_w'], $area['graph_h']),
+			"pdf_url" => $paths['pdf_url']
+		);
 	}
 
 	/**
@@ -306,15 +332,12 @@ class Graphing extends Template {
 
 		if ($pdf) {
 			$this->export_pdf($paths, $svg_data, $area['graph_w'], $area['graph_h']);
-			return $paths;
 		}
-
-		if ($svg) {
-			return array(
-				"object" => Graphing_View::line_graph($paths['svg_url'], $area['graph_w'], $area['graph_h']),
-				"pdf_url" => $paths['pdf_url']
-			);
-		}
+		
+		return array(
+			"object" => Graphing_View::line_graph($paths['svg_url'], $area['graph_w'], $area['graph_h']),
+			"pdf_url" => $paths['pdf_url']
+		);
 	}
 
 	/**
@@ -326,7 +349,7 @@ class Graphing extends Template {
 	 * @param $stacked Generate a plot with datapoints stacked atop each other
 	 * @return Completed html for insertion into page
 	 */
-	function bar_graph($template_id, $saved_report_id, $graph_data, $stacked=false, $svg=true, $pdf=false) {
+	function bar_graph($template_id, $saved_report_id, $graph_data, $stacked=false, $pdf=false) {
 		$template = $this->call_function("tabular", "get_columns", $template_id);
 		$template = $template['tabular'];
 
@@ -366,15 +389,11 @@ class Graphing extends Template {
 
 		if ($pdf) {
 			$this->export_pdf($paths, $svg_data, $area['graph_w'], $area['graph_h']);
-			return $paths;
 		}
-
-		if ($svg) {
-			return array(
-				"object" => Graphing_View::line_graph($paths['svg_url'], $area['graph_w'], $area['graph_h']),
-				"pdf_url" => $paths['pdf_url']
-			);
-		}
+		return array(
+			"object" => Graphing_View::line_graph($paths['svg_url'], $area['graph_w'], $area['graph_h']),
+			"pdf_url" => $paths['pdf_url']
+		);
 	}
 
 	/**
@@ -1298,8 +1317,12 @@ class Graphing_View extends Template_View {
 	function line_graph($filename_url, $graph_area_w="", $graph_area_h="") {
 		if (!empty($graph_area_w)) $graph_area_w = ceil($graph_area_w);
 		if (!empty($graph_area_h)) $graph_area_h = ceil($graph_area_h);
-
-		return "<object data='$filename_url' type='image/svg+xml' width='$graph_area_w' height='$graph_area_h' style='display: block; margin: 0px auto;'></object>";
+		
+		$data_output = "<div style='height: 690px;'>";
+		$data_output .= "<object data='$filename_url' type='image/svg+xml' width='$graph_area_w' height='$graph_area_h' style='display: block; margin: 0px auto;'></object>";
+		$data_output .= "</div>";
+		
+		return $data_output;
 	}
 
 	/**

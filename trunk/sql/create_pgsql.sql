@@ -125,8 +125,8 @@ CREATE TABLE templates (
 	owner TEXT,
 	header TEXT,
 	footer TEXT,
-	publish_table BOOLEAN DEFAULT true,
-	publish_graph BOOLEAN DEFAULT true,
+	publish_pdf BOOLEAN DEFAULT false,
+	publish_graphing BOOLEAN DEFAULT false,
 	graph_type TEXT,
 	object_id BIGINT REFERENCES objects ON DELETE CASCADE ON UPDATE CASCADE,
 	execute BOOLEAN DEFAULT false,
@@ -147,7 +147,8 @@ CREATE TABLE templates (
 	email_dissemination BOOLEAN DEFAULT false,
 	email_recipients TEXT,
 	email_subject TEXT,
-	email_body TEXT
+	email_body TEXT,
+	publish_csv BOOLEAN DEFAULT false
 );
 
 CREATE TABLE saved_reports (
